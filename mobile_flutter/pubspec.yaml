@@ -1,0 +1,96 @@
+name: mobile_flutter
+description: Mobile scaffold for customer KYC onboarding.
+publish_to: "none"
+version: 0.1.7+11
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  crypto: ^3.0.3
+  dio: ^5.7.0
+  file_picker: ^8.3.7
+  firebase_core: ^4.14.0
+  firebase_messaging: ^16.6.0
+  fl_chart: ^1.2.0
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_idensic_mobile_sdk_plugin: ^1.42.0
+  flutter_riverpod: ^2.6.1
+  flutter_secure_storage: ^9.2.2
+  geolocator: 14.0.2
+  go_router: ^14.2.7
+  image_picker: ^1.2.3
+  intl: ^0.20.2
+  local_auth: ^2.3.0
+  local_auth_android: ^1.0.46
+  local_auth_darwin: ^1.4.2
+  mobile_scanner: ^7.4.0
+  pdf: ^3.13.0
+  phone_form_field: ^10.0.18
+  pointer_interceptor: ^0.10.1+2
+  qr_flutter: ^4.1.0
+  share_plus: ^12.0.2
+  shared_preferences: ^2.3.5
+  speech_to_text: ^7.5.0
+  url_launcher: ^6.3.2
+  web: ^1.0.0
+  webview_flutter: ^4.13.1
+
+dev_dependencies:
+  url_launcher_platform_interface: ^2.3.2
+  webview_flutter_platform_interface: ^2.15.1
+  flutter_lints: ^4.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  config:
+    enable-swift-package-manager: false
+  uses-material-design: true
+  assets:
+    - assets/assistant/airports.json
+    - assets/crypto/
+    - assets/l10n/
+    - assets/branding/
+    - assets/fonts/pdf/
+    - config/assets/hoppa-inter-OFL.txt
+  # Example typefaces (SIL OFL 1.1, assets/fonts/OFL-Geist.txt). Static
+  # instances, Latin subset, tabular figures kept. Only the Example theme
+  # references these families; CanvasKit still downloads every listed font
+  # before first frame (about 243 KB total), so keep the weight list lean.
+  fonts:
+    - family: Geist
+      fonts:
+        - asset: assets/fonts/Geist-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Geist-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Geist-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Geist-Bold.ttf
+          weight: 700
+    - family: GeistMono
+      fonts:
+        - asset: assets/fonts/GeistMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/GeistMono-Medium.ttf
+          weight: 500
+  # BEGIN GENERATED BRAND FONTS
+    - family: "Inter"
+      fonts:
+        - asset: assets/branding/font_0_0.ttf
+          weight: 400
+          style: normal
+        - asset: assets/branding/font_0_1.ttf
+          weight: 500
+          style: normal
+        - asset: assets/branding/font_0_2.ttf
+          weight: 600
+          style: normal
+        - asset: assets/branding/font_0_3.ttf
+          weight: 700
+          style: normal
+  # END GENERATED BRAND FONTS

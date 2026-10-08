@@ -1,0 +1,140 @@
+.mor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  min-width: 0;
+}
+.mor-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+@media (min-width: 640px) {
+  .mor-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.mor-error,
+.mor-success {
+  padding: 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.mor-error {
+  background: #fff1f2;
+  color: #9f1239;
+  border: 1px solid #fecdd3;
+}
+.mor-success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+.mor-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+.mor-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.8rem;
+  text-align: left;
+}
+.mor-table th {
+  padding: 0.9rem 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+  background: #f8fafc;
+  white-space: nowrap;
+}
+.mor-table td {
+  padding: 1rem 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+  color: #334155;
+}
+.mor-table small {
+  display: block;
+  font-size: 0.7rem;
+  color: #64748b;
+  margin-top: 0.25rem;
+}
+.mor-badge {
+  display: inline-flex;
+  border-radius: 1rem;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+}
+.mor-details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.8rem;
+}
+.mor-details dt {
+  color: #64748b;
+}
+.mor-details dd {
+  font-weight: 600;
+  text-align: right;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.mor-tabs {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+}
+.mor-tabs a {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.8rem 1rem;
+  white-space: nowrap;
+  border-radius: 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+}
+.mor-tabs a:hover {
+  background: #f1f5f9;
+}
+.mor-tabs .mor-tab-active {
+  color: var(--app-primary);
+  background: var(--app-primary-soft);
+}
+.mor-text-button {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--app-primary);
+}
+.mor-text-button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.mor-chart-bar {
+  flex: 1;
+  background: var(--app-primary);
+  border-radius: 3px 3px 0 0;
+  min-width: 2px;
+  opacity: 0.8;
+}
+.mor-page button:focus-visible,
+.mor-page a:focus-visible {
+  outline: 2px solid var(--app-primary);
+  outline-offset: 3px;
+}

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="@@DESCRIPTION@@">
+  <meta name="theme-color" content="@@THEME_COLOR@@">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="@@APP_NAME@@">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="preload" href="main.dart.js" as="script">
+  <title>@@APP_NAME@@</title>
+  <script id="brand-boot-theme">
+    window.APP_BRAND = @@BOOT_CONFIG@@;
+    (function () {
+      var mode = window.APP_BRAND.theme;
+      try {
+        var saved = JSON.parse(localStorage.getItem('flutter.app.themeMode.v1'));
+        if (saved === 'light' || saved === 'dark' || saved === 'system') mode = saved;
+      } catch (_) {}
+      var light = mode === 'light' || (mode === 'system' && matchMedia('(prefers-color-scheme: light)').matches);
+      document.documentElement.dataset.brandTheme = light ? 'light' : 'dark';
+      document.querySelector('meta[name="theme-color"]').content = window.APP_BRAND[light ? 'backgroundLight' : 'backgroundDark'];
+    })();
+  </script>
+  <style>
+    @@ROOT_CSS@@
+    html, body { margin: 0; min-height: 100%; background: var(--brand-background); color: var(--brand-ink); font-family: var(--brand-font); }
+    #example-loading { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; background: var(--brand-background); }
+    .brand-logo { width: 112px; height: 112px; object-fit: contain; }
+    .brand-logo-dark { display: none; }
+    html[data-brand-theme="dark"] .brand-logo-light { display: none; }
+    html[data-brand-theme="dark"] .brand-logo-dark { display: block; }
+    .brand-name { font-size: 24px; font-weight: 600; }
+    .loader-circular { width: 24px; height: 24px; border: 3px solid var(--brand-loader); border-top-color: transparent; border-radius: 50%; animation: brand-spin @@DURATION@@ms linear infinite; }
+    .loader-circular img { display: none; }
+    .loader-logo { animation: brand-pulse @@DURATION@@ms ease-in-out infinite; }
+    .loader-logo img { width: 28px; height: 28px; object-fit: contain; }
+    .loader-logo .brand-loader-dark { display: none; }
+    html[data-brand-theme="dark"] .loader-logo .brand-loader-light { display: none; }
+    html[data-brand-theme="dark"] .loader-logo .brand-loader-dark { display: block; }
+    .no-motion { animation: none; }
+    @keyframes brand-spin { to { transform: rotate(360deg); } }
+    @keyframes brand-pulse { 50% { opacity: .35; transform: scale(.85); } }
+    @media (prefers-reduced-motion: reduce) { .loader-logo, .loader-circular { animation: none; } }
+  </style>
+</head>
+<body>
+  <div id="example-loading" role="status" aria-label="Loading @@APP_NAME@@" style="@@SPLASH_STYLE@@">
+    <img class="brand-logo brand-logo-light" src="@@LOGO_SRC@@" alt="">
+    <img class="brand-logo brand-logo-dark" src="@@LOGO_DARK_SRC@@" alt="">
+    <div class="brand-name">@@APP_NAME@@</div>
+    <div class="@@LOADER_CLASS@@" aria-hidden="true"><img class="brand-loader-light" src="branding/loader.png" alt=""><img class="brand-loader-dark" src="branding/loaderDark.png" alt=""></div>
+  </div>
+  <script src="app_bridges.js"></script>
+  <script src="app_recovery.js"></script>
+  <script src="flutter_bootstrap.js" async onerror="window.exampleRecovery.show()"></script>
+</body>
+</html>

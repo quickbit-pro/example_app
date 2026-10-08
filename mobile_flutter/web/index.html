@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Your Hoppa accounts, cards, and payments in one place.">
+  <meta name="theme-color" content="#1C1026">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Hoppa">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="preload" href="main.dart.js" as="script">
+  <title>Hoppa</title>
+  <script id="brand-boot-theme">
+    window.APP_BRAND = {"name": "Hoppa", "id": "hoppa", "theme": "system", "backgroundLight": "#F8F8F7", "backgroundDark": "#1C1026"};
+    (function () {
+      var mode = window.APP_BRAND.theme;
+      try {
+        var saved = JSON.parse(localStorage.getItem('flutter.app.themeMode.v1'));
+        if (saved === 'light' || saved === 'dark' || saved === 'system') mode = saved;
+      } catch (_) {}
+      var light = mode === 'light' || (mode === 'system' && matchMedia('(prefers-color-scheme: light)').matches);
+      document.documentElement.dataset.brandTheme = light ? 'light' : 'dark';
+      document.querySelector('meta[name="theme-color"]').content = window.APP_BRAND[light ? 'backgroundLight' : 'backgroundDark'];
+    })();
+  </script>
+  <style>
+    html[data-brand-theme="light"] { color-scheme: light; --brand-background: #F8F8F7; --brand-ink: #141414; --brand-fill: #621A96; --brand-on-fill: #FFFFFF; --brand-loader: #621A96; --brand-font: "Inter", system-ui, sans-serif; }
+    html[data-brand-theme="dark"] { color-scheme: dark; --brand-background: #1C1026; --brand-ink: #FAF8FD; --brand-fill: #C6F24E; --brand-on-fill: #3B1A55; --brand-loader: #C6F24E; --brand-font: "Inter", system-ui, sans-serif; }
+    @font-face { font-family: "Geist"; src: url("assets/assets/fonts/Geist-Regular.ttf"); font-weight: 400; font-display: swap; }
+    @font-face { font-family: "Geist"; src: url("assets/assets/fonts/Geist-Medium.ttf"); font-weight: 500; font-display: swap; }
+    @font-face { font-family: "Geist"; src: url("assets/assets/fonts/Geist-SemiBold.ttf"); font-weight: 600; font-display: swap; }
+    @font-face { font-family: "Geist"; src: url("assets/assets/fonts/Geist-Bold.ttf"); font-weight: 700; font-display: swap; }
+    @font-face { font-family: "GeistMono"; src: url("assets/assets/fonts/GeistMono-Regular.ttf"); font-weight: 400; font-display: swap; }
+    @font-face { font-family: "GeistMono"; src: url("assets/assets/fonts/GeistMono-Medium.ttf"); font-weight: 500; font-display: swap; }
+    @font-face { font-family: "Inter"; src: url("assets/assets/branding/font_0_0.ttf"); font-weight: 400; font-display: swap;font-style: normal; }
+    @font-face { font-family: "Inter"; src: url("assets/assets/branding/font_0_1.ttf"); font-weight: 500; font-display: swap;font-style: normal; }
+    @font-face { font-family: "Inter"; src: url("assets/assets/branding/font_0_2.ttf"); font-weight: 600; font-display: swap;font-style: normal; }
+    @font-face { font-family: "Inter"; src: url("assets/assets/branding/font_0_3.ttf"); font-weight: 700; font-display: swap;font-style: normal; }
+    html, body { margin: 0; min-height: 100%; background: var(--brand-background); color: var(--brand-ink); font-family: var(--brand-font); }
+    #example-loading { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; background: var(--brand-background); }
+    .brand-logo { width: 112px; height: 112px; object-fit: contain; }
+    .brand-logo-dark { display: none; }
+    html[data-brand-theme="dark"] .brand-logo-light { display: none; }
+    html[data-brand-theme="dark"] .brand-logo-dark { display: block; }
+    .brand-name { font-size: 24px; font-weight: 600; }
+    .loader-circular { width: 24px; height: 24px; border: 3px solid var(--brand-loader); border-top-color: transparent; border-radius: 50%; animation: brand-spin 1600ms linear infinite; }
+    .loader-circular img { display: none; }
+    .loader-logo { animation: brand-pulse 1600ms ease-in-out infinite; }
+    .loader-logo img { width: 28px; height: 28px; object-fit: contain; }
+    .loader-logo .brand-loader-dark { display: none; }
+    html[data-brand-theme="dark"] .loader-logo .brand-loader-light { display: none; }
+    html[data-brand-theme="dark"] .loader-logo .brand-loader-dark { display: block; }
+    .no-motion { animation: none; }
+    @keyframes brand-spin { to { transform: rotate(360deg); } }
+    @keyframes brand-pulse { 50% { opacity: .35; transform: scale(.85); } }
+    @media (prefers-reduced-motion: reduce) { .loader-logo, .loader-circular { animation: none; } }
+  </style>
+</head>
+<body>
+  <div id="example-loading" role="status" aria-label="Loading Hoppa" style="">
+    <img class="brand-logo brand-logo-light" src="branding/splash.png" alt="">
+    <img class="brand-logo brand-logo-dark" src="branding/splash.png" alt="">
+    <div class="brand-name">Hoppa</div>
+    <div class="loader-logo" aria-hidden="true"><img class="brand-loader-light" src="branding/loader.png" alt=""><img class="brand-loader-dark" src="branding/loaderDark.png" alt=""></div>
+  </div>
+  <script src="app_bridges.js"></script>
+  <script src="app_recovery.js"></script>
+  <script src="flutter_bootstrap.js" async onerror="window.exampleRecovery.show()"></script>
+</body>
+</html>

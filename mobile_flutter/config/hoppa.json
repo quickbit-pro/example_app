@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 1,
+  "app": {
+    "name": "Hoppa",
+    "id": "hoppa",
+    "description": "Your Hoppa accounts, cards, and payments in one place.",
+    "supportEmail": "support@hoppa.global",
+    "supportPhone": "",
+    "legalEntity": "",
+    "themeMode": "system",
+    "transferDashboardUrl": ""
+  },
+  "design": {
+    "layout": "example",
+    "light": {
+      "paper": "#F8F8F7",
+      "surface": "#FFFFFF",
+      "surfaceSubtle": "#F2EDF5",
+      "surfaceHigh": "#FFFFFF",
+      "navigation": "#F8F8F7",
+      "navigationGlass": "#EAF8F8F7",
+      "rail": "#EBE4F0",
+      "glassTop": "#EFFFFFFF",
+      "glassBottom": "#E6F2EDF5",
+      "ink": "#141414",
+      "textSecondary": "#5B5161",
+      "textTertiary": "#6E6474",
+      "border": "#C8BECF",
+      "borderSubtle": "#E5E4E2",
+      "borderEmphasis": "#9B85AA",
+      "controlEdge": "#8C769A",
+      "fill": "#621A96",
+      "accent": "#4E1578",
+      "success": "#356F14",
+      "danger": "#B52340",
+      "warning": "#805810",
+      "teal": "#0D7477",
+      "shadowAmbient": "#1446164A",
+      "shadowLift": "#2346164A",
+      "skeletonBase": "#E9E2EF",
+      "skeletonHighlight": "#FCFAFE",
+      "sheenPeak": "#CCFFFFFF",
+      "onFill": "#FFFFFF",
+      "cardStart": "#3B1A55",
+      "cardMiddle": "#4E1578",
+      "cardEnd": "#621A96",
+      "cardForeground": "#FFFFFF",
+      "cardDecoration": "#C6F24E",
+      "cardOverlay": "#18FFFFFF",
+      "onAccent": "#FFFFFF",
+      "snackbar": "#46164A",
+      "atmospherePrimary": "#18621A96",
+      "atmosphereMid": "#1046164A",
+      "atmosphereSecondary": "#18C6F24E",
+      "loader": "#621A96",
+      "heroStart": "#EBE0F4",
+      "heroEnd": "#F1F8DE",
+      "mutedStart": "#F2EDF5",
+      "mutedEnd": "#F8F8F7"
+    },
+    "dark": {
+      "paper": "#1C1026",
+      "surface": "#281733",
+      "surfaceSubtle": "#301C3D",
+      "surfaceHigh": "#372047",
+      "navigation": "#21132C",
+      "navigationGlass": "#EA21132C",
+      "rail": "#392347",
+      "glassTop": "#F03A244A",
+      "glassBottom": "#F0281733",
+      "ink": "#FAF8FD",
+      "textSecondary": "#D3C6DF",
+      "textTertiary": "#B4A4C1",
+      "border": "#685078",
+      "borderSubtle": "#4B355A",
+      "borderEmphasis": "#907AA1",
+      "controlEdge": "#9983AA",
+      "fill": "#C6F24E",
+      "accent": "#C6F24E",
+      "success": "#A4DB78",
+      "danger": "#FF98AB",
+      "warning": "#F4D28A",
+      "teal": "#86DADC",
+      "shadowAmbient": "#400A0610",
+      "shadowLift": "#800A0610",
+      "skeletonBase": "#422B51",
+      "skeletonHighlight": "#5F466F",
+      "sheenPeak": "#80F2E4FF",
+      "onFill": "#3B1A55",
+      "cardStart": "#3B1A55",
+      "cardMiddle": "#4E1578",
+      "cardEnd": "#621A96",
+      "cardForeground": "#FFFFFF",
+      "cardDecoration": "#C6F24E",
+      "cardOverlay": "#18FFFFFF",
+      "onAccent": "#3B1A55",
+      "snackbar": "#372047",
+      "atmospherePrimary": "#40621A96",
+      "atmosphereMid": "#2846164A",
+      "atmosphereSecondary": "#18C6F24E",
+      "loader": "#C6F24E",
+      "heroStart": "#362144",
+      "heroEnd": "#354127",
+      "mutedStart": "#281733",
+      "mutedEnd": "#30213A"
+    },
+    "typography": {
+      "fontFamily": "Inter",
+      "monoFontFamily": "GeistMono",
+      "scale": 1
+    },
+    "shape": {
+      "radiusScale": 1
+    },
+    "assets": {
+      "logo": "assets/hoppa-icon.png",
+      "logoDark": "assets/hoppa-icon.png",
+      "splash": "assets/hoppa-icon.png",
+      "loader": "assets/hoppa-icon.png"
+    },
+    "loader": {
+      "style": "logo",
+      "durationMs": 1600
+    },
+    "splash": {
+      "enabled": true,
+      "backgroundLight": "#F8F8F7",
+      "backgroundDark": "#1C1026",
+      "minimumDurationMs": 700,
+      "maximumDurationMs": 12000
+    },
+    "motion": {
+      "enabled": true,
+      "durationScale": 1
+    }
+  },
+  "native": {
+    "androidApplicationId": "global.hoppa.sampleapp",
+    "iosBundleId": "global.hoppa.sampleapp",
+    "icon": "assets/hoppa-icon.png",
+    "iconBackground": "#CCFF00",
+    "firebase": {}
+  },
+  "fonts": [
+    {
+      "family": "Inter",
+      "files": [
+        {
+          "path": "assets/hoppa-inter-400.ttf",
+          "weight": 400,
+          "style": "normal"
+        },
+        {
+          "path": "assets/hoppa-inter-500.ttf",
+          "weight": 500,
+          "style": "normal"
+        },
+        {
+          "path": "assets/hoppa-inter-600.ttf",
+          "weight": 600,
+          "style": "normal"
+        },
+        {
+          "path": "assets/hoppa-inter-700.ttf",
+          "weight": 700,
+          "style": "normal"
+        }
+      ]
+    }
+  ],
+  "flutterDefines": {
+    "APP_FLAVOR": "prod",
+    "API_BASE_URL": "https://hoppa-api.roks.dev"
+  }
+}
