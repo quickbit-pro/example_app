@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -32,11 +33,39 @@ final portfolioEstimateProvider = FutureProvider<PortfolioEstimate>((ref) {
   return ref.watch(mobilePlatformApiProvider).getPortfolioEstimate();
 });
 
-final exchangeOverviewProvider = FutureProvider<BoomFiExchangeOverview>((ref) {
+final exchangeVerificationProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final timer = Timer(const Duration(seconds: 15), ref.invalidateSelf);
+  ref.onDispose(timer.cancel);
+  return ref.watch(mobilePlatformApiProvider).getExchangeVerification();
+});
+
+final exchangeOverviewProvider =
+    FutureProvider.autoDispose<BoomFiExchangeOverview>((ref) async {
+  final status = await ref.watch(exchangeVerificationProvider.future);
+  final provider = status['provider'];
+  final ready = status['usesSharedStagingOrganization'] == true ||
+      (status['hasProviderAccount'] == true &&
+          provider is Map &&
+          provider['kycStatus'] == 'accepted');
+  if (!ready) {
+    return const BoomFiExchangeOverview(
+        accountId: 0,
+        accountName: '',
+        accountEnabled: false,
+        accountState: 'verification_required',
+        balances: [],
+        settlementAccounts: [],
+        subAccounts: [],
+        fiatFundingCurrencies: []);
+  }
   return ref.watch(mobilePlatformApiProvider).getExchangeOverview();
 });
 
-final exchangeTransfersProvider = FutureProvider<List<BoomFiTransfer>>((ref) {
+final exchangeTransfersProvider =
+    FutureProvider.autoDispose<List<BoomFiTransfer>>((ref) {
+  final timer = Timer(const Duration(seconds: 15), ref.invalidateSelf);
+  ref.onDispose(timer.cancel);
   return ref.watch(mobilePlatformApiProvider).getExchangeTransfers();
 });
 

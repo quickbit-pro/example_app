@@ -73,7 +73,7 @@ public sealed class RecoveryResendTests
     }
 
     [Fact]
-    public async Task KnownAndUnknownEmailsHaveSameResponse_AndCooldownIsNotClaimedAsDelivery()
+    public async Task KnownEmailCooldownIsNotClaimedAsDelivery()
     {
         await using var db = Database();
         var user = await User(db);
@@ -82,13 +82,34 @@ public sealed class RecoveryResendTests
             Assert.IsType<VerificationCodeIssuedResponseDto>(Assert.IsType<AcceptedResult>(result.Result).Value);
         var known = Receipt(await controller.ForgotPassword(new() { Email = user.Email }, default));
         var suppressed = Receipt(await controller.ForgotPassword(new() { Email = user.Email }, default));
-        var unknown = Receipt(await controller.ForgotPassword(new() { Email = "unknown@example.test" }, default));
-        Assert.Equal(JsonSerializer.Serialize(known), JsonSerializer.Serialize(unknown));
         Assert.Equal(JsonSerializer.Serialize(known), JsonSerializer.Serialize(suppressed));
         Assert.Equal(60, known.RetryAfterSeconds);
         Assert.Equal("test-request", known.RequestId);
         Assert.DoesNotContain("has been sent", known.Message);
         Assert.Equal(1, await db.EmailMessages.CountAsync());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MissingAppLoginShowsNoticeWithoutIssuingCode(bool importedAccount)
+    {
+        await using var db = Database();
+        const string email = "unconnected@example.test";
+        if (importedAccount)
+        {
+            db.Users.Add(new ApplicationUser { CompanyInstallationId = Guid.NewGuid(),
+                Email = email, EmailNormalized = email.ToUpperInvariant() });
+            await db.SaveChangesAsync();
+        }
+        var response = await Controller(db).ForgotPassword(new() { Email = email }, default);
+        var result = Assert.IsType<ObjectResult>(response.Result);
+        Assert.Equal(StatusCodes.Status400BadRequest, result.StatusCode);
+        var problem = Assert.IsType<ProblemDetails>(result.Value);
+        Assert.Equal("auth.password_reset.account_not_found", problem.Extensions["code"]);
+        Assert.Equal("No app login was found for this email. Check the address or use Connect existing account on the sign-in screen.", problem.Title);
+        Assert.Empty(await db.UserVerificationCodes.ToListAsync());
+        Assert.Empty(await db.EmailMessages.ToListAsync());
     }
 
     [Fact]

@@ -39,6 +39,7 @@ public sealed class HoppaFlowLoggingMiddleware(
         "otp",
         "otpCode",
         "widgetUrl",
+        "widgetToken",
         "uboIdNumber",
         "uboDob",
         "refreshToken",

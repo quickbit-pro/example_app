@@ -50,6 +50,23 @@ final hoppaWalletAddressesProvider =
           ));
 });
 
+// Exchange delivery needs exact network/address pairs. Balance rows have no
+// address, and the display address list can merge one address across networks.
+final exchangeCardDepositAddressesProvider =
+    FutureProvider<List<HoppaWalletAsset>>((ref) async {
+  final resources = await ref.watch(depositAddressesProvider.future);
+  final addresses = <String, HoppaWalletAsset>{};
+  for (final resource in resources.where(hasCompleteDepositAddress)) {
+    final asset = _walletAssetFromResource(resource);
+    if (asset == null || asset.address.isEmpty) continue;
+    addresses.putIfAbsent(
+      '${asset.symbol}:${asset.network.toUpperCase()}:${asset.address}',
+      () => asset,
+    );
+  }
+  return addresses.values.toList();
+});
+
 List<HoppaWalletAsset> _walletAssetsFromResources(
   List<PlatformResource> resources,
 ) {

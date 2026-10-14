@@ -292,8 +292,8 @@ class AuthApi {
   Future<void> revokeOtherSessions() =>
       _dio.post<void>('/api/v1/mobile/auth/sessions/revoke-others');
 
-  /// Requests a code without exposing account existence. Returns the resend
-  /// cooldown; acceptance is not confirmation of inbox delivery.
+  /// Requests a code for an existing app login. Missing logins return a notice.
+  /// Returns the resend cooldown; acceptance does not confirm inbox delivery.
   Future<int> requestPasswordReset(String email) async {
     final response = await _dio.post<Map<String, dynamic>>(
       '/api/v1/mobile/auth/password/forgot',

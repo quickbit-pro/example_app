@@ -17,6 +17,30 @@ LedgerTransaction row(String id, String type,
     });
 
 void main() {
+  test('BoomFi legs group by explicit IDs while separate deposits remain separate', () {
+    final deposit = row('501', 'crypto_deposit', {
+      'transactionGroupId': 'boomfi:payment:pay_parent',
+      'amount': 12.582916, 'currency': 'USDC',
+      'metadata': {'provider': 'BoomFi', 'externalTransactionId': 'pay_parent'},
+    });
+    final payout = row('502', 'withdrawal', {
+      'transactionGroupId': 'boomfi:payment:pay_parent',
+      'parentTransactionId': 501, 'isPrimary': false,
+      'amount': -12.582916, 'currency': 'USDC', 'status': 'requires_action',
+      'metadata': {'provider': 'BoomFi', 'externalTransactionId': 'pay_child'},
+    });
+    final separate = row('503', 'crypto_deposit', {
+      'transactionGroupId': 'boomfi:payment:pay_separate',
+      'amount': 12.582916, 'currency': 'USDC',
+      'metadata': {'provider': 'BoomFi', 'externalTransactionId': 'pay_separate'},
+    });
+    final groups = groupActivityTransactions([deposit, payout, separate]);
+    expect(groups.length, 2);
+    final operation = groups.singleWhere((g) => g.primary.id == '501');
+    expect(operation.entries, [deposit, payout]);
+    expect(operation.primary, same(deposit));
+  });
+
   test(
       'Beno legacy FX shape: credit without order joins debit and delayed trade',
       () {

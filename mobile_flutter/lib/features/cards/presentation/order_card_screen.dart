@@ -52,10 +52,18 @@ class _OrderCardScreenState extends ConsumerState<OrderCardScreen> {
   int _selectedCardIndex = 0;
   String? _selectedBudgetId;
   int _selectedSkinIndex = 0;
+  bool _issuerCheckStarted = false;
 
   @override
   void initState() {
     super.initState();
+    // A previous visit may have cached approval. Keep the form hidden until
+    // this route starts a fresh issuer lookup, after the widget tree is built.
+    Future.microtask(() {
+      if (!mounted) return;
+      ref.invalidate(kycDetailedStatusProvider);
+      setState(() => _issuerCheckStarted = true);
+    });
     // Repaint preview as user types the label.
     _labelController.addListener(() => setState(() {}));
   }
@@ -114,12 +122,13 @@ class _OrderCardScreenState extends ConsumerState<OrderCardScreen> {
     });
 
     final issuerStatus = ref.watch(kycDetailedStatusProvider);
-    if (issuerStatus.isLoading ||
+    if (!_issuerCheckStarted ||
+        issuerStatus.isLoading ||
         issuerStatus.hasError ||
         issuerStatus.valueOrNull?.interlaceKycApproved != true) {
       return Scaffold(
         appBar: AppBar(title: Text(context.tr('Order card'))),
-        body: issuerStatus.isLoading
+        body: !_issuerCheckStarted || issuerStatus.isLoading
             ? LoadingState(label: context.tr('Checking card verification'))
             : issuerStatus.hasError
                 ? ErrorState(

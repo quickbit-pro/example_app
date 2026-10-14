@@ -13,6 +13,7 @@ public sealed class HoppaRequest<TRequest>
     public IReadOnlyDictionary<string, string?> Query { get; init; } = new Dictionary<string, string?>();
 
     public TRequest? Body { get; init; }
+    public string? IdempotencyKey { get; init; }
 
     /// <summary>Server-derived authenticated admin identity; never copied from client input.</summary>
     public string? TrustedReferralActorId { get; init; }

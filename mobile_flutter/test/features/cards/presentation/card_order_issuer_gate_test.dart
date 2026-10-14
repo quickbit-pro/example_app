@@ -9,6 +9,7 @@ import 'package:mobile_flutter/core/models/platform_models.dart';
 import 'package:mobile_flutter/features/banking/application/banking_providers.dart';
 import 'package:mobile_flutter/features/banking/data/mobile_banking_api.dart';
 import 'package:mobile_flutter/features/cards/presentation/order_card_screen.dart';
+import 'package:mobile_flutter/features/cards/presentation/cards_screen.dart';
 import 'package:mobile_flutter/features/platform/application/platform_providers.dart';
 
 import 'order_card_discount_test.dart' show tier;
@@ -61,6 +62,7 @@ void main() {
       () {
     expect(status('approved', approved: true).interlaceKycApproved, isTrue);
     expect(status('approved', approved: false).interlaceKycApproved, isFalse);
+    expect(status('approved').interlaceKycApproved, isFalse);
     expect(
         status('approved', approved: true, action: 'RESUBMIT_DOCUMENTS')
             .interlaceKycApproved,
@@ -87,6 +89,29 @@ void main() {
       expect(snapshot.canUseBanking, isTrue);
       expect(snapshot.canOrderCard, approved);
     }
+  });
+
+  testWidgets('card list does not trust general or cached profile approval',
+      (tester) async {
+    await tester.pumpWidget(ProviderScope(overrides: [
+      dashboardProvider.overrideWith((_) async => DashboardSnapshot(
+        profile: UserProfile.fromJson({
+          'kycStatus': 'approved',
+          'onboardingStatus': 'completed',
+          'interlaceKycApproved': true,
+        }),
+        accounts: const [], cards: const [], transactions: const [],
+        onboarding: const [],
+      )),
+      cardsProvider.overrideWith((_) async => []),
+      currentCardsProvider.overrideWith((_) async => []),
+      kycDetailedStatusProvider.overrideWith(
+          (_) async => status('pending', approved: false)),
+    ], child: const MaterialApp(home: CardsScreen())));
+    await tester.pumpAndSettle();
+    expect(find.text('Card verification pending'), findsOneWidget);
+    expect(find.text('Order card'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(
@@ -122,6 +147,33 @@ void main() {
         scrollable: find.byType(Scrollable).first);
     expect(find.textContaining('Confirm & order'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('opening the route rechecks cached approval before showing a form',
+      (tester) async {
+    Future<KycDetailedStatus> current =
+        Future.value(status('approved', approved: true));
+    final container = ProviderContainer(overrides: [
+      kycDetailedStatusProvider.overrideWith((_) => current),
+      currentTierProvider.overrideWith((_) async => tier),
+      cardTierProvider('1').overrideWith((_) async => tier),
+      tiersProvider.overrideWith((_) async => []),
+      budgetsProvider.overrideWith((_) async => []),
+    ]);
+    addTearDown(container.dispose);
+    await container.read(kycDetailedStatusProvider.future);
+    final fresh = Completer<KycDetailedStatus>();
+    current = fresh.future;
+    await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: OrderCardScreen())));
+    await tester.pump();
+    expect(find.byType(Form), findsNothing);
+    expect(find.text('Checking card verification'), findsOneWidget);
+    fresh.complete(status('pending', approved: false));
+    await tester.pumpAndSettle();
+    expect(find.text('Card verification pending'), findsOneWidget);
+    expect(find.byType(Form), findsNothing);
   });
 
   testWidgets('failed issuer lookup never exposes the order form',
