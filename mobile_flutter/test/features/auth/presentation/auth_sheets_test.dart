@@ -55,6 +55,7 @@ const _serverDownCopy = 'The service is temporarily unavailable. Try again '
 class _FakeAuthApi extends AuthApi {
   _FakeAuthApi({
     this.failRequestReset = false,
+    this.missingAppLogin = false,
     this.cooldown = 0,
     this.failReset = false,
     this.failResend = false,
@@ -64,6 +65,7 @@ class _FakeAuthApi extends AuthApi {
 
   final int cooldown;
   final bool failRequestReset;
+  final bool missingAppLogin;
   final bool failReset;
   final bool failResend;
   final bool failVerify;
@@ -80,6 +82,15 @@ class _FakeAuthApi extends AuthApi {
   Future<int> requestPasswordReset(String email) async {
     calls.add('requestPasswordReset:$email');
     if (hangResend && _sends++ > 0) await Completer<void>().future;
+    if (missingAppLogin) {
+      final options = RequestOptions(path: '/api/v1/mobile/auth/password/forgot');
+      throw DioException(
+        requestOptions: options,
+        response: Response<Object>(requestOptions: options, statusCode: 400,
+          data: {'code': 'auth.password_reset.account_not_found',
+            'title': "No app login was found for this email. Check the address or use Connect existing account on the sign-in screen."}),
+      );
+    }
     if (failRequestReset) throw _serverDown();
     return cooldown;
   }
@@ -679,6 +690,17 @@ void main() {
     await _sendCode(tester);
     expect(find.text('Enter the email you signed up with.'), findsOneWidget);
     expect(api.calls, isEmpty);
+  });
+
+  testWidgets('missing app login shows guidance and stays on email entry', (tester) async {
+    final api = _FakeAuthApi(missingAppLogin: true);
+    await _openForgotPassword(tester, api: api, light: false);
+    await _sendCode(tester);
+    expect(find.text("No app login was found for this email. Check the address or use Connect existing account on the sign-in screen."), findsOneWidget);
+    expect(find.text('Send code'), findsOneWidget);
+    expect(find.text('Set a new password'), findsNothing);
+    expect(find.byType(ExampleOtpField), findsNothing);
+    expect(api.calls, ['requestPasswordReset:$_email']);
   });
 
   testWidgets('recovery server failure stays in the form', (tester) async {

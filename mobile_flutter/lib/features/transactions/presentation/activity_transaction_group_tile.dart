@@ -28,10 +28,20 @@ class _ActivityTransactionGroupTileState
   Widget build(BuildContext context) {
     final group = widget.group;
     if (group.entries.length < 2) return widget.rowBuilder(group.primary);
+    final related = group.primary.isBoomFi
+        ? group.entries.where((row) => row.id != group.primary.id).toList()
+        : group.entries;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         widget.rowBuilder(group.primary),
+        if (group.entries
+            .any((row) => row.status == 'requires_action' && row.isBoomFi))
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Text('Verification required — open the related payment',
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ),
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: Padding(
@@ -42,9 +52,13 @@ class _ActivityTransactionGroupTileState
                 key: ValueKey('activity-group-toggle-${group.primary.id}'),
                 onPressed: () => setState(() => _expanded = !_expanded),
                 icon: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
-                label: Text(context.tr(
-                    _expanded ? 'Hide {p0} entries' : 'Show {p0} entries',
-                    {'p0': group.entries.length})),
+                label: Text(group.primary.isBoomFi
+                    ? (_expanded
+                        ? 'Hide related transactions'
+                        : 'Show related transactions')
+                    : context.tr(
+                        _expanded ? 'Hide {p0} entries' : 'Show {p0} entries',
+                        {'p0': related.length})),
               ),
             ),
           ),
@@ -68,7 +82,7 @@ class _ActivityTransactionGroupTileState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (final entry in group.entries) widget.rowBuilder(entry),
+                  for (final entry in related) widget.rowBuilder(entry),
                 ],
               ),
             ),

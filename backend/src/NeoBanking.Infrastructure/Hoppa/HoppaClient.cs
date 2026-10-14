@@ -19,6 +19,7 @@ public sealed class HoppaClient : IHoppaClient
         "uboIdNumber",
         "uboDob",
         "widgetUrl",
+        "widgetToken",
         "code",
         "otp",
         "otpCode",
@@ -99,6 +100,9 @@ public sealed class HoppaClient : IHoppaClient
         var requestJson = SerializeRequestBody(request.Body);
         using var httpRequest = new HttpRequestMessage(request.Method, requestUri);
         httpRequest.Headers.TryAddWithoutValidation("x-api-key", _options.ApiKey);
+        if (request.Method == HttpMethod.Post && request.Path.StartsWith("/api/v2/mor/public/", StringComparison.Ordinal)
+            && !string.IsNullOrWhiteSpace(request.IdempotencyKey))
+            httpRequest.Headers.TryAddWithoutValidation("Idempotency-Key", request.IdempotencyKey);
 
         if (request.Body is HttpContent httpContent)
         {

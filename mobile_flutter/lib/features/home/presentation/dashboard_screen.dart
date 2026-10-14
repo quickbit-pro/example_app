@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/models/banking_models.dart';
 import '../../../core/widgets/app_states.dart';
 import '../../banking/application/banking_providers.dart';
+import '../../platform/application/platform_providers.dart';
 import '../../banking/presentation/widgets/banking_tiles.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -101,13 +102,17 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-class _BalanceHeader extends StatelessWidget {
+class _BalanceHeader extends ConsumerWidget {
   const _BalanceHeader({required this.snapshot});
 
   final DashboardSnapshot snapshot;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final issuerStatus = ref.watch(kycDetailedStatusProvider);
+    final canOrderCard = !issuerStatus.isLoading &&
+        !issuerStatus.hasError &&
+        issuerStatus.valueOrNull?.interlaceKycApproved == true;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -137,7 +142,7 @@ class _BalanceHeader extends StatelessWidget {
                 label: Text(context.tr('Pay')),
               ),
               OutlinedButton.icon(
-                onPressed: snapshot.canOrderCard
+                onPressed: canOrderCard
                     ? () => context.go('/cards/order')
                     : null,
                 icon: const Icon(Icons.add_card),

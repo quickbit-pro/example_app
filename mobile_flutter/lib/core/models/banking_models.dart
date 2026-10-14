@@ -997,7 +997,13 @@ class LedgerTransaction {
         .trim();
     final isCredit =
         const {'credit', 'credited', 'incoming', 'inbound'}.contains(direction);
-    final isDebit = const {
+    final boomFi = _boomFiFields(metadata);
+    final boomFiExchange =
+        boomFi != null && rawType.toLowerCase() == 'exchange';
+    final isDebit = (boomFiExchange &&
+            boomFi['sellcurrency']?.toString().toUpperCase() ==
+                currency.toUpperCase()) ||
+        const {
           'debit',
           'debited',
           'outgoing',
@@ -1064,7 +1070,8 @@ class LedgerTransaction {
       'Reference',
     ]);
     final typeLabel = _ledgerTransactionTypeLabel(rawType);
-    final title = _equalsIncomingRemitter(metadata, amount, rawType) ??
+    final title = _boomFiTitle(rawType, currency, boomFi) ??
+        _equalsIncomingRemitter(metadata, amount, rawType) ??
         _usefulTransactionTitle(merchant, currency, rawType, status) ??
         _usefulTransactionTitle(explicitTitle, currency, rawType, status) ??
         _usefulTransactionTitle(detail, currency, rawType, status) ??
@@ -1202,7 +1209,28 @@ class LedgerTransaction {
 
   Money get displayAmount => transactionAmount ?? amount;
 
+  bool get isBoomFi => _boomFiFields(metadata) != null;
+
+  bool get isBoomFiExchange => isBoomFi && rawType.toLowerCase() == 'exchange';
+
+  Money? get exchangeReceivedAmount {
+    if (!isBoomFiExchange) return null;
+    final fields = _boomFiFields(metadata)!;
+    final currency = fields['buycurrency']?.toString().trim().toUpperCase();
+    final value = double.tryParse('${fields['buyamount']}');
+    if (currency == null ||
+        currency.isEmpty ||
+        value == null ||
+        !value.isFinite ||
+        value <= 0) {
+      return null;
+    }
+    return Money.fromJson({'currency': currency, 'amount': fields['buyamount']},
+        preservePrecision: true);
+  }
+
   Money? get secondarySettlementAmount {
+    if (exchangeReceivedAmount case final received?) return received;
     final local = transactionAmount;
     if (local == null ||
         (local.currency.toUpperCase() == amount.currency.toUpperCase() &&
@@ -1213,6 +1241,38 @@ class LedgerTransaction {
   }
 
   String get displayType => _ledgerTransactionTypeLabel(rawType);
+}
+
+Map<String, dynamic>? _boomFiFields(Map<String, dynamic> metadata) {
+  final fields = {
+    for (final entry in metadata.entries)
+      entry.key.toLowerCase().replaceAll('_', ''): entry.value,
+  };
+  return fields['provider']?.toString().toLowerCase() == 'boomfi'
+      ? fields
+      : null;
+}
+
+String? _boomFiTitle(
+    String type, String currency, Map<String, dynamic>? fields) {
+  if (fields == null) return null;
+  switch (type.toLowerCase()) {
+    case 'exchange':
+      final sell = fields['sellcurrency']?.toString().toUpperCase();
+      final buy = fields['buycurrency']?.toString().toUpperCase();
+      return sell != null && buy != null && sell.isNotEmpty && buy.isNotEmpty
+          ? '$sell → $buy'
+          : 'Currency conversion';
+    case 'withdrawal':
+      return Money.isFiatCurrency(currency)
+          ? 'Bank withdrawal'
+          : 'Crypto withdrawal';
+    case 'crypto_deposit':
+    case 'deposit':
+      return '${currency.toUpperCase()} deposit';
+    default:
+      return 'BoomFi';
+  }
 }
 
 /// The payment rail describes how a deposit arrived, not who sent it.

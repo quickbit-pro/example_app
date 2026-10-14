@@ -1,3 +1,9 @@
+import 'exchange_deposit_history.dart';
+import 'exchange_flow_dialog.dart';
+import 'exchange_disclaimer.dart';
+import 'exchange_account_details.dart';
+import 'exchange_verification_panel.dart';
+import 'exchange_support.dart';
 import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -6,20 +12,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../brands/example/example.dart';
 import '../../../core/models/platform_models.dart';
 import '../../../core/widgets/app_states.dart';
-import '../../../shared/shared.dart';
 import '../../auth/presentation/example_otp_field.dart';
 import '../../platform/application/platform_providers.dart';
 import '../../platform/presentation/platform_widgets.dart';
 import '../../rewards/domain/rewards_models.dart';
 import '../domain/exchange_models.dart';
 import '../domain/wallet_models.dart';
-
-Color _fadedInk(BuildContext context, double alpha) =>
-    ExampleTheme.isLight(context)
-        ? (alpha >= .56
-            ? ExamplePalette.of(context).textSecondary
-            : ExamplePalette.of(context).textTertiary)
-        : ExamplePalette.of(context).ink.withValues(alpha: alpha);
 
 Color _hairline(BuildContext context, double alpha) =>
     ExampleTheme.isLight(context)
@@ -46,6 +44,7 @@ class ExchangePanel extends ConsumerWidget {
     final isExample = context.isExampleTheme;
 
     return overview.when(
+      skipLoadingOnReload: true,
       loading: () => isExample
           ? PlatformLoadingGroup(
               title: context.tr('Exchange balances'),
@@ -61,7 +60,7 @@ class ExchangePanel extends ConsumerWidget {
             ),
       data: (data) {
         if (!data.isReady) {
-          return const _ExchangeSetupState();
+          return const ExchangeVerificationPanel();
         }
 
         return _ReadyExchangePanel(
@@ -135,48 +134,6 @@ class _ExampleExchangeUnavailable extends ConsumerWidget {
       );
 }
 
-class _ExchangeSetupState extends StatelessWidget {
-  const _ExchangeSetupState();
-
-  @override
-  Widget build(BuildContext context) {
-    if (context.isExampleTheme) {
-      return ExampleEmptyState(
-        icon: Icons.hourglass_top_rounded,
-        title: context.tr('Exchange is being switched on'),
-        body: context.tr(
-            'Balances and conversions appear here once the provider activates your organisation. Nothing is needed from you.'),
-      );
-    }
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Icon(
-              Icons.hourglass_top,
-              size: 36,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              context.tr('Exchange account setup in progress'),
-              style: Theme.of(context).textTheme.titleMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              context.tr(
-                  'Exchange is enabled for this app. Balances and actions will appear after the provider activates your organisation.'),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _ReadyExchangePanel extends ConsumerWidget {
   const _ReadyExchangePanel({
     required this.overview,
@@ -194,1134 +151,193 @@ class _ReadyExchangePanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (context.isExampleTheme) {
-      return _ExampleReadyExchangePanel(
-        overview: overview,
-        outflowsEnabled: outflowsEnabled,
-        budgets: budgets,
-        wallets: wallets,
-        transferSection: transferSection,
-      );
-    }
-    final cryptoBalances = overview.balances.where((item) => item.isCrypto);
-    final fiatBalances = overview.balances.where((item) => !item.isCrypto);
-    final canExchange = cryptoBalances.isNotEmpty && fiatBalances.isNotEmpty;
-    final equalsBudgets = _distinctBy(
-      budgets.where((item) => item.id.isNotEmpty),
-      (item) => item.id,
-    );
-    final cryptoWallets = _distinctBy(
-      wallets.where((item) =>
-          item.walletId.isNotEmpty &&
-          const {'USDC', 'USDT'}.contains(item.symbol.toUpperCase())),
-      (item) => item.walletId,
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Card(
-          color: Theme.of(context).colorScheme.secondaryContainer,
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  context.tr('Exchange account'),
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                if (overview.accountName.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    overview.accountName,
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
-                ],
-                const SizedBox(height: 6),
-                Text(
-                  context.tr(
-                      'Convert balances or move money between your Crypto card and fiat account.'),
-                ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    FilledButton.icon(
-                      onPressed: canExchange
-                          ? () => _showExchangeDialog(
-                                context,
-                                ref,
-                                overview,
-                                outflowsEnabled,
-                              )
-                          : null,
-                      icon: const Icon(Icons.currency_exchange),
-                      label: Text(context.tr('Exchange')),
-                    ),
-                    OutlinedButton.icon(
-                      style: _exchangeActionStyle(context),
-                      onPressed: outflowsEnabled &&
-                              equalsBudgets.isNotEmpty &&
-                              cryptoWallets.isNotEmpty
-                          ? () => _showEqualsToCryptoDialog(
-                                context,
-                                ref,
-                                equalsBudgets,
-                              )
-                          : null,
-                      icon: const Icon(Icons.arrow_forward),
-                      label: Text(context.tr('Fiat → Crypto')),
-                    ),
-                    OutlinedButton.icon(
-                      style: _exchangeActionStyle(context),
-                      onPressed: outflowsEnabled &&
-                              equalsBudgets.isNotEmpty &&
-                              cryptoWallets.isNotEmpty
-                          ? () => _showCryptoToEqualsDialog(
-                                context,
-                                ref,
-                                overview,
-                                equalsBudgets,
-                                cryptoWallets,
-                              )
-                          : null,
-                      icon: const Icon(Icons.arrow_back),
-                      label: Text(context.tr('Crypto → Fiat')),
-                    ),
-                  ],
-                ),
-                if (!outflowsEnabled) ...[
-                  const SizedBox(height: 12),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.lock_outline, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          context.tr(
-                              'Quotes and balances are available. Money movement is locked until this white-label installation enables outflows.'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ] else if (equalsBudgets.isEmpty || cryptoWallets.isEmpty) ...[
-                  const SizedBox(height: 12),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.info_outline, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          context.tr(
-                              'BoomFi Exchange is ready. Fiat transfers become available after an active budget and a USDC or USDT wallet are linked to this account.'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 18),
-        Text(context.tr('Exchange balances'),
-            style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 8),
-        if (overview.balances.isEmpty)
-          EmptyState(
-            title: context.tr('No Exchange balances'),
-            message:
-                context.tr('Balances will appear after provider settlement.'),
-            icon: Icons.account_balance_wallet_outlined,
-          )
-        else
-          for (final balance in overview.balances)
-            Card(
-              margin: const EdgeInsets.only(bottom: 10),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.md,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CurrencyLogo(
-                      symbol: balance.currency,
-                      fallbackIcon: balance.isCrypto
-                          ? Icons.token_outlined
-                          : Icons.account_balance_wallet_outlined,
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  balance.currency,
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium,
-                                ),
-                              ),
-                              Text(
-                                '${_exchangeBalanceAmount(balance.amount, isCrypto: balance.isCrypto)} ${balance.currency}',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleSmall
-                                    ?.copyWith(fontWeight: FontWeight.w800),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  balance.isCrypto
-                                      ? (balance.chainName.isEmpty
-                                          ? context.tr('Chain {p0}',
-                                              {'p0': balance.chainId})
-                                          : balance.chainName)
-                                      : context.tr('Fiat balance'),
-                                ),
-                              ),
-                              if (balance.pendingAmount != 0)
-                                Text(
-                                  context.tr('{p0} pending', {
-                                    'p0': _exchangeBalanceAmount(
-                                        balance.pendingAmount,
-                                        isCrypto: balance.isCrypto)
-                                  }),
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        const SizedBox(height: 18),
-        transferSection,
-      ],
-    );
-  }
-}
-
-/// Twilight "Accounts · Exchange" artboard: From/To swap cards, live rate and
-/// fee from the BoomFi quote, and the exchange balances underneath.
-class _ExampleReadyExchangePanel extends ConsumerStatefulWidget {
-  const _ExampleReadyExchangePanel({
-    required this.overview,
-    required this.outflowsEnabled,
-    required this.budgets,
-    required this.wallets,
-    required this.transferSection,
-  });
-
-  final BoomFiExchangeOverview overview;
-  final bool outflowsEnabled;
-  final List<PlatformResource> budgets;
-  final List<HoppaWalletAsset> wallets;
-  final Widget transferSection;
-
-  @override
-  ConsumerState<_ExampleReadyExchangePanel> createState() =>
-      _ExampleReadyExchangePanelState();
-}
-
-class _ExampleReadyExchangePanelState
-    extends ConsumerState<_ExampleReadyExchangePanel> {
-  final _amountController = TextEditingController();
-  String? _sourceKey;
-  String? _destinationKey;
-  Map<String, dynamic>? _quote;
-  bool _busy = false;
-
-  List<BoomFiExchangeBalance> get _balances =>
-      _distinctBy(widget.overview.balances, (item) => item.key);
-
-  BoomFiExchangeBalance? get _source =>
-      _balances.where((item) => item.key == _sourceKey).firstOrNull ??
-      _balances.firstOrNull;
-
-  BoomFiExchangeBalance? get _destination =>
-      _balances.where((item) => item.key == _destinationKey).firstOrNull ??
-      _balances.where((item) => item.key != _source?.key).firstOrNull;
-
-  @override
-  void dispose() {
-    _amountController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final balances = _balances;
-    final source = _source;
-    final destination = _destination;
-    final amount = double.tryParse(_amountController.text.replaceAll(',', '.'));
-    final canQuote = source != null &&
-        destination != null &&
-        source.key != destination.key &&
-        (amount ?? 0) > 0 &&
-        !_busy;
-    final equalsBudgets = _distinctBy(
-      widget.budgets.where((item) => item.id.isNotEmpty),
-      (item) => item.id,
-    );
-    final cryptoWallets = _distinctBy(
-      widget.wallets.where((item) =>
-          item.walletId.isNotEmpty &&
-          const {'USDC', 'USDT'}.contains(item.symbol.toUpperCase())),
-      (item) => item.walletId,
-    );
-    final transfersAvailable = widget.outflowsEnabled &&
-        equalsBudgets.isNotEmpty &&
-        cryptoWallets.isNotEmpty;
-    final quote = _quote;
-    final receive = quote == null
-        ? null
-        : _value(quote, 'buy_amount', 'BuyAmount') ??
-            _value(quote, 'buyAmount', 'BuyAmount');
-    final rate = quote == null ? null : _value(quote, 'rate', 'Rate');
-    final fees = quote == null ? null : _map(_value(quote, 'fees', 'Fees'));
-    final fee = fees == null
-        ? null
-        : _value(fees, 'total_fee', 'TotalFee') ??
-            _value(fees, 'totalFee', 'TotalFee');
-    final feeCurrency = fees == null
-        ? ''
-        : (_value(fees, 'fee_ccy', 'FeeCcy') ??
-                _value(fees, 'feeCcy', 'FeeCcy') ??
-                '')
-            .toString();
-    final expiry = quote == null
-        ? null
-        : DateTime.tryParse(_value(quote, 'expiry', 'Expiry')?.toString() ?? '')
-            ?.toLocal();
-    final quoteId = quote == null ? '' : _quoteId(quote);
-
-    final composer = <Widget>[
-      if (balances.isEmpty)
-        ExampleGlassPanel(
-          child: Text(
-            context
-                .tr('Exchange balances appear here after provider settlement.'),
-            style: TextStyle(color: ExampleInk.secondary(context)),
-          ),
-        )
-      else ...[
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            Column(
-              children: [
-                _ExchangeLeg(
-                  label: context.tr('From'),
-                  caption: context.tr('Exchange'),
-                  balance: source,
-                  options: balances,
-                  onSelect: (item) => setState(() {
-                    _sourceKey = item.key;
-                    if (_destination?.key == item.key) {
-                      _destinationKey = balances
-                          .where((other) => other.key != item.key)
-                          .firstOrNull
-                          ?.key;
-                    }
-                    _quote = null;
-                  }),
-                  amountField: TextField(
-                    controller: _amountController,
-                    textAlign: TextAlign.end,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    onChanged: (_) => setState(() => _quote = null),
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: ExampleInk.primary(context),
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                    decoration: const InputDecoration(
-                      hintText: '0.00',
-                      isDense: true,
-                      filled: false,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _ExchangeLeg(
-                  label: context.tr('To'),
-                  caption: context.tr('Exchange'),
-                  balance: destination,
-                  options: balances,
-                  onSelect: (item) => setState(() {
-                    _destinationKey = item.key;
-                    _quote = null;
-                  }),
-                  trailingCaption: 'Estimate',
-                  amountField: ExampleStateSwitch(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      receive == null ? '—' : receive.toString(),
-                      key: ValueKey<String>(
-                        '${destination?.key ?? '—'}:${receive ?? ''}',
-                      ),
-                      textAlign: TextAlign.end,
-                      maxLines: 1,
-                      overflow: TextOverflow.fade,
-                      softWrap: false,
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: receive == null
-                            ? _fadedInk(context, .4)
-                            : ExampleInk.primary(context),
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            ExamplePressable(
-              enabled: source != null && destination != null,
-              semanticsLabel: source == null || destination == null
-                  ? context.tr('Swap from and to')
-                  : context.tr('Swap {p0} and {p1}',
-                      {'p0': source.currency, 'p1': destination.currency}),
-              borderRadius: const BorderRadius.all(Radius.circular(22)),
-              onTap: source == null || destination == null
-                  ? null
-                  : () => setState(() {
-                        _sourceKey = destination.key;
-                        _destinationKey = source.key;
-                        _quote = null;
-                      }),
-              child: SizedBox.square(
-                dimension: 44,
-                child: Center(
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: ExampleSurface.of(context, 3),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: _hairline(context, .22)),
-                    ),
-                    child: Icon(
-                      Icons.swap_vert_rounded,
-                      size: 16,
-                      color: ExampleInk.primary(context),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+    void open(ExchangeFlow flow) => showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => ExchangeFlowDialog(
+            flow: flow,
+            overview: overview,
+            outflowsEnabled: outflowsEnabled,
+            budgets: budgets,
+            wallets: wallets));
+    final example = context.isExampleTheme;
+    Widget action(String label, VoidCallback? onPressed,
+            {bool primary = false}) =>
+        example
+            ? ExampleGlassButton(
+                label: context.tr(label),
+                onPressed: onPressed,
+                expand: false,
+                height: 44,
+                radius: 12,
+                tone: primary
+                    ? ExampleGlassButtonTone.primary
+                    : ExampleGlassButtonTone.neutral)
+            : primary
+                ? FilledButton(
+                    onPressed: onPressed, child: Text(context.tr(label)))
+                : OutlinedButton(
+                    onPressed: onPressed, child: Text(context.tr(label)));
+    final eligibleWallets = wallets
+        .where((w) =>
+            w.walletId.isNotEmpty &&
+            ['USDC', 'USDT'].contains(w.symbol.toUpperCase()) &&
+            exchangeChainId(w.network) != 0)
+        .toList();
+    final hasFunds = overview.balances.any((b) => b.amount > 0);
+    final canConvert = overview.balances.any((from) =>
+        from.amount > 0 &&
+        overview.balances.any((to) =>
+            to.isCrypto != from.isCrypto &&
+            (to.isCrypto || to.currency == 'EUR')));
+    void details({bool destinations = false}) => showDialog<void>(
+        context: context,
+        builder: (_) => ExchangeAccountDetails(
+            destinations: destinations, outflowsEnabled: outflowsEnabled));
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Exchange',
+              style: Theme.of(context)
+                  .textTheme
+                  .headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.w700)),
+          if (overview.accountName.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(overview.accountName,
+                style: Theme.of(context).textTheme.bodyMedium)
           ],
-        ),
-        const SizedBox(height: 10),
-        _ExchangeFact(
-          label: context.tr('Rate'),
-          value: rate == null
-              ? '—'
-              : '1 ${source?.currency ?? ''} = ${_formatRate(rate)} ${destination?.currency ?? ''}',
-        ),
-        const SizedBox(height: 4),
-        _ExchangeFact(
-          label: context.tr('Fee'),
-          value: fee == null ? '—' : '$fee $feeCurrency'.trim(),
-        ),
-        if (quote != null) ...[
-          const SizedBox(height: 4),
-          _ExchangeFact(
-            label: context.tr('Quote valid until'),
-            value: expiry == null
-                ? 'Until accepted'
-                : '${expiry.hour.toString().padLeft(2, '0')}:${expiry.minute.toString().padLeft(2, '0')}:${expiry.second.toString().padLeft(2, '0')}',
-          ),
-          if (!widget.outflowsEnabled) ...[
-            const SizedBox(height: 8),
-            Text(
-              context.tr(
-                  'Outflows are locked for this installation, so the quote cannot be accepted yet.'),
-              style: TextStyle(
-                fontSize: 11.5,
-                height: 1.4,
-                color: ExamplePalette.of(context).warning,
-              ),
-            ),
-          ],
-        ],
-        const SizedBox(height: 12),
-        if (quote == null)
-          ExampleGlassButton(
-            label: context.tr('Review exchange'),
-            height: 46,
-            radius: 14,
-            loading: _busy,
-            loadingSemanticsLabel: 'Fetching a quote',
-            onPressed: canQuote
-                ? () => _fetchQuote(source, destination, amount!)
-                : null,
-          )
-        else
-          Row(
-            children: [
-              SizedBox(
-                width: 120,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 46),
-                    foregroundColor: ExampleInk.primary(context),
-                    side: ExampleBorders.controlSideOf(context),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  onPressed: _busy ? null : () => setState(() => _quote = null),
-                  child: Text(context.tr('Cancel')),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ExampleGlassButton(
-                  label: context.tr('Confirm'),
-                  height: 46,
-                  radius: 14,
-                  loading: _busy,
-                  loadingSemanticsLabel: 'Accepting the quote',
-                  sheen: false,
-                  onPressed: _busy || !widget.outflowsEnabled || quoteId.isEmpty
-                      ? null
-                      : () => _acceptQuote(quoteId),
-                ),
-              ),
-            ],
-          ),
-        if (!widget.outflowsEnabled) ...[
-          const SizedBox(height: 8),
-          Text(
-            context.tr(
-                'Quotes and balances are available. Money movement is locked until outflows are enabled for this installation.'),
-            style: TextStyle(
-              fontSize: 11.5,
-              height: 1.4,
-              color: ExampleInk.tertiary(context),
-            ),
-          ),
-        ],
-      ],
-      if (transfersAvailable) ...[
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _ExchangeTransferButton(
-                label: context.tr('Fiat to crypto'),
-                icon: Icons.arrow_forward_rounded,
-                onTap: () => _showEqualsToCryptoDialog(
-                  context,
-                  ref,
-                  equalsBudgets,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _ExchangeTransferButton(
-                label: context.tr('Crypto to fiat'),
-                icon: Icons.arrow_back_rounded,
-                onTap: () => _showCryptoToEqualsDialog(
-                  context,
-                  ref,
-                  widget.overview,
-                  equalsBudgets,
-                  cryptoWallets,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    ];
-    final ledger = <Widget>[
-      if (balances.isEmpty) ...[
-        ExampleSectionTitle(title: context.tr('Exchange balances')),
-        const SizedBox(height: 8),
-        ExampleEmptyState(
-          compact: true,
-          title: context.tr('No Exchange balances'),
-          body: context.tr('Balances appear here after provider settlement.'),
-          icon: Icons.account_balance_wallet_outlined,
-        ),
-      ] else
-        ExampleListGroup(
-          title: context.tr('Exchange balances'),
-          children: [
-            for (final item in balances)
-              ExampleRow(
-                title: item.currency,
-                subtitle: item.isCrypto && item.chainName.isNotEmpty
-                    ? item.chainName
-                    : null,
-                leading: ExampleCurrencyAvatar(code: item.currency, size: 32),
-                trailing: _ExchangeBalanceValue(balance: item),
-              ),
-          ],
-        ),
-      const SizedBox(height: 18),
-      widget.transferSection,
-    ];
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth >= 900) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 470,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: composer,
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: ledger,
-                ),
-              ),
-            ],
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [...composer, const SizedBox(height: 18), ...ledger],
-        );
-      },
-    );
-  }
-
-  Future<void> _fetchQuote(
-    BoomFiExchangeBalance source,
-    BoomFiExchangeBalance destination,
-    double amount,
-  ) async {
-    setState(() => _busy = true);
-    try {
-      final quote = await ref.read(mobilePlatformApiProvider).getExchangeQuote(
-            source: source,
-            destination: destination,
-            sellAmount: amount.toString(),
-          );
-      if (!mounted) return;
-      setState(() => _quote = quote);
-    } catch (error) {
-      if (mounted) _showError(context, error);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _acceptQuote(String quoteId) async {
-    setState(() => _busy = true);
-    try {
-      final result = await ref
-          .read(mobilePlatformApiProvider)
-          .acceptExchangeQuote(quoteId);
-      ref.invalidate(exchangeOverviewProvider);
-      if (!mounted) return;
-      _amountController.clear();
-      setState(() => _quote = null);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.message)),
-      );
-    } catch (error) {
-      if (mounted) _showError(context, error);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-}
-
-/// Rates arrive as raw doubles (`0.8460000000000001`); show at most six
-/// significant decimals without trailing noise.
-String _formatRate(Object rate) {
-  final value = double.tryParse(rate.toString());
-  if (value == null) return rate.toString();
-  var text = value.toStringAsFixed(value >= 100 ? 2 : 6);
-  if (text.contains('.')) {
-    text =
-        text.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
-  }
-  return text;
-}
-
-class _ExchangeLeg extends StatelessWidget {
-  const _ExchangeLeg({
-    required this.label,
-    required this.caption,
-    required this.balance,
-    required this.options,
-    required this.onSelect,
-    required this.amountField,
-    this.trailingCaption,
-  });
-
-  final String label;
-  final String caption;
-  final BoomFiExchangeBalance? balance;
-  final List<BoomFiExchangeBalance> options;
-  final ValueChanged<BoomFiExchangeBalance> onSelect;
-  final Widget amountField;
-  final String? trailingCaption;
-
-  static const int _identityFlex = 4;
-  static const int _amountFlex = 6;
-
-  @override
-  Widget build(BuildContext context) {
-    final current = balance;
-    final key = ValueKey<String>(current?.key ?? '—');
-    return ExampleGlassPanel(
-      radius: 18,
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: ExampleInk.tertiary(context),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Flexible(
-                child: Text(
-                  caption,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: ExampleInk.tertiary(context),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Flexible(
-                flex: _identityFlex,
-                fit: FlexFit.tight,
-                child: Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: ExampleStateSwitch(
-                    alignment: Alignment.centerLeft,
-                    child: KeyedSubtree(
-                      key: key,
-                      child: _identity(context, current),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Flexible(
-                flex: _amountFlex,
-                fit: FlexFit.tight,
-                child: amountField,
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: ExampleStateSwitch(
-                  alignment: Alignment.centerLeft,
-                  child: KeyedSubtree(
-                    key: key,
-                    child: Text(
-                      current == null
-                          ? context.tr('Balance: —')
-                          : context.tr('Balance: {p0} {p1}', {
-                              'p0': _exchangeBalanceAmount(current.amount,
-                                  isCrypto: current.isCrypto),
-                              'p1': current.currency
-                            }),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: ExampleInk.tertiary(context),
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (trailingCaption != null) ...[
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  trailingCaption!,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: ExampleInk.tertiary(context),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _identity(BuildContext context, BoomFiExchangeBalance? current) =>
-      PopupMenuButton<BoomFiExchangeBalance>(
-        tooltip: context.tr('{p0} balance, {p1}',
-            {'p0': label, 'p1': current?.currency ?? 'none selected'}),
-        onSelected: onSelect,
-        padding: EdgeInsets.zero,
-        itemBuilder: (context) => [
-          for (final option in options)
+        ])),
+        IconButton(
+            tooltip: 'Refresh Exchange',
+            onPressed: () {
+              ref.invalidate(exchangeVerificationProvider);
+              ref.invalidate(exchangeOverviewProvider);
+              ref.invalidate(exchangeTransfersProvider);
+            },
+            icon: const Icon(Icons.refresh)),
+      ]),
+      const SizedBox(height: 24),
+      Wrap(spacing: 12, runSpacing: 12, children: [
+        FilledButton.icon(
+            onPressed: () => details(),
+            icon: const Icon(Icons.add),
+            label: const Text('Deposit')),
+        action('Convert', canConvert ? () => open(ExchangeFlow.convert) : null),
+        action(
+            'Withdraw',
+            outflowsEnabled &&
+                    overview.balances.any((b) =>
+                        b.amount > 0 && (b.isCrypto || b.currency == 'EUR'))
+                ? () => open(ExchangeFlow.withdraw)
+                : null),
+        PopupMenuButton<String>(
+          tooltip: 'More exchange options',
+          onSelected: (value) {
+            if (value == 'destinations') details(destinations: true);
+            if (value == 'fund') open(ExchangeFlow.fund);
+            if (value == 'sell') {
+              _showCryptoToEqualsDialog(
+                  context, ref, overview, budgets, eligibleWallets);
+            }
+          },
+          itemBuilder: (_) => [
+            const PopupMenuItem(
+                value: 'destinations', child: Text('Saved destinations')),
             PopupMenuItem(
-              value: option,
-              child: Text(
-                '${option.currency} · ${_exchangeBalanceAmount(option.amount, isCrypto: option.isCrypto)}',
-              ),
-            ),
-        ],
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 44),
-          child: Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: Container(
-              height: 32,
-              padding: const EdgeInsets.fromLTRB(6, 0, 8, 0),
-              decoration: BoxDecoration(
-                color: ExampleSurface.of(context, 2),
-                borderRadius: BorderRadius.circular(99),
-                border: Border.all(color: _hairline(context, .12)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ExampleCurrencyAvatar(
-                    code: current?.currency ?? '',
-                    size: 20,
-                  ),
-                  const SizedBox(width: 7),
-                  Flexible(
-                    child: Text(
-                      current?.currency ?? '—',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: ExampleInk.primary(context),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 3),
-                  Icon(
-                    Icons.expand_more_rounded,
-                    size: 16,
-                    color: ExampleInk.secondary(context),
-                  ),
-                ],
-              ),
-            ),
-          ),
+                value: 'fund',
+                enabled: outflowsEnabled &&
+                    budgets.isNotEmpty &&
+                    eligibleWallets.isNotEmpty,
+                child: const Text('Fiat account to crypto wallet')),
+            PopupMenuItem(
+                value: 'sell',
+                enabled: outflowsEnabled &&
+                    budgets.isNotEmpty &&
+                    eligibleWallets.isNotEmpty,
+                child: const Text('Crypto wallet to fiat account')),
+          ],
+          child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text('More'),
+                SizedBox(width: 4),
+                Icon(Icons.expand_more, size: 20)
+              ])),
         ),
-      );
-}
-
-class _ExchangeBalanceValue extends StatelessWidget {
-  const _ExchangeBalanceValue({required this.balance});
-
-  final BoomFiExchangeBalance balance;
-
-  @override
-  Widget build(BuildContext context) {
-    final pending = balance.pendingAmount;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        ExampleAmount(
-          amount: balance.amount,
-          currency: balance.currency,
-          size: ExampleAmountSize.inline,
-          code: ExampleAmountCode.never,
-          textAlign: TextAlign.end,
-        ),
-        if (pending != 0) ...[
-          const SizedBox(height: 1),
-          Text(
-            context.tr('{p0} pending', {
-              'p0': _exchangeBalanceAmount(pending, isCrypto: balance.isCrypto)
-            }),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.end,
-            style: TextStyle(
-              fontSize: 11,
-              color: ExamplePalette.of(context).warning,
-            ),
-          ),
-        ],
+      ]),
+      if (!outflowsEnabled || !hasFunds || !canConvert) ...[
+        const SizedBox(height: 20),
+        ExchangeNotice(!outflowsEnabled
+            ? 'Withdrawals are currently unavailable for this account.'
+            : !hasFunds
+                ? 'Deposit funds to start converting or withdrawing.'
+                : 'Conversion will be available when a compatible currency account is ready.'),
       ],
-    );
+      const ExchangeDisclaimer(),
+      const SizedBox(height: 24),
+      Text('Balances', style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 12),
+      LayoutBuilder(builder: (context, constraints) {
+        if (constraints.maxWidth >= 900) {
+          final balances = overview.displayBalances;
+          return Wrap(spacing: 16, runSpacing: 16, children: [
+            for (final balance in balances)
+              SizedBox(width: (constraints.maxWidth - 32) / 3,
+                child: ExampleGlassPanel(padding: const EdgeInsets.all(20), child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(balance.currency, style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: 12),
+                    ExampleAmount(amount: balance.amount, currency: balance.currency, size: ExampleAmountSize.small),
+                    const SizedBox(height: 4),
+                    Text(balance.isCrypto ? 'Available across networks' : 'Available for conversion or withdrawal',
+                      style: Theme.of(context).textTheme.bodySmall),
+                  ]))),
+          ]);
+        }
+        return Column(children: [
+      if (example)
+        ExampleListGroup(children: [
+          for (final balance in overview.displayBalances)
+            ExampleRow(
+                title: balance.currency,
+                subtitle: balance.isCrypto ? null : 'Fiat',
+                trailing: ExampleAmount(
+                    amount: balance.amount,
+                    currency: balance.currency,
+                    size: ExampleAmountSize.small))
+        ])
+      else
+        for (final balance in overview.displayBalances)
+          ListTile(
+              title: Text(balance.currency),
+              subtitle: balance.isCrypto ? null : const Text('Fiat'),
+              trailing: Text(balance.amount.toString())),
+        ]);
+      }),
+      const SizedBox(height: 28),
+      ExchangeDepositHistory(deposits: overview.deposits),
+      const SizedBox(height: 24),
+      transferSection,
+    ]);
   }
 }
 
 class _ExchangeFact extends StatelessWidget {
   const _ExchangeFact({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
+  final String label, value;
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  color: ExampleInk.tertiary(context),
-                ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Flexible(
-              child: Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.end,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: ExampleInk.primary(context),
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(children: [
+        Expanded(child: Text(label)),
+        Flexible(child: Text(value, textAlign: TextAlign.end))
+      ]));
 }
 
-class _ExchangeTransferButton extends StatelessWidget {
-  const _ExchangeTransferButton({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => OutlinedButton.icon(
-        style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 44),
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          foregroundColor: ExampleInk.primary(context),
-          disabledForegroundColor: ExampleInk.primary(context)
-              .withValues(alpha: ExampleOpacity.disabled),
-          side: ExampleBorders.controlSideOf(context),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: const TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        onPressed: onTap,
-        icon: Icon(icon, size: 16),
-        label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-      );
-}
-
-ButtonStyle _exchangeActionStyle(BuildContext context) {
-  final colors = Theme.of(context).colorScheme;
-  return OutlinedButton.styleFrom(
-    side: BorderSide(
-      color: colors.outline.withValues(
-        alpha: Theme.of(context).brightness == Brightness.light ? .55 : .8,
-      ),
-    ),
-  );
-}
-
-Future<void> _showExchangeDialog(
-  BuildContext context,
-  WidgetRef ref,
-  BoomFiExchangeOverview overview,
-  bool outflowsEnabled,
-) async {
-  final balances = _distinctBy(overview.balances, (item) => item.key);
-  var source = balances.first;
-  var destination = balances.firstWhere(
-    (item) => item.key != source.key,
-    orElse: () => source,
-  );
-  var amount = '';
-  Map<String, dynamic>? quote;
-  var busy = false;
-
-  await showDialog<void>(
-    context: context,
-    builder: (dialogContext) => StatefulBuilder(
-      builder: (context, setState) => _FullScreenExchangeDialog(
-        title: Text(context.tr('Exchange balances')),
-        canClose: !busy,
-        primaryLabel: quote == null
-            ? (busy ? 'Loading…' : 'Get quote')
-            : (outflowsEnabled ? 'Accept quote' : 'Outflows locked'),
-        onPrimary: quote == null
-            ? (busy ||
-                    source.key == destination.key ||
-                    (double.tryParse(amount) ?? 0) <= 0
-                ? null
-                : () async {
-                    setState(() => busy = true);
-                    try {
-                      final result = await ref
-                          .read(mobilePlatformApiProvider)
-                          .getExchangeQuote(
-                            source: source,
-                            destination: destination,
-                            sellAmount: amount,
-                          );
-                      setState(() => quote = result);
-                    } catch (error) {
-                      if (context.mounted) _showError(context, error);
-                    } finally {
-                      if (context.mounted) setState(() => busy = false);
-                    }
-                  })
-            : (!outflowsEnabled || busy || _quoteId(quote!).isEmpty
-                ? null
-                : () async {
-                    setState(() => busy = true);
-                    try {
-                      final result = await ref
-                          .read(mobilePlatformApiProvider)
-                          .acceptExchangeQuote(_quoteId(quote!));
-                      ref.invalidate(exchangeOverviewProvider);
-                      if (dialogContext.mounted) {
-                        Navigator.pop(dialogContext);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(result.message)),
-                        );
-                      }
-                    } catch (error) {
-                      if (context.mounted) _showError(context, error);
-                    } finally {
-                      if (context.mounted) setState(() => busy = false);
-                    }
-                  }),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                context.tr(
-                    'Review the live rate before any balance is exchanged.'),
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 20),
-              DropdownButtonFormField<String>(
-                initialValue: source.key,
-                decoration: InputDecoration(labelText: context.tr('From')),
-                items: [
-                  for (final item in balances)
-                    DropdownMenuItem(
-                      value: item.key,
-                      child: Text(
-                        '${item.currency} · ${_exchangeBalanceAmount(item.amount, isCrypto: item.isCrypto)}',
-                      ),
-                    ),
-                ],
-                onChanged: (value) => setState(() {
-                  source = balances.firstWhere((i) => i.key == value);
-                  quote = null;
-                }),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: destination.key,
-                decoration: InputDecoration(labelText: context.tr('To')),
-                items: [
-                  for (final item in balances)
-                    DropdownMenuItem(
-                      value: item.key,
-                      child: Text(item.currency),
-                    ),
-                ],
-                onChanged: (value) => setState(() {
-                  destination = balances.firstWhere((i) => i.key == value);
-                  quote = null;
-                }),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration:
-                    InputDecoration(labelText: context.tr('Sell amount')),
-                onChanged: (value) => setState(() {
-                  amount = value;
-                  quote = null;
-                }),
-              ),
-              if (quote != null) ...[
-                const SizedBox(height: 16),
-                _QuoteReview(quote: quote!),
-              ],
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-}
+String _formatRate(Object value) => value.toString();
 
 class _QuoteReview extends StatelessWidget {
   const _QuoteReview({required this.quote});
@@ -1486,89 +502,6 @@ class _TransferDialogLede extends StatelessWidget {
   }
 }
 
-Future<void> _showEqualsToCryptoDialog(
-  BuildContext context,
-  WidgetRef ref,
-  List<PlatformResource> budgets,
-) async {
-  var budget = budgets.first;
-  var currency = _resourceCurrency(budget);
-  var amount = '';
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) => _FullScreenExchangeDialog(
-        title: const _TransferDialogTitle(
-          example: 'Fiat account to Crypto card',
-          whiteLabel: 'Fiat account → Crypto card',
-        ),
-        primaryLabel: 'Review transfer',
-        onPrimary: (double.tryParse(amount.replaceAll(',', '.')) ?? 0) <= 0
-            ? null
-            : () => Navigator.pop(context, true),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _TransferDialogLede(
-                text: context.tr(
-                    'The exchange converts the selected fiat balance and sends USDC to your Crypto card wallet.'),
-              ),
-              const SizedBox(height: 20),
-              DropdownButtonFormField<String>(
-                initialValue: budget.id,
-                isExpanded: context.isExampleTheme,
-                decoration:
-                    InputDecoration(labelText: context.tr('Source budget')),
-                items: [
-                  for (final item in budgets)
-                    DropdownMenuItem(
-                      value: item.id,
-                      child: _DropdownLabel(item.title),
-                    ),
-                ],
-                onChanged: (value) => setState(() {
-                  budget = budgets.firstWhere((item) => item.id == value);
-                  currency = _resourceCurrency(budget);
-                }),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                decoration: InputDecoration(
-                    labelText: context.tr('Amount ({p0})', {'p0': currency})),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                onChanged: (value) => setState(() => amount = value),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-
-  final parsed = double.tryParse(amount.replaceAll(',', '.')) ?? 0;
-  if (confirmed != true || parsed <= 0 || !context.mounted) return;
-  try {
-    final result =
-        await ref.read(mobilePlatformApiProvider).createEqualsToInterlace(
-              idempotencyKey:
-                  'mobile-${budget.id}-${DateTime.now().microsecondsSinceEpoch}',
-              budgetId: budget.id,
-              fiatCurrency: currency,
-              amount: parsed,
-            );
-    ref.invalidate(exchangeTransfersProvider);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(result.message)));
-    }
-  } catch (error) {
-    if (context.mounted) _showError(context, error);
-  }
-}
-
 Future<void> _showCryptoToEqualsDialog(
   BuildContext context,
   WidgetRef ref,
@@ -1584,14 +517,15 @@ Future<void> _showCryptoToEqualsDialog(
   String verificationToken = '';
   var otp = '';
   var busy = false;
+  var termsAccepted = false;
+  final reference = 'mobile-equals-${DateTime.now().microsecondsSinceEpoch}';
 
   Map<String, Object?> request() => {
         'boomFiAccountId': overview.accountId.toString(),
-        'reference':
-            'mobile-equals-${budget.id}-${DateTime.now().millisecondsSinceEpoch}',
+        'reference': reference,
         'chainId': _chainId(wallet.network),
         'currency': wallet.symbol.toUpperCase(),
-        'cryptoAmount': cryptoAmount,
+        'cryptoAmount': cryptoAmount.replaceAll(',', '.'),
         'fiatCurrency': fiatCurrency,
         'targetBudgetId': budget.id,
       };
@@ -1622,7 +556,7 @@ Future<void> _showCryptoToEqualsDialog(
                       final result = await ref
                           .read(mobilePlatformApiProvider)
                           .getInterlaceToEqualsQuote(request());
-                      setState(() => quote = result);
+                      if (context.mounted) setState(() => quote = result);
                     } catch (error) {
                       if (context.mounted) _showError(context, error);
                     } finally {
@@ -1630,7 +564,7 @@ Future<void> _showCryptoToEqualsDialog(
                     }
                   })
             : verificationToken.isEmpty
-                ? (busy
+                ? (busy || !termsAccepted
                     ? null
                     : () async {
                         setState(() => busy = true);
@@ -1657,7 +591,7 @@ Future<void> _showCryptoToEqualsDialog(
                           if (context.mounted) setState(() => busy = false);
                         }
                       })
-                : (busy || otp.length != 8
+                : (busy || !termsAccepted || otp.length != 8
                     ? null
                     : () async {
                         setState(() => busy = true);
@@ -1694,7 +628,7 @@ Future<void> _showCryptoToEqualsDialog(
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 initialValue: wallet.walletId,
-                isExpanded: context.isExampleTheme,
+                isExpanded: true,
                 decoration: InputDecoration(
                     labelText: context.tr('Source crypto wallet')),
                 items: [
@@ -1706,15 +640,19 @@ Future<void> _showCryptoToEqualsDialog(
                       ),
                     ),
                 ],
-                onChanged: (value) => setState(() {
-                  wallet = wallets.firstWhere((item) => item.walletId == value);
-                  quote = null;
-                }),
+                onChanged: busy || verificationToken.isNotEmpty
+                    ? null
+                    : (value) => setState(() {
+                          wallet = wallets
+                              .firstWhere((item) => item.walletId == value);
+                          quote = null;
+                          termsAccepted = false;
+                        }),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: budget.id,
-                isExpanded: context.isExampleTheme,
+                isExpanded: true,
                 decoration: InputDecoration(
                     labelText: context.tr('Equals destination')),
                 items: [
@@ -1724,28 +662,41 @@ Future<void> _showCryptoToEqualsDialog(
                       child: _DropdownLabel(item.title),
                     ),
                 ],
-                onChanged: (value) => setState(() {
-                  budget = budgets.firstWhere((item) => item.id == value);
-                  fiatCurrency = _resourceCurrency(budget);
-                  quote = null;
-                }),
+                onChanged: busy || verificationToken.isNotEmpty
+                    ? null
+                    : (value) => setState(() {
+                          budget =
+                              budgets.firstWhere((item) => item.id == value);
+                          fiatCurrency = _resourceCurrency(budget);
+                          quote = null;
+                          termsAccepted = false;
+                        }),
               ),
               const SizedBox(height: 12),
               TextField(
+                enabled: !busy && verificationToken.isEmpty,
                 decoration: InputDecoration(
                     labelText:
                         context.tr('Amount ({p0})', {'p0': wallet.symbol})),
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
-                onChanged: (value) => setState(() {
-                  cryptoAmount = value;
-                  quote = null;
-                }),
+                onChanged: busy || verificationToken.isNotEmpty
+                    ? null
+                    : (value) => setState(() {
+                          cryptoAmount = value;
+                          quote = null;
+                          termsAccepted = false;
+                        }),
               ),
               if (quote != null) ...[
                 const SizedBox(height: 12),
                 _QuoteReview(quote: quote!),
               ],
+              if (quote != null)
+                ExchangeTerms(
+                    accepted: termsAccepted,
+                    enabled: !busy && verificationToken.isEmpty,
+                    onChanged: (v) => setState(() => termsAccepted = v)),
               if (verificationToken.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text(
@@ -1975,13 +926,6 @@ int _chainId(String network) {
   return 0;
 }
 
-String _quoteId(Map<String, dynamic> quote) =>
-    (_value(quote, 'session', 'Session') ??
-            _value(quote, 'quoteId', 'QuoteId') ??
-            '')
-        .toString()
-        .trim();
-
 Map<String, dynamic> _map(Object? value) {
   if (value is Map<String, dynamic>) return value;
   if (value is Map) {
@@ -1993,21 +937,7 @@ Map<String, dynamic> _map(Object? value) {
 Object? _value(Map<String, dynamic> json, String first, String second) =>
     json[first] ?? json[second];
 
-List<T> _distinctBy<T>(Iterable<T> items, String Function(T item) keyOf) {
-  final seen = <String>{};
-  return [
-    for (final item in items)
-      if (seen.add(keyOf(item))) item,
-  ];
-}
-
 String _amount(double value) => value.toStringAsFixed(6);
-
-String _exchangeBalanceAmount(
-  double value, {
-  required bool isCrypto,
-}) =>
-    isCrypto ? _amount(value) : value.toStringAsFixed(2);
 
 void _showError(BuildContext context, Object error) {
   ScaffoldMessenger.of(context).showSnackBar(

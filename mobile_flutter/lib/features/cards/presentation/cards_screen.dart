@@ -26,6 +26,10 @@ class CardsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboard = ref.watch(dashboardProvider);
+    final issuerStatus = ref.watch(kycDetailedStatusProvider);
+    final canOrderCard = !issuerStatus.isLoading &&
+        !issuerStatus.hasError &&
+        issuerStatus.valueOrNull?.interlaceKycApproved == true;
     final isExample = ref.watch(appConfigProvider).branding.isExample;
     return dashboard.when(
       data: (snapshot) {
@@ -45,7 +49,7 @@ class CardsScreen extends ConsumerWidget {
             : ref.watch(cardsProvider);
         return cards.when(
           data: (items) {
-            if (items.isEmpty && !snapshot.canOrderCard) {
+            if (items.isEmpty && !canOrderCard) {
               return _CardsScaffold(
                 body: _BankingRequired(
                   onContinue: () => context.go('/kyc/status'),
@@ -75,7 +79,7 @@ class CardsScreen extends ConsumerWidget {
               );
             }
             return _CardsScaffold(
-              onOrderCard: snapshot.canOrderCard
+              onOrderCard: canOrderCard
                   ? () => context.go('/cards/order')
                   : null,
               body: _CardsContent(
@@ -88,7 +92,7 @@ class CardsScreen extends ConsumerWidget {
                   await ref.read(currentCardsProvider.future);
                 },
                 onOpenCard: (card) => context.go('/cards/${card.id}'),
-                onOrderCard: snapshot.canOrderCard
+                onOrderCard: canOrderCard
                     ? () => context.go('/cards/order')
                     : null,
               ),
@@ -138,6 +142,7 @@ class _CardsScaffold extends ConsumerWidget {
         actions: [
           RefreshAction(onRefresh: () async {
             ref.invalidate(dashboardProvider);
+            ref.invalidate(kycDetailedStatusProvider);
             ref.invalidate(cardDetailProvider);
             ref.invalidate(cardTransactionsProvider);
             ref.invalidate(cardsProvider);

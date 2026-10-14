@@ -465,18 +465,15 @@ void main() {
 
           expect(tester.takeException(), isNull);
 
-          // The composer's one CTA, and the balances as a single group.
-          expect(find.text('Review exchange'), findsOneWidget);
+          // The exchange actions and both funded currencies remain accessible.
+          expect(find.text('Convert'), findsOneWidget);
           expect(find.byType(ExampleGlassButton), findsWidgets);
-          expect(find.byType(ExampleListGroup), findsWidgets);
-          expect(find.byType(FilledButton), findsNothing);
+          expect(find.text('USD'), findsWidgets);
+          expect(find.text('USDC'), findsWidgets);
+          expect(find.widgetWithText(FilledButton, 'Deposit'), findsOneWidget);
 
-          // The swap control keeps the 44 pt target even though its disc is
-          // 32, and it announces which two currencies it trades.
-          expect(
-            find.bySemanticsLabel('Swap USDC and USD'),
-            findsOneWidget,
-          );
+          // Currency selection and consent now live in the review dialog.
+          expect(find.text('More'), findsOneWidget);
 
           // Money is tabular on both legs and down the ledger.
           expect(find.byType(ExampleAmount), findsWidgets);
@@ -497,8 +494,10 @@ void main() {
         width: 834,
       );
       expect(tester.takeException(), isNull);
-      expect(find.text('Fiat to crypto'), findsOneWidget);
-      expect(find.text('Crypto to fiat'), findsOneWidget);
+      await tester.tap(find.text('More'));
+      await tester.pumpAndSettle();
+      expect(find.text('Fiat account to crypto wallet'), findsOneWidget);
+      expect(find.text('Crypto wallet to fiat account'), findsOneWidget);
       // U+2192 is not in the bundled Geist subsets and need not be in a
       // tenant's configured font either; on this route it renders as tofu.
       expect(find.textContaining('→'), findsNothing);
@@ -518,7 +517,7 @@ void main() {
         width: 375,
       );
       expect(tester.takeException(), isNull);
-      expect(find.text('Review exchange'), findsOneWidget);
+      expect(find.text('Convert'), findsOneWidget);
     });
 
     testWidgets('a white-label tenant keeps the Material exchange panel',
@@ -537,10 +536,10 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(ExampleGlassButton), findsNothing);
       expect(find.byType(ExampleListGroup), findsNothing);
-      // The arrow labels are pre-existing on this tree and must stay exactly
-      // as they were: this file changes no white-label pixel.
-      expect(find.text('Fiat → Crypto'), findsOneWidget);
-      expect(find.text('Crypto → Fiat'), findsOneWidget);
+      await tester.tap(find.text('More'));
+      await tester.pumpAndSettle();
+      expect(find.text('Fiat account to crypto wallet'), findsOneWidget);
+      expect(find.text('Crypto wallet to fiat account'), findsOneWidget);
     });
   });
 

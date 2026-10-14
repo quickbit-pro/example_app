@@ -56,6 +56,11 @@ class _DashboardContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final branding = ref.watch(appConfigProvider).branding;
+    final issuerStatus = ref.watch(kycDetailedStatusProvider);
+    final canOrderCard = !issuerStatus.isLoading &&
+        !issuerStatus.hasError &&
+        issuerStatus.valueOrNull?.interlaceKycApproved == true;
+    final orderRoute = canOrderCard ? AppRoutes.orderCard : AppRoutes.kycStatus;
     final unreadNotifications = ref.watch(unreadNotificationCountProvider);
 
     if (branding.isExample) {
@@ -177,14 +182,14 @@ class _DashboardContent extends ConsumerWidget {
                             ? context.tr('Order')
                             : context.tr('Manage'),
                         onAction: () => context.go(
-                          snapshot.cards.isEmpty ? '/cards/order' : '/cards',
+                          snapshot.cards.isEmpty ? orderRoute : '/cards',
                         ),
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       _CardsPreview(
                         cards: snapshot.cards,
                         onOpen: (card) => context.go('/cards/${card.id}'),
-                        onOrder: () => context.go('/cards/order'),
+                        onOrder: () => context.go(orderRoute),
                       ),
                     ],
                     const SizedBox(height: AppSpacing.lg),

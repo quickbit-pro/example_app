@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -285,6 +286,23 @@ final Finder _plate = find.byWidgetPredicate(
 );
 
 void main() {
+  testWidgets('desktop Settings can close when opened as a root route', (tester) async {
+    final router = GoRouter(initialLocation: '/profile', routes: [
+      GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
+      GoRoute(path: '/home', builder: (_, __) => const Scaffold(body: Text('Wallet home'))),
+    ]);
+    addTearDown(router.dispose);
+    await _pumpAt(tester, ProviderScope(
+      overrides: _overrides(),
+      child: MaterialApp.router(theme: buildAppThemes(_exampleBranding).light, routerConfig: router),
+    ), width: 1280);
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    expect(router.routeInformationProvider.value.uri.path, '/home');
+    expect(find.text('Wallet home'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final branding in [_exampleBranding, _tenantBranding]) {
     for (final capable in [true, false]) {
       testWidgets(

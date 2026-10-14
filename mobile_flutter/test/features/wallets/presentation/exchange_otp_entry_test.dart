@@ -225,7 +225,7 @@ void main() {
     ('white-label', _tenantBranding, Brightness.dark, 'Crypto → Fiat'),
   ];
 
-  for (final (name, branding, brightness, opener) in variants) {
+  for (final (name, branding, brightness, _) in variants) {
     final example = branding == _exampleBranding;
     testWidgets(
         'the crypto-to-fiat code is eight cells and the commit waits for all '
@@ -240,17 +240,18 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await _tap(tester, opener);
-      // The white-label dialog header already overflows by 16 px at 375
-      // before any code is asked for; that predates these cells and is
-      // drained here so the assertions below are about the cells alone.
-      if (!example) tester.takeException();
+      await _tap(tester, 'More');
+      await _tap(tester, 'Crypto wallet to fiat account');
+      expect(tester.takeException(), isNull);
       await tester.enterText(
         find.widgetWithText(TextField, 'Amount (USDC)'),
         '25',
       );
       await tester.pumpAndSettle();
       await _tap(tester, 'Get quote');
+      await tester.ensureVisible(find.byType(CheckboxListTile));
+      await tester.tap(find.byType(CheckboxListTile));
+      await tester.pumpAndSettle();
       await _tap(tester, 'Send verification code');
 
       expect(find.byType(ExampleOtpField), findsOneWidget);
