@@ -210,7 +210,7 @@
   "Biometrics are locked. Unlock your device and try again.": "생체 인식이 잠겼습니다. 장치를 잠금 해제하고 다시 시도하십시오.",
   "Biometrics are locked. Unlock your device, or confirm with your password.": "생체 인식이 잠겨 있습니다. 장치를 잠금 해제하거나 비밀번호를 확인하세요.",
   "Booked": "예약됨",
-  "BoomFi Exchange is ready. Fiat transfers become available after an active budget and a USDC or USDT wallet are linked to this account.": "BoomFi Exchange가 준비되었습니다. 법정화폐 이체는 활성 예산과 USDC 또는 USDT 지갑이 이 계정에 연결된 후에 가능합니다.",
+  "BoomFi Exchange is ready. Fiat transfers become available after an active budget and a USDC or USDT wallet are linked to this account.": "ZBX Exchange가 준비되었습니다. 법정화폐 이체는 활성 예산과 USDC 또는 USDT 지갑이 이 계정에 연결된 후에 가능합니다.",
   "Bright surfaces and dark text.": "밝은 표면과 어두운 텍스트.",
   "Budget": "예산",
   "Budget details": "예산 세부정보",
@@ -2337,5 +2337,8 @@
   "Cards included": "카드 포함",
   "KYC level": "KYC 레벨",
   "Accept & order card": "동의하고 카드 주문",
-  "To add this card to Apple Pay or Google Wallet, its balance must be greater than 0.": "이 카드를 Apple Pay 또는 Google 월렛에 추가하려면 잔액이 0보다 커야 합니다."
+  "To add this card to Apple Pay or Google Wallet, its balance must be greater than 0.": "이 카드를 Apple Pay 또는 Google 월렛에 추가하려면 잔액이 0보다 커야 합니다.",
+  "This transaction belongs to the ZBX Exchange service.": "이 거래는 ZBX을 통해 구동되는 ZBX Exchange 서비스에 속합니다.",
+  "Fund my payment card wallet": "내 결제 카드 지갑에 충전",
+  "USDT is not enabled for EU residents. Please choose USDC.": "EU 거주자는 USDT를 사용할 수 없습니다. USDC를 선택해 주세요."
 }

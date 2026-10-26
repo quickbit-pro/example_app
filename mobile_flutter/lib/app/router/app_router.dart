@@ -17,6 +17,7 @@ import '../../features/dashboard/dashboard.dart';
 import '../../features/dashboard/presentation/home_refresh_on_navigation.dart';
 import '../../features/kyc/presentation/kyc_screen.dart';
 import '../../features/money/presentation/money_screen.dart';
+import '../../features/money/domain/bank_payee_draft.dart';
 import '../../features/platform/presentation/banking_services_screen.dart';
 import '../../features/platform/application/platform_providers.dart';
 import '../../features/platform/presentation/onboarding_banking_screen.dart';
@@ -124,7 +125,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.payees,
             builder: (context, state) =>
-                const MoneyScreen(initialTab: MoneyTab.payees),
+                MoneyScreen(initialTab: MoneyTab.payees,
+                  initialPayee: state.extra is BankPayeeDraft ? state.extra as BankPayeeDraft : null),
           ),
           GoRoute(
             path: AppRoutes.cards,

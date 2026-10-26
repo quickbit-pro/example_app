@@ -410,6 +410,14 @@ class MobilePlatformApi {
       _getMap('/api/v1/mobile/exchange/verification');
   Future<Map<String, dynamic>> getExchangeApplication() =>
       _getMap('/api/v1/mobile/exchange/verification/application');
+  Future<Map<String, dynamic>> getExchangeBusinessApplication() =>
+      _getMap('/api/v1/mobile/exchange/verification/business');
+  Future<Map<String, dynamic>> startExchangeBusiness() =>
+      _postMap('/api/v1/mobile/exchange/verification/business', {});
+  Future<Map<String, dynamic>> sendExchangeBusinessCode() =>
+      _postMap('/api/v1/mobile/exchange/verification/business/authorisation/send-code', {});
+  Future<Map<String, dynamic>> authoriseExchangeBusiness(String code) =>
+      _postMap('/api/v1/mobile/exchange/verification/business/authorisation', {'code': code});
   Future<Map<String, dynamic>> startExchangeVerification(String tier) =>
       _postMap('/api/v1/mobile/exchange/verification/session', {'tier': tier});
   Future<Map<String, dynamic>> submitExchangeApplication(

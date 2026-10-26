@@ -41,7 +41,7 @@ String? exchangeActionUrl(Object? value) {
     ]) {
       final text = value[key]?.toString() ?? '';
       final candidate =
-          text.startsWith('kyc_required:') ? text.substring(13) : text;
+          (text.startsWith('kyc_required:') || text.startsWith('kyb_required:')) ? text.substring(13) : text;
       if (exchangeSafeUrl(candidate) != null) return candidate;
     }
     for (final nested in value.values) {

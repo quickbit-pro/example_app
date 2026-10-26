@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import '../../../core/widgets/app_states.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../platform/application/platform_providers.dart';
 import 'exchange_support.dart';
 import 'exchange_reference_data.dart';
+import 'exchange_business_onboarding_dialog.dart';
 
 class ExchangeVerificationPanel extends ConsumerStatefulWidget {
   const ExchangeVerificationPanel({super.key});
@@ -35,6 +37,23 @@ class _ExchangeVerificationPanelState
     } finally {
       if (mounted) setState(() => busy = false);
     }
+  }
+
+  Future<void> startBusiness() async {
+    final result = await showDialog<Map<String, dynamic>>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const ExchangeBusinessOnboardingDialog());
+    if (result == null || !mounted) return;
+    if (result['action'] == 'support') {
+      await context.push('/support');
+      return;
+    }
+    await run(() async {
+      final link = exchangeText(result, 'verificationUrl');
+      setState(() => verificationUrl = exchangeSafeUrl(link) != null ? link : null);
+      if (verificationUrl != null) await openExchangeUrl(verificationUrl!);
+    });
   }
 
   Future<void> completeApplication() async {
@@ -95,11 +114,11 @@ class _ExchangeVerificationPanelState
                       exchangeText(provider, 'nextAction').split(':').first;
                   final submitted = provider['actionSubmitted'] == true;
                   final business = data['verificationType'] == 'business';
-                  final canStart = data['eligible'] == true &&
+                  final canStart = !business && data['eligible'] == true &&
                       provider.isEmpty &&
                       ['not_started', 'in_progress', 'resubmission_required']
                           .contains(status);
-                  final url = verificationUrl ?? exchangeActionUrl(provider);
+                  final url = provider.isNotEmpty ? exchangeActionUrl(provider) : verificationUrl;
                   return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -109,7 +128,7 @@ class _ExchangeVerificationPanelState
                         Text(provider.isNotEmpty
                             ? submitted
                                 ? 'Your information has been submitted for review.'
-                                : provider['kycStatus'] == 'rejected'
+                                : ['rejected', 'failed'].contains(provider['kycStatus'])
                                     ? 'Your Exchange application was not approved. Contact support.'
                                     : provider['kycStatus'] == 'accepted'
                                         ? 'Your account is approved. Settlement accounts are being prepared.'
@@ -117,9 +136,11 @@ class _ExchangeVerificationPanelState
                                             ? 'Provide your tax identification details.'
                                             : nextAction == 'edd_required'
                                                 ? 'Provide additional source of funds information.'
-                                                : nextAction == 'kyc_required'
+                                                : ['kyc_required', 'kyb_required'].contains(nextAction)
                                                     ? 'Complete the provider verification to continue.'
                                                     : 'Your Exchange application is under review.'
+                            : business
+                                ? 'Review your saved business details and complete the provider’s business verification.'
                             : data['eligible'] != true
                                 ? 'Complete your identity verification first.'
                                 : {
@@ -143,12 +164,21 @@ class _ExchangeVerificationPanelState
                           Text(exchangeText(provider, 'reason')),
                         if (url != null &&
                             exchangeSafeUrl(url) != null &&
-                            !submitted)
+                            !submitted &&
+                            !['accepted', 'rejected', 'failed'].contains(provider['kycStatus']))
                           TextButton(
                               onPressed: busy
                                   ? null
                                   : () => run(() => openExchangeUrl(url)),
                               child: const Text('Continue verification')),
+                        if (business && provider.isEmpty && data['hasProviderAccount'] != true)
+                          FilledButton(
+                              onPressed: busy || data['businessOnboardingSupported'] != true
+                                  ? null
+                                  : startBusiness,
+                              child: const Text('Review business details')),
+                        if (business && provider.isEmpty && data['businessOnboardingSupported'] != true)
+                          const Text('Business Exchange setup is not available yet. Contact support.'),
                         if (canStart ||
                             (!business &&
                                 status == 'approved' &&
@@ -200,14 +230,14 @@ class _ExchangeVerificationPanelState
                               child: Text(status == 'approved'
                                   ? 'Upgrade limits'
                                   : 'Choose limits and verify')),
-                        if (status == 'approved' &&
+                        if (!business && status == 'approved' &&
                             data['hasProviderAccount'] != true)
                           FilledButton(
                               onPressed: busy || applicationOutcomeUnknown
                                   ? null
                                   : () => run(completeApplication),
                               child: const Text('Activate Exchange')),
-                        if (status == 'approved' &&
+                        if (!business && status == 'approved' &&
                             data['hasProviderAccount'] != true)
                           const Padding(
                               padding: EdgeInsets.symmetric(vertical: 8),
@@ -803,8 +833,7 @@ class _ExchangeProviderActionDialogState
                     'grossAnnualIncome': 'Gross annual income and currency'
                   }.entries)
                     field('salary.${entry.key}', entry.value),
-                  field('fileUrls',
-                      'Supporting document HTTPS links (one per line)'),
+                  const Text('Document uploads are not available yet. Do not publish sensitive documents or paste document links. Contact support if documents are required.'),
                 ],
                 if (error != null) Text(error!),
               ]))),
@@ -847,17 +876,6 @@ class _ExchangeProviderActionDialogState
                                   : null
                             });
                           } else {
-                            final urls = (fields['fileUrls'] ?? '')
-                                .split('\n')
-                                .map((x) => x.trim())
-                                .where((x) => x.isNotEmpty)
-                                .toSet()
-                                .toList();
-                            if (urls.length > 10 ||
-                                urls.any((x) => exchangeSafeUrl(x) == null)) {
-                              throw StateError(
-                                  'Use up to 10 valid HTTPS document links.');
-                            }
                             final salary = {
                               for (final e in fields.entries.where((e) =>
                                   e.key.startsWith('salary.') &&
@@ -874,10 +892,9 @@ class _ExchangeProviderActionDialogState
                             if (salary.isNotEmpty) {
                               request['professionalSalary'] = salary;
                             }
-                            if (urls.isNotEmpty) request['fileUrls'] = urls;
                             if (request.isEmpty) {
                               throw StateError(
-                                  'Provide source of funds details or a supporting document.');
+                                  'Provide source of funds details.');
                             }
                             await api.submitExchangeEdd(request);
                           }

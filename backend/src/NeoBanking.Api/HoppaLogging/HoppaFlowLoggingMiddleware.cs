@@ -58,6 +58,14 @@ public sealed class HoppaFlowLoggingMiddleware(
             context.Request.Path.StartsWithSegments("/api/v1/mobile/transaction-documents", StringComparison.OrdinalIgnoreCase) ||
             context.Request.Path.StartsWithSegments("/api/v1/mobile/documents", StringComparison.OrdinalIgnoreCase))
         { await next(context); return; }
+        // Corporate drafts, verification links, email codes and EDD text contain
+        // private data. Skip buffering the app payload as well as upstream logging.
+        if (context.Request.Path.StartsWithSegments("/api/v1/mobile/exchange/verification", StringComparison.OrdinalIgnoreCase))
+        {
+            await next(context).ConfigureAwait(false);
+            return;
+        }
+
         var appRequestBody = IsSensitiveReferralRequest(context.Request.Path)
             ? "[REDACTED REFERRAL PAYLOAD]"
             : await ReadRequestBodyAsync(context.Request).ConfigureAwait(false);

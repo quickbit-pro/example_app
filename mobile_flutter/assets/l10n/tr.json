@@ -210,7 +210,7 @@
   "Biometrics are locked. Unlock your device and try again.": "Biyometri kilitlendi. Cihazınızın kilidini açın ve tekrar deneyin.",
   "Biometrics are locked. Unlock your device, or confirm with your password.": "Biyometri kilitlendi. Cihazınızın kilidini açın veya şifrenizle onaylayın.",
   "Booked": "Rezerve edildi",
-  "BoomFi Exchange is ready. Fiat transfers become available after an active budget and a USDC or USDT wallet are linked to this account.": "BoomFi Değişimi hazır. Fiat transferleri, aktif bir bütçenin ve bir USDC veya USDT cüzdanının bu hesaba bağlanmasının ardından kullanılabilir hale gelir.",
+  "BoomFi Exchange is ready. Fiat transfers become available after an active budget and a USDC or USDT wallet are linked to this account.": "ZBX Exchange hazır. Aktif bir bütçe ve bir USDC veya USDT cüzdanı bu hesaba bağlandıktan sonra itibari para transferleri kullanılabilir.",
   "Bright surfaces and dark text.": "Parlak yüzeyler ve koyu metin.",
   "Budget": "Bütçe",
   "Budget details": "Bütçe ayrıntıları",
@@ -2337,5 +2337,8 @@
   "Cards included": "Kartlar dahil",
   "KYC level": "KYC seviyesi",
   "Accept & order card": "Kartı kabul et ve sipariş et",
-  "To add this card to Apple Pay or Google Wallet, its balance must be greater than 0.": "Bu kartı Apple Pay veya Google Cüzdan'a eklemek için bakiyesinin 0'dan büyük olması gerekir."
+  "To add this card to Apple Pay or Google Wallet, its balance must be greater than 0.": "Bu kartı Apple Pay veya Google Cüzdan'a eklemek için bakiyesinin 0'dan büyük olması gerekir.",
+  "This transaction belongs to the ZBX Exchange service.": "Bu işlem ZBX üzerinden desteklenen ZBX Exchange hizmetine aittir.",
+  "Fund my payment card wallet": "Ödeme kartı cüzdanıma para ekle",
+  "USDT is not enabled for EU residents. Please choose USDC.": "USDT, AB sakinleri için etkin değildir. Lütfen USDC seçin."
 }

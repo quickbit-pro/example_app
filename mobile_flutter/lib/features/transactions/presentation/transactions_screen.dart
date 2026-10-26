@@ -3189,7 +3189,7 @@ extension on _TransactionProvider {
   String get institution => switch (this) {
         _TransactionProvider.bank => 'Fiat account',
         _TransactionProvider.cryptoCard => 'Crypto card',
-        _TransactionProvider.exchange => 'BoomFi Exchange / ZBX',
+        _TransactionProvider.exchange => 'ZBX Exchange',
       };
 
   String get description => switch (this) {
@@ -3198,7 +3198,7 @@ extension on _TransactionProvider {
         _TransactionProvider.cryptoCard =>
           'This transaction belongs to the Crypto card service.',
         _TransactionProvider.exchange =>
-          'This transaction belongs to the BoomFi Exchange service powered through ZBX.',
+          'This transaction belongs to the ZBX Exchange service.',
       };
 }
 

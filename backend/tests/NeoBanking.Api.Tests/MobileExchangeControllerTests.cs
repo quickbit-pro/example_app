@@ -15,6 +15,40 @@ namespace NeoBanking.Api.Tests;
 public sealed class MobileExchangeControllerTests
 {
     [Theory]
+    [InlineData("draft")] [InlineData("start")] [InlineData("send-code")] [InlineData("authorise")]
+    public async Task BusinessOnboardingIsPrivateScopedAndDoesNotRequireOutflows(string action)
+    {
+        var proxy = new Recorder();
+        var controller = Controller(proxy, true, false);
+        var suffix = "";
+        switch (action)
+        {
+            case "draft": await controller.BusinessApplication(default); break;
+            case "start": await controller.StartBusiness(default); break;
+            case "send-code": await controller.SendBusinessCode(default); suffix = "/authorisation/send-code"; break;
+            default: await controller.AuthoriseBusiness(new("123456"), default); suffix = "/authorisation"; break;
+        }
+        Assert.Equal("/api/v2/crypto-virtual-accounts/verification/business" + suffix, proxy.Path);
+        Assert.Equal(action == "draft" ? HttpMethod.Get : HttpMethod.Post, proxy.Method);
+        Assert.Equal("42", proxy.Query!["userId"]);
+        Assert.True(proxy.Private);
+        if (action == "authorise") Assert.Equal("123456", proxy.Body.GetProperty("Code").GetString());
+        if (action != "draft") Assert.Equal(42, proxy.Body.GetProperty("userId").GetInt32());
+    }
+
+    [Fact]
+    public async Task BusinessOnboardingHonoursExchangeFeatureGate()
+    {
+        var proxy = new Recorder();
+        var controller = Controller(proxy, false, false);
+        Assert.Equal(403, Assert.IsType<ObjectResult>((await controller.BusinessApplication(default)).Result).StatusCode);
+        Assert.Equal(403, Assert.IsType<ObjectResult>((await controller.StartBusiness(default)).Result).StatusCode);
+        Assert.Equal(403, Assert.IsType<ObjectResult>((await controller.SendBusinessCode(default)).Result).StatusCode);
+        Assert.Equal(403, Assert.IsType<ObjectResult>((await controller.AuthoriseBusiness(new("123456"), default)).Result).StatusCode);
+        Assert.Null(proxy.Path);
+    }
+
+    [Theory]
     [InlineData(1)]
     [InlineData(-200)]
     public async Task PayInAddressUsesAuthenticatedUserAndDoesNotRequireOutflows(int chain)
@@ -125,6 +159,26 @@ public sealed class MobileExchangeControllerTests
         var result = await Controller(proxy, false, false).RegisterCrypto(JsonSerializer.SerializeToElement(new { }), default);
         Assert.Equal(403, Assert.IsType<ObjectResult>(result.Result).StatusCode);
         Assert.Null(proxy.Path);
+    }
+
+    [Theory]
+    [InlineData("message")]
+    [InlineData("Message")]
+    [InlineData("title")]
+    [InlineData("Title")]
+    public async Task QuotePreservesSafeReasonAcrossErrorFormats(string field)
+    {
+        var proxy = new Recorder { Error = new ApplicationError("mobile.exchange.upstream_failed",
+            "We could not process the Exchange request.", 400,
+            JsonSerializer.Serialize(new Dictionary<string, string> {
+                [field] = "BoomFi card delivery is unavailable on this network.",
+                ["detail"] = "private provider diagnostics"
+            })) };
+        var result = await Controller(proxy).GetExchangeQuote(JsonSerializer.SerializeToElement(new { }), default);
+        var problem = Assert.IsType<ProblemDetails>(Assert.IsType<ObjectResult>(result.Result).Value);
+        Assert.Equal("ZBX card delivery is unavailable on this network.", problem.Title);
+        Assert.Null(problem.Detail);
+        Assert.True(problem.Extensions.ContainsKey("traceId"));
     }
 
     private static MobileExchangeController Controller(Recorder proxy, bool exchange=true, bool outflows=true) => new(proxy,

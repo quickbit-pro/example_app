@@ -25,6 +25,8 @@ import '../../wallets/domain/wallet_models.dart';
 import '../../wallets/presentation/wallets_screen.dart';
 import '../domain/payment_balance_options.dart';
 import 'accounts_hub_header.dart';
+import '../domain/bank_payee_draft.dart';
+import 'payee_country_field.dart';
 import '../domain/balance_value_order.dart';
 
 enum MoneyTab { accounts, pay, payees }
@@ -34,9 +36,11 @@ class MoneyScreen extends ConsumerStatefulWidget {
     this.initialTab = MoneyTab.accounts,
     this.initialBudgetId = '',
     this.initialCurrency = '',
+    this.initialPayee,
     super.key,
   });
 
+  final BankPayeeDraft? initialPayee;
   final MoneyTab initialTab;
   final String initialBudgetId;
   final String initialCurrency;
@@ -129,7 +133,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen>
             selected: AccountsHubSection.money,
             showMoney: tenantConfig.valueOrNull?.equalsMoneyEnabled ?? true,
             showCrypto: personal,
-            showExchange: personal &&
+            showExchange:
                 tenantConfig.valueOrNull?.boomFiExchangeEnabled == true,
           );
           if (detailedStatus.requiresEqualsMoneyAction) {
@@ -149,9 +153,8 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen>
               }
 
               final isBusinessAccount = snapshot.profile.isBusinessAccount;
-              final exchangeEnabled = isBusinessAccount
-                  ? snapshot.canUseBanking
-                  : tenantConfig.valueOrNull?.boomFiExchangeEnabled == true;
+              final exchangeEnabled =
+                  tenantConfig.valueOrNull?.boomFiExchangeEnabled == true;
               final isExample = context.isExampleTheme;
               final width = MediaQuery.sizeOf(context).width;
               final desktop = isExample && width >= (kIsWeb ? 600 : 760);
@@ -292,7 +295,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen>
                                 _PaymentForm(
                                   initialAccountId: widget.initialBudgetId,
                                 ),
-                                const _PayeesView(),
+                                _PayeesView(initialDraft: widget.initialPayee),
                               ],
                             ),
                     ),
@@ -2301,7 +2304,8 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
 }
 
 class _PayeesView extends ConsumerStatefulWidget {
-  const _PayeesView();
+  const _PayeesView({this.initialDraft});
+  final BankPayeeDraft? initialDraft;
 
   @override
   ConsumerState<_PayeesView> createState() => _PayeesViewState();
@@ -2414,9 +2418,9 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
   String _paymentType = 'INDIVIDUAL';
   String _paymentMethod = 'SEPA.CREDITTRANSFER';
   String _currency = 'EUR';
-  String _countryCode = 'SI';
-  String _bankCountryCode = 'SI';
-  String _payeeCountryCode = 'SI';
+  String _countryCode = '';
+  String _bankCountryCode = '';
+  String _payeeCountryCode = '';
   String _routingCodeType = 'BIC';
   String _payeeVerificationToken = '';
   String _payeeErrorMessage = '';
@@ -2429,6 +2433,20 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
   @override
   void initState() {
     super.initState();
+    final draft = widget.initialDraft;
+    if (draft != null) {
+      _showPayeeForm = true;
+      _displayNameController.text = 'My ZBX account';
+      _accountHolderController.text = draft.accountHolder;
+      _accountController.text = draft.iban;
+      _routingCodeController.text = draft.bic;
+      _bankNameController.text = draft.bankName;
+      _bankAddressController.text = draft.bankAddress;
+      _countryCode = draft.bankCountry;
+      _bankCountryCode = draft.bankCountry;
+      // The recipient may live in a different country from the receiving bank.
+      _payeeCountryCode = '';
+    }
     for (final controller in [
       _displayNameController,
       _firstNameController,
@@ -2515,6 +2533,13 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
                   ),
                 ),
             const Divider(height: 32),
+            if (widget.initialDraft != null && _showPayeeForm) ...[
+              Text(context.tr('Review the bank details and complete the recipient information before saving. Payment routes are validated when you submit.')),
+              if (widget.initialDraft!.paymentReference.isNotEmpty)
+                SelectableText(context.tr('Use payment reference {p0} when transferring funds.',
+                    {'p0': widget.initialDraft!.paymentReference})),
+              const SizedBox(height: 16),
+            ],
             if (!_showPayeeForm)
               Row(
                 children: [
@@ -2628,23 +2653,11 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _SelectField(
-                      label: context.tr('Country'),
-                      value: _countryCode,
-                      options: const [
-                        'SI',
-                        'GB',
-                        'DE',
-                        'FR',
-                        'NL',
-                        'ES',
-                        'IT',
-                        'US'
-                      ],
+                    child: PayeeCountryField(
+                label: context.tr('Account country'),
+                value: _countryCode,
                       onChanged: (value) => setState(() {
                         _countryCode = value;
-                        _bankCountryCode = value;
-                        _payeeCountryCode = value;
                         _resetPayeeVerification();
                       }),
                     ),
@@ -2720,10 +2733,9 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
               Text(context.tr('Bank address'),
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 12),
-              _SelectField(
+              PayeeCountryField(
                 label: context.tr('Bank country'),
                 value: _bankCountryCode,
-                options: const ['SI', 'GB', 'DE', 'FR', 'NL', 'ES', 'IT', 'US'],
                 onChanged: (value) => setState(() {
                   _bankCountryCode = value;
                   _resetPayeeVerification();
@@ -2771,10 +2783,9 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
               Text(context.tr('Payee address'),
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 12),
-              _SelectField(
+              PayeeCountryField(
                 label: context.tr('Payee country'),
                 value: _payeeCountryCode,
-                options: const ['SI', 'GB', 'DE', 'FR', 'NL', 'ES', 'IT', 'US'],
                 onChanged: (value) => setState(() {
                   _payeeCountryCode = value;
                   _resetPayeeVerification();
@@ -2921,6 +2932,12 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
       return;
     }
 
+    final candidate = BankPayeeDraft(iban: _accountController.text,
+        accountHolder: _accountHolderController.text, bankCountry: _bankCountryCode);
+    if (_currency == 'EUR' && (ref.read(payeesProvider).valueOrNull ?? []).any(candidate.matches)) {
+      setState(() => _payeeErrorMessage = context.tr('This account is already in your payees. Use the saved recipient or complete its pending approval.'));
+      return;
+    }
     try {
       setState(() {
         _payeeLoading = true;
@@ -3037,7 +3054,6 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
     }
     if (details.countryCode != null) {
       _countryCode = details.countryCode!;
-      _payeeCountryCode = details.countryCode!;
       _bankCountryCode = details.countryCode!;
     }
     if (details.currency != null) {
@@ -3174,8 +3190,9 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
     _payeeStateController.clear();
     _payeePostalCodeController.clear();
     _commentsController.clear();
-    _bankCountryCode = _countryCode;
-    _payeeCountryCode = _countryCode;
+    _countryCode = '';
+    _bankCountryCode = '';
+    _payeeCountryCode = '';
     _clearingPayeeForm = false;
     _resetPayeeVerification();
   }

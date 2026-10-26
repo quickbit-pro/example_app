@@ -1271,7 +1271,7 @@ String? _boomFiTitle(
     case 'deposit':
       return '${currency.toUpperCase()} deposit';
     default:
-      return 'BoomFi';
+      return 'ZBX';
   }
 }
 

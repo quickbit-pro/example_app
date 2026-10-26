@@ -12,6 +12,8 @@ import '../domain/wallet_models.dart';
 import '../data/wallet_providers.dart';
 import '../domain/receiving_account_details.dart';
 import 'exchange_support.dart';
+import 'exchange_quote_error.dart';
+import '../../../core/l10n/app_localizations.dart';
 
 enum ExchangeFlow { convert, fund, withdraw }
 
@@ -261,7 +263,7 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
       return;
     }
     if (canSendToCard && sendToCard && cardDestination == null) {
-      setState(() => error = 'Select a currency and network supported by your crypto card account.');
+      setState(() => error = 'Select a currency and network supported by your payment card wallet.');
       return;
     }
     if (needsBank && bankChoice.startsWith('saved:') && savedBank == null) {
@@ -304,7 +306,7 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
         accepted = false;
       });
     } catch (e) {
-      if (mounted) setState(() => error = friendlyErrorMessage(e));
+      if (mounted) setState(() => error = exchangeQuoteError(e, cardDelivery: canSendToCard && sendToCard));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -545,11 +547,11 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
                       decoration: const InputDecoration(hintText: '0.00'),
                       onChanged: (v) => edit(() => amount = v))),
               if (widget.flow != ExchangeFlow.withdraw && !widget.overview.canTrade('USDT'))
-                const ExchangeNotice('USDT cannot be exchanged through BoomFi for EU residents. Use USDC instead.'),
+                ExchangeNotice(context.tr('USDT is not enabled for EU residents. Please choose USDC.')),
               if (canSendToCard) ...[
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Send to my crypto card account'),
+                  title: Text(context.tr('Fund my payment card wallet')),
                   subtitle: const Text('Optional · Deliver the converted crypto after settlement, ready for a card top-up.'),
                   value: sendToCard,
                   onChanged: locked || !widget.outflowsEnabled || cardDestinations.isEmpty
@@ -558,9 +560,9 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
                 if (widget.overview.canTrade('USDT') && !balances.any((b) => b.currency == 'USDT' && b.isCrypto))
                   const ExchangeNotice('USDT is not enabled for conversion on your Exchange account.'),
                 if (depositWallets.isLoading)
-                  const ExchangeNotice('Loading your crypto card deposit addresses…')
+                  const ExchangeNotice('Loading your payment card wallet addresses…')
                 else if (depositWallets.hasError) ...[
-                  const ExchangeNotice('Could not load your crypto card deposit addresses.'),
+                  const ExchangeNotice('Could not load your payment card wallet addresses.'),
                   TextButton.icon(
                     onPressed: locked ? null : () {
                       ref.invalidate(depositAddressesProvider);
@@ -570,9 +572,9 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
                     label: const Text('Retry deposit addresses'),
                   ),
                 ] else if (cardDestinations.isEmpty)
-                  const ExchangeNotice('No crypto card deposit address matches this currency and network. Choose another network.'),
+                  const ExchangeNotice('No payment card wallet address matches this currency and network. Choose another network.'),
                 if (sendToCard && cardDestination != null)
-                  ExchangeFieldLabel(label: 'Crypto card deposit account', child: DropdownButtonFormField<String>(
+                  ExchangeFieldLabel(label: 'Payment card wallet', child: DropdownButtonFormField<String>(
                     key: ValueKey('card-delivery-${destination?.key}'),
                     initialValue: walletId(cardDestination!), isExpanded: true,
                     items: cardDestinations.map((w) => DropdownMenuItem(value: walletId(w),

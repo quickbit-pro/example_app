@@ -191,11 +191,8 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
     final bankingDashboard = ref.watch(dashboardProvider);
     final isBusinessAccount =
         bankingDashboard.valueOrNull?.profile.isBusinessAccount ?? false;
-    final businessAccountReady =
-        bankingDashboard.valueOrNull?.canUseBanking ?? false;
-    final exchangeEnabled = isBusinessAccount
-        ? businessAccountReady
-        : tenantConfig.valueOrNull?.boomFiExchangeEnabled == true;
+    final exchangeEnabled =
+        tenantConfig.valueOrNull?.boomFiExchangeEnabled == true;
     final view = isBusinessAccount &&
             (_view == WalletView.assets || _view == WalletView.addresses)
         ? WalletView.balances
@@ -221,6 +218,7 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
       ref.invalidate(budgetsProvider);
       ref.invalidate(portfolioEstimateProvider);
       ref.invalidate(exchangeOverviewProvider);
+      ref.invalidate(exchangeVerificationProvider);
       ref.invalidate(exchangeTransfersProvider);
       await Future.wait([
         ref.read(hoppaWalletAssetsProvider.future),
@@ -303,24 +301,30 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
             const SizedBox(height: 8),
           ],
           if (view == WalletView.exchange)
-            if (isBusinessAccount)
-              budgets.when(
-                data: (items) => _EqualsMoneyExchangeEntry(
-                  budgets: items,
-                ),
-                error: (error, stackTrace) => PlatformErrorState(
-                  error: error,
-                  compact: false,
-                  onRetry: () => ref.invalidate(budgetsProvider),
-                ),
-                loading: () => _WalletsLoading(
-                  label: context.tr('Loading accounts'),
-                  rows: 2,
-                ),
-              )
-            else
-              tenantConfig.when(
-                data: (config) => assets.when(
+            tenantConfig.when(
+              data: (config) {
+                if (!config.boomFiExchangeEnabled) {
+                  return Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Text(context.tr(
+                          'Exchange is not enabled for your account.')),
+                    ),
+                  );
+                }
+                if (isBusinessAccount) {
+                  // Corporate onboarding must not wait for Equals accounts
+                  // or personal crypto wallets to become available.
+                  return ExchangePanel(
+                    config: config,
+                    budgets: budgets.valueOrNull ?? const [],
+                    wallets: const [],
+                    transferSection: _ExchangeTransfersContent(
+                      outflowsEnabled: config.walletOutflowsEnabled,
+                    ),
+                  );
+                }
+                return assets.when(
                   data: (walletItems) => budgets.when(
                     data: (budgetItems) => ExchangePanel(
                       config: config,
@@ -351,18 +355,19 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
                     title: context.tr('Exchange balances'),
                     rows: 3,
                   ),
-                ),
-                error: (error, stackTrace) => PlatformErrorState(
-                  error: error,
-                  compact: false,
-                  onRetry: () => ref.invalidate(mobileTenantConfigProvider),
-                ),
-                loading: () => _WalletsLoading(
-                  label: context.tr('Loading configuration'),
-                  title: context.tr('Exchange balances'),
-                  rows: 3,
-                ),
-              )
+                );
+              },
+              error: (error, stackTrace) => PlatformErrorState(
+                error: error,
+                compact: false,
+                onRetry: () => ref.invalidate(mobileTenantConfigProvider),
+              ),
+              loading: () => _WalletsLoading(
+                label: context.tr('Loading configuration'),
+                title: context.tr('Exchange balances'),
+                rows: 3,
+              ),
+            )
           else if (view == WalletView.assets)
             assets.when(
               data: (walletItems) => addresses.when(
@@ -516,121 +521,6 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
               ),
               body: body,
             ),
-    );
-  }
-}
-
-class _EqualsMoneyExchangeEntry extends ConsumerWidget {
-  const _EqualsMoneyExchangeEntry({required this.budgets});
-
-  final List<PlatformResource> budgets;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final unavailable = _convertibleEqualsBudgets(budgets).isEmpty;
-    final onConvert = unavailable
-        ? null
-        : () => showEqualsMoneyConversionDialog(context, ref, budgets);
-
-    if (context.isExampleTheme) {
-      // A business account's whole Exchange route is this one panel, so the
-      // conversion CTA is the screen's single decisive action and the one
-      // place the glass button belongs. The disabled reason sits under it in
-      // secondary ink rather than in a tooltip nobody opens on a phone.
-      return ExampleGlassPanel(
-        radius: 20,
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                ExampleIconTile(
-                  icon: Icons.currency_exchange_rounded,
-                  color: ExamplePalette.of(context).accent,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    context.tr('Exchange account currencies'),
-                    style: TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w700,
-                      color: ExampleInk.primary(context),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              context.tr(
-                  'Review a live quotation before converting or sending funds in another currency.'),
-              style: TextStyle(
-                fontSize: 12.5,
-                height: 1.45,
-                color: ExampleInk.secondary(context),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            ExampleGlassButton(
-              label: context.tr('Convert funds'),
-              icon: Icons.arrow_forward_rounded,
-              expand: false,
-              sheen: true,
-              onPressed: onConvert,
-            ),
-            if (unavailable) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                context.tr(
-                    'A funded budget with at least two supported currencies is required.'),
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1.4,
-                  color: ExampleInk.tertiary(context),
-                ),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
-    return NeoSurfaceCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-            child: const Icon(Icons.currency_exchange_rounded),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            context.tr('Exchange account currencies'),
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            context.tr(
-                'Review a live quotation before converting or sending funds in another currency.'),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          FilledButton.icon(
-            onPressed: onConvert,
-            icon: const Icon(Icons.arrow_forward_rounded),
-            label: Text(context.tr('Convert funds')),
-          ),
-          if (unavailable) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              context.tr(
-                  'A funded budget with at least two supported currencies is required.'),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ],
-      ),
     );
   }
 }
