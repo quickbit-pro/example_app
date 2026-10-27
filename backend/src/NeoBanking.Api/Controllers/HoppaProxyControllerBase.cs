@@ -1,5 +1,7 @@
 using System.Net.Http;
 using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
 using NeoBanking.Application.Common;
 using NeoBanking.Application.UseCases.Hoppa;
 
@@ -31,11 +33,23 @@ public abstract class HoppaProxyControllerBase : ApiControllerBase
                 UpstreamPath = upstreamPath,
                 Query = query ?? new Dictionary<string, string?>(),
                 Request = request,
+                IdempotencyKey = MorIdempotencyKey(method, upstreamPath),
                 TrustedReferralActorId = trustedReferralActorId,
                 FailureCode = failureCode,
                 FailureMessage = failureMessage
             },
             cancellationToken);
+    }
+
+    private string? MorIdempotencyKey(HttpMethod method, string path)
+    {
+        if (method != HttpMethod.Post || !path.StartsWith("/api/v2/mor/public/", StringComparison.Ordinal)
+            || HttpContext is null || !Request.Headers.TryGetValue("Idempotency-Key", out var keys)) return null;
+        if (keys.Count != 1 || keys[0] is not { Length: >= 8 and <= 200 } key || key.Any(c => c < 33 || c > 126))
+            return "!"; // Upstream rejects invalid keys before any operation.
+        // Different signed-in actors sharing an installation cannot replay each other's response.
+        TryGetLocalUserId(out var actor);
+        return "mor-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{actor}:{key}")));
     }
 
     protected Task<ApplicationResult<JsonElement?>> SendAdminHoppaAsync<TRequest>(

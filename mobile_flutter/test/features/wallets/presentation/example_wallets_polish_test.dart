@@ -467,8 +467,10 @@ void main() {
               width: width,
             );
 
-            expect(find.text('Fiat to crypto'), findsOneWidget);
-            await tester.tap(find.text('Fiat to crypto'));
+            await tester.tap(find.text('More'));
+            await tester.pumpAndSettle();
+            expect(find.text('Fiat account to crypto wallet'), findsOneWidget);
+            await tester.tap(find.text('Fiat account to crypto wallet'));
             await tester.pumpAndSettle();
 
             expect(
@@ -496,8 +498,9 @@ void main() {
         width: 375,
       );
 
-      expect(find.text('Fiat → Crypto'), findsOneWidget);
-      await tester.tap(find.text('Fiat → Crypto'));
+      await tester.tap(find.text('More'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Fiat account to crypto wallet'));
       await tester.pumpAndSettle();
 
       expect(find.text('Fiat account → Crypto card'), findsOneWidget);
@@ -519,7 +522,9 @@ void main() {
           width: 375,
         );
 
-        await tester.tap(find.text('Crypto to fiat'));
+        await tester.tap(find.text('More'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Crypto wallet to fiat account'));
         await tester.pumpAndSettle();
         expect(find.text('Crypto card to Fiat account'), findsOneWidget);
 
@@ -556,7 +561,9 @@ void main() {
         width: 375,
       );
 
-      await tester.tap(find.text('Crypto → Fiat'));
+      await tester.tap(find.text('More'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Crypto wallet to fiat account'));
       await tester.pumpAndSettle();
 
       await tester.enterText(
@@ -571,15 +578,11 @@ void main() {
       expect(find.textContaining('You receive:'), findsOneWidget);
       expect(find.text('You receive'), findsNothing);
 
-      // Documented, not fixed: the same unconstrained dropdown that used to
-      // overflow on Example still overflows here by 16 px at 375. The fix is
-      // `isExpanded: true` plus an ellipsising label, and it is deliberately
-      // gated on Example so a white-label tenant's pixels do not move behind
-      // its back. Draining it keeps this test honest about what it covers.
+      // Both branded and white-label dropdowns must fit narrow dialogs.
       expect(
         tester.takeException(),
-        isA<FlutterError>(),
-        reason: 'the white-label dropdown overflow is expected to persist',
+        isNull,
+        reason: 'exchange dropdowns fit the white-label dialog',
       );
     });
   });

@@ -581,7 +581,7 @@ class KycDetailedStatus {
 
     return KycDetailedStatus(
       interlaceKycApproved: (interlaceAction?.trim().isEmpty ?? true) &&
-          _asBool(interlace?['Approved'] ?? interlace?['approved']) != false &&
+          _asBool(interlace?['Approved'] ?? interlace?['approved']) == true &&
           (interlace?['Status'] ?? interlace?['status'])
                   ?.toString()
                   .trim()

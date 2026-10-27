@@ -93,6 +93,55 @@ public sealed class MobileExchangeController : ApiControllerBase
         CancellationToken cancellationToken) =>
         PostAsync($"transfers/{transferId}/decision", request, true, cancellationToken);
 
+    [HttpGet("verification")]
+    public Task<ActionResult<JsonElement?>> Verification(CancellationToken ct) => GetAsync("verification", ct);
+    [HttpGet("verification/application")]
+    public Task<ActionResult<JsonElement?>> Application(CancellationToken ct) => GetAsync("verification/application", ct);
+    [HttpGet("settlement-accounts")]
+    public Task<ActionResult<JsonElement?>> SettlementAccounts(CancellationToken ct) => GetAsync("verification/settlement-accounts", ct);
+    [HttpPost("verification/session")]
+    public Task<ActionResult<JsonElement?>> VerificationSession([FromBody] JsonElement request, CancellationToken ct) =>
+        PostAsync("verification/session", request, false, ct);
+    [HttpPost("verification/application")]
+    public Task<ActionResult<JsonElement?>> SubmitApplication([FromBody] JsonElement request, CancellationToken ct) =>
+        PostAsync("verification/application", request, false, ct);
+    [HttpPost("verification/tin")]
+    public Task<ActionResult<JsonElement?>> SubmitTin([FromBody] JsonElement request, CancellationToken ct) =>
+        PostAsync("verification/tin", request, false, ct);
+    [HttpPost("verification/edd")]
+    public Task<ActionResult<JsonElement?>> SubmitEdd([FromBody] JsonElement request, CancellationToken ct) =>
+        PostAsync("verification/edd", request, false, ct);
+    [HttpPost("payout-address")]
+    public Task<ActionResult<JsonElement?>> CryptoPayout([FromBody] JsonElement request, CancellationToken ct) =>
+        PostAsync("payout-address", request, true, ct);
+    [HttpPost("payout-fiat")]
+    public Task<ActionResult<JsonElement?>> FiatPayout([FromBody] JsonElement request, CancellationToken ct) =>
+        PostAsync("payout-fiat", request, true, ct);
+    [HttpPost("equals-to-interlace/fund")]
+    public Task<ActionResult<JsonElement?>> FundExchange([FromBody] JsonElement request, CancellationToken ct) =>
+        PostAsync("equals-to-interlace/fund", request, true, ct);
+    [HttpPost("bank-address-book")]
+    public Task<ActionResult<JsonElement?>> RegisterBank([FromBody] JsonElement request, CancellationToken ct) =>
+        PostAsync("bank-address-book", request, false, ct);
+    [HttpPost("crypto-address-book")]
+    public Task<ActionResult<JsonElement?>> RegisterCrypto([FromBody] JsonElement request, CancellationToken ct) =>
+        PostAsync("crypto-address-book", request, false, ct);
+    [HttpGet("external-accounts")]
+    public Task<ActionResult<JsonElement?>> Destinations(CancellationToken ct) => GetAsync("external-accounts", ct);
+    [HttpDelete("external-accounts/{accountId:long}")]
+    public async Task<ActionResult<JsonElement?>> DeleteDestination(long accountId, CancellationToken ct)
+    {
+        var precondition = CheckAccess(true, out var userId);
+        if (precondition is not null) return precondition;
+        var result = await _proxyHoppa.ExecuteAsync(new ProxyHoppaRequestCommand<object?>
+        {
+            Method = HttpMethod.Delete, UpstreamPath = BuildPath($"external-accounts/{accountId}"),
+            Query = Query(("userId", userId)), SuppressPayloadLogging = true,
+            FailureCode = "mobile.exchange.upstream_failed", FailureMessage = "Could not remove the destination."
+        }, ct);
+        return ExchangeResult(result);
+    }
+
     private async Task<ActionResult<JsonElement?>> GetAsync(
         string relativePath,
         CancellationToken cancellationToken)
@@ -106,12 +155,13 @@ public sealed class MobileExchangeController : ApiControllerBase
                 Method = HttpMethod.Get,
                 UpstreamPath = BuildPath(relativePath),
                 Query = Query(("userId", userId)),
+                SuppressPayloadLogging = true,
                 FailureCode = "mobile.exchange.upstream_failed",
                 FailureMessage = "We could not process the Exchange request."
             },
             cancellationToken);
 
-        return ToActionResult(result);
+        return ExchangeResult(result);
     }
 
     private async Task<ActionResult<JsonElement?>> PostAsync(
@@ -128,13 +178,47 @@ public sealed class MobileExchangeController : ApiControllerBase
             {
                 Method = HttpMethod.Post,
                 UpstreamPath = BuildPath(relativePath),
-                Request = WithUserId(request, userId),
+                Query = Query(("userId", userId)),
+                SuppressPayloadLogging = true,
+                Request = ExchangePayload(request, userId),
                 FailureCode = "mobile.exchange.upstream_failed",
                 FailureMessage = "We could not process the Exchange request."
             },
             cancellationToken);
 
-        return ToActionResult(result);
+        return ExchangeResult(result);
+    }
+
+    // Hoppa returns actionable validation/conflict messages as JSON. Keep them
+    // visible instead of replacing them with the proxy's generic failure title.
+    private ActionResult<JsonElement?> ExchangeResult(ApplicationResult<JsonElement?> result)
+    {
+        var error = result.Error;
+        if (error is null) return ToActionResult(result);
+        string message = error.Message;
+        if (error.StatusCode is 400 or 409 or 422 && error.Detail is { Length: <= 8192 })
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(error.Detail);
+                if (document.RootElement.ValueKind == JsonValueKind.Object &&
+                    document.RootElement.TryGetProperty("message", out var value) && value.ValueKind == JsonValueKind.String)
+                {
+                    var text = value.GetString()?.Trim();
+                    if (text is { Length: > 0 and <= 220 } &&
+                        !text.Any(char.IsControl) && !text.Contains('{') && !text.Contains('[') &&
+                        !text.Contains("http", StringComparison.OrdinalIgnoreCase) &&
+                        !text.Contains("token", StringComparison.OrdinalIgnoreCase) &&
+                        !text.Contains("secret", StringComparison.OrdinalIgnoreCase) &&
+                        !text.Contains("api-key", StringComparison.OrdinalIgnoreCase))
+                        message = text;
+                }
+            }
+            catch (JsonException) { /* Non-JSON errors retain the safe generic title. */ }
+        }
+        // Never forward opaque provider bodies or credentials to the mobile app.
+        return ToActionResult(ApplicationResult<JsonElement?>.Failure(
+            new ApplicationError(error.Code, message, error.StatusCode)));
     }
 
     private ActionResult<JsonElement?>? CheckAccess(bool requireOutflows, out string userId)
@@ -156,7 +240,21 @@ public sealed class MobileExchangeController : ApiControllerBase
                 StatusCodes.Status403Forbidden)));
         }
 
-        return TryGetCurrentUserId(out userId) ? null : MissingIdentity<JsonElement?>();
+        return TryGetCurrentUserId(out userId) && int.TryParse(userId, out var numericId) && numericId > 0
+            ? null : MissingIdentity<JsonElement?>();
+    }
+
+    // Preserve questionnaire dictionary keys and snake_case provider fields.
+    // Identity always comes from the authenticated mobile token.
+    private static object ExchangePayload(JsonElement request, string userId)
+    {
+        var payload = new Dictionary<string, object?>();
+        if (request.ValueKind == JsonValueKind.Object)
+            foreach (var property in request.EnumerateObject())
+                if (!string.Equals(property.Name, "userId", StringComparison.OrdinalIgnoreCase))
+                    payload[property.Name] = property.Value.Clone();
+        payload["userId"] = int.Parse(userId, System.Globalization.CultureInfo.InvariantCulture);
+        return payload;
     }
 
     private static string BuildPath(string relativePath) =>

@@ -1,3 +1,5 @@
+import '../../wallets/presentation/exchange_deposit_history.dart';
+import '../../wallets/domain/exchange_models.dart';
 import '../../../core/models/group_card_fees.dart';
 import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
@@ -140,6 +142,7 @@ Money? _secondaryReceiptAmount(LedgerTransaction transaction) =>
         : transaction.secondarySettlementAmount;
 
 String _secondaryReceiptLabel(LedgerTransaction transaction) =>
+    transaction.isBoomFiExchange ? 'Converted to {p0}' :
     _hasChargedFees(transaction) ? 'Purchase amount: {p0}' : '{p0} settled';
 
 class _CardFeeDetails extends StatelessWidget {
@@ -181,6 +184,10 @@ class _TransactionDetail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final deposit = transaction.metadata['boomFiDeposit'] ?? transaction.metadata['BoomFiDeposit'] ?? transaction.metadata['boomFiPayment'];
+    if (deposit is Map) {
+      return ExchangeDepositReceipt(deposit: BoomFiDeposit.fromJson(Map<String, dynamic>.from(deposit)));
+    }
     final colorScheme = Theme.of(context).colorScheme;
     final displayAmount = cardListAmount(transaction);
     final positive = displayAmount.isPositive;
@@ -305,7 +312,26 @@ class _TransactionDetail extends StatelessWidget {
           if (metadataRows.isNotEmpty) ...[
             const SizedBox(height: 24),
             ExpansionTile(
-              title: Text(context.tr('Advanced details')),
+              initiallyExpanded: true,
+              leading: Icon(Icons.receipt_long_outlined,
+                  color: Theme.of(context).colorScheme.primary),
+              collapsedBackgroundColor:
+                  Theme.of(context).colorScheme.surfaceContainerHighest,
+              backgroundColor:
+                  Theme.of(context).colorScheme.surfaceContainerHighest,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant)),
+              collapsedShape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant)),
+              title: Text(context.tr('Advanced details'),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700)),
               children: [
                 NeoGroupedCard(children: [
                   for (final row in metadataRows)
@@ -409,7 +435,26 @@ class _ExampleTransactionDetail extends StatelessWidget {
             if (metadataRows.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.lg),
               ExpansionTile(
-                title: Text(context.tr('Advanced details')),
+                initiallyExpanded: true,
+                leading: Icon(Icons.receipt_long_outlined,
+                    color: Theme.of(context).colorScheme.primary),
+                collapsedBackgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                backgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                        color: Theme.of(context).colorScheme.outlineVariant)),
+                collapsedShape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                        color: Theme.of(context).colorScheme.outlineVariant)),
+                title: Text(context.tr('Advanced details'),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700)),
                 children: [
                   ExampleListGroup(
                     dividerInset: AppSpacing.md,

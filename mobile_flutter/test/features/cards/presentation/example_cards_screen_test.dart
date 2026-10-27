@@ -47,6 +47,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/brands/example/example.dart';
 import 'package:mobile_flutter/core/api/dio_provider.dart';
 import 'package:mobile_flutter/core/models/banking_models.dart';
+import 'package:mobile_flutter/core/models/platform_models.dart';
 import 'package:mobile_flutter/core/theme/app_theme.dart';
 import 'package:mobile_flutter/features/banking/application/banking_providers.dart';
 import 'package:mobile_flutter/features/cards/presentation/cards_screen.dart';
@@ -243,6 +244,10 @@ Widget _app({
         _config(light ? 'light' : 'dark', example: example),
       ),
       dashboardProvider.overrideWith((ref) async => _dashboard),
+      kycDetailedStatusProvider.overrideWith((ref) async =>
+          KycDetailedStatus.fromJson({
+            'interlace': {'status': 'approved', 'approved': true},
+          })),
       cardsProvider.overrideWith((ref) async => cards),
       for (final card in cards) ...[
         cardDetailProvider(card.id).overrideWith((ref) async => card),

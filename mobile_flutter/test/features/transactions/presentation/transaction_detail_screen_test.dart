@@ -86,9 +86,12 @@ void main() {
     expect(find.text('-€4.20'), findsOneWidget);
     expect(find.text('-\$4.92 settled'), findsOneWidget);
     expect(find.text('Advanced details'), findsOneWidget);
-    expect(find.text('Merchant Country'), findsNothing);
+    expect(
+        tester
+            .widget<ExpansionTile>(find.byType(ExpansionTile).first)
+            .initiallyExpanded,
+        isTrue);
     await tester.ensureVisible(find.text('Advanced details'));
-    await tester.tap(find.text('Advanced details'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('Merchant Country'),
@@ -208,9 +211,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Account BE***7034'), findsOneWidget);
-    expect(find.text('***5678'), findsNothing);
     await tester.ensureVisible(find.text('Advanced details'));
-    await tester.tap(find.text('Advanced details'));
     await tester.pumpAndSettle();
     expect(find.text('BE***7034'), findsOneWidget);
     expect(find.text('***5678'), findsOneWidget);

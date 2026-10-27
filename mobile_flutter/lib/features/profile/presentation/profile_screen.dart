@@ -57,11 +57,11 @@ class ProfileScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         centerTitle: config.branding.isExample && !desktop,
-        leading: config.branding.isExample && !desktop
+        leading: config.branding.isExample
             ? IconButton(
-                tooltip: context.tr('Back'),
+                tooltip: context.tr(desktop ? 'Close' : 'Back'),
                 onPressed: () => context.go('/home'),
-                icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                icon: Icon(desktop ? Icons.close : Icons.arrow_back_ios_new_rounded),
               )
             : null,
         title: Text(desktop

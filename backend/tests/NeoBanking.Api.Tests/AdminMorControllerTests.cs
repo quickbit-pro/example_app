@@ -136,6 +136,26 @@ public sealed class AdminMorControllerTests
         Assert.True(Validator.TryValidateObject(request, new ValidationContext(request), [], true));
     }
 
+    [Fact]
+    public async Task RetryKeysAreStablePerActorAndOnlyForwardedForMutations()
+    {
+        var proxy = new RecordingProxy(); var controller = Create(proxy);
+        controller.HttpContext.User = new(new System.Security.Claims.ClaimsIdentity([new("local_user_id", "actor-a")], "test"));
+        controller.Request.Headers["Idempotency-Key"] = "test-order-key";
+        await controller.OrderCards(new(1, 1, false, null), default);
+        await controller.OrderCards(new(1, 1, false, null), default);
+        await controller.Cards(default);
+        Assert.StartsWith("mor-", proxy.Requests[0].IdempotencyKey);
+        Assert.Equal(proxy.Requests[0].IdempotencyKey, proxy.Requests[1].IdempotencyKey);
+        Assert.Null(proxy.Requests[2].IdempotencyKey);
+        controller.HttpContext.User = new(new System.Security.Claims.ClaimsIdentity([new("local_user_id", "actor-b")], "test"));
+        await controller.OrderCards(new(1, 1, false, null), default);
+        Assert.NotEqual(proxy.Requests[0].IdempotencyKey, proxy.Requests[3].IdempotencyKey);
+        controller.Request.Headers["Idempotency-Key"] = "invalid key";
+        await controller.OrderCards(new(1, 1, false, null), default);
+        Assert.Equal("!", proxy.Requests[4].IdempotencyKey);
+    }
+
     private static AdminMorController Create(RecordingProxy proxy) => new(proxy, new TestCompanyContext()) { ControllerContext = new() { HttpContext = new DefaultHttpContext() } };
     private sealed class TestCompanyContext : ICompanyContextAccessor
     {
@@ -150,9 +170,9 @@ public sealed class AdminMorControllerTests
         public List<Recorded> Requests { get; } = [];
         public Task<ApplicationResult<JsonElement?>> ExecuteAsync<T>(ProxyHoppaRequestCommand<T> command, CancellationToken ct)
         {
-            Requests.Add(new(command.Method, command.UpstreamPath, command.Query, JsonSerializer.SerializeToElement(command.Request)));
+            Requests.Add(new(command.Method, command.UpstreamPath, command.Query, JsonSerializer.SerializeToElement(command.Request), command.IdempotencyKey));
             return Task.FromResult(Error is null ? ApplicationResult<JsonElement?>.Success(Response) : ApplicationResult<JsonElement?>.Failure(Error));
         }
     }
-    private sealed record Recorded(HttpMethod Method, string Path, IReadOnlyDictionary<string,string?> Query, JsonElement Body);
+    private sealed record Recorded(HttpMethod Method, string Path, IReadOnlyDictionary<string,string?> Query, JsonElement Body, string? IdempotencyKey);
 }

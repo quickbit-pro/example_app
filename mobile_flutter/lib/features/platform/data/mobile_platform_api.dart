@@ -406,6 +406,65 @@ class MobilePlatformApi {
   Future<Map<String, dynamic>> getVoucherStatus() =>
       _getMap('/api/v1/mobile/rewards/vouchers/status');
 
+  Future<Map<String, dynamic>> getExchangeVerification() =>
+      _getMap('/api/v1/mobile/exchange/verification');
+  Future<Map<String, dynamic>> getExchangeApplication() =>
+      _getMap('/api/v1/mobile/exchange/verification/application');
+  Future<Map<String, dynamic>> startExchangeVerification(String tier) =>
+      _postMap('/api/v1/mobile/exchange/verification/session', {'tier': tier});
+  Future<Map<String, dynamic>> submitExchangeApplication(
+          Map<String, String> answers) =>
+      _postMap('/api/v1/mobile/exchange/verification/application',
+          {'answers': answers});
+  Future<Map<String, dynamic>> submitExchangeApplicationFromSumsub() =>
+      _postMap('/api/v1/mobile/exchange/verification/application',
+          {'answers': <String, String>{}, 'useSumsubAnswers': true});
+  Future<Map<String, dynamic>> submitExchangeTin(
+          Map<String, dynamic> request) =>
+      _postMap('/api/v1/mobile/exchange/verification/tin', request);
+  Future<Map<String, dynamic>> submitExchangeEdd(
+          Map<String, dynamic> request) =>
+      _postMap('/api/v1/mobile/exchange/verification/edd', request);
+  Future<Map<String, dynamic>> getExchangeSettlementAccounts() =>
+      _getMap('/api/v1/mobile/exchange/settlement-accounts');
+  Future<Map<String, dynamic>> createExchangePayInAddress({
+    required String currency,
+    required int chainId,
+  }) =>
+      _postMap('/api/v1/mobile/exchange/payin-address', {
+        'crypto_currency': currency,
+        'chain_id': chainId,
+      });
+  Future<List<Map<String, dynamic>>> getExchangeDestinations() async {
+    final response =
+        await _dio.get<dynamic>('/api/v1/mobile/exchange/external-accounts');
+    return response.data is List
+        ? (response.data as List)
+            .map(_mapFromAny)
+            .whereType<Map<String, dynamic>>()
+            .toList()
+        : [];
+  }
+
+  Future<void> deleteExchangeDestination(int id) async {
+    await _dio.delete<dynamic>('/api/v1/mobile/exchange/external-accounts/$id');
+  }
+
+  Future<Map<String, dynamic>> registerExchangeCrypto(
+          Map<String, dynamic> request) =>
+      _postMap('/api/v1/mobile/exchange/crypto-address-book', request);
+  Future<Map<String, dynamic>> registerExchangeBank(
+          Map<String, dynamic> request) =>
+      _postMap('/api/v1/mobile/exchange/bank-address-book', request);
+  Future<Map<String, dynamic>> withdrawExchangeCrypto(
+          Map<String, dynamic> request) =>
+      _postMap('/api/v1/mobile/exchange/payout-address', request);
+  Future<Map<String, dynamic>> withdrawExchangeFiat(
+          Map<String, dynamic> request) =>
+      _postMap('/api/v1/mobile/exchange/payout-fiat', request);
+  Future<Map<String, dynamic>> fundExchange(Map<String, dynamic> request) =>
+      _postMap('/api/v1/mobile/exchange/equals-to-interlace/fund', request);
+
   Future<BoomFiExchangeOverview> getExchangeOverview() async =>
       BoomFiExchangeOverview.fromJson(
         await _getMap('/api/v1/mobile/exchange/overview'),
@@ -427,8 +486,12 @@ class MobilePlatformApi {
     required BoomFiExchangeBalance source,
     required BoomFiExchangeBalance destination,
     required String sellAmount,
+    Map<String, dynamic>? bankWithdrawal,
+    String? interlaceDestinationAddress,
   }) =>
       _postMap('/api/v1/mobile/exchange/quote', {
+        if (bankWithdrawal != null) 'bankWithdrawal': bankWithdrawal,
+        if (interlaceDestinationAddress != null) 'interlaceDestinationAddress': interlaceDestinationAddress,
         'sellCurrency': source.currency,
         'buyCurrency': destination.currency,
         'sellAmount': sellAmount,
@@ -1506,7 +1569,8 @@ class MobilePlatformApi {
 
   Future<Map<String, dynamic>> _getMap(String path,
       {Map<String, dynamic>? queryParameters}) async {
-    final response = await _dio.get<dynamic>(path, queryParameters: queryParameters);
+    final response =
+        await _dio.get<dynamic>(path, queryParameters: queryParameters);
     return _mapFromAny(response.data) ?? const {};
   }
 

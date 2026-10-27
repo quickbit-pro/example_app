@@ -31,6 +31,7 @@ public sealed class ProxyHoppaRequestUseCase : IProxyHoppaRequestUseCase
                 Path = command.UpstreamPath,
                 Query = command.Query,
                 Body = command.Request,
+                IdempotencyKey = command.IdempotencyKey,
                 TrustedReferralActorId = command.TrustedReferralActorId,
                 SuppressPayloadLogging = command.SuppressPayloadLogging,
                 FailureCode = command.FailureCode,

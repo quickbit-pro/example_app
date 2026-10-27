@@ -13,9 +13,9 @@ using NeoBanking.Infrastructure.Security;
 namespace NeoBanking.Api.Controllers;
 
 /// <summary>
-/// Email-code based account recovery and email confirmation. Every "request a
-/// code" endpoint answers 202 regardless of whether the address exists so the
-/// API cannot be used to enumerate accounts.
+/// Email-code based account recovery and email confirmation. Password recovery
+/// reports missing app logins so existing customers can connect their account.
+/// Email-confirmation requests retain their generic accepted response.
 /// </summary>
 [AllowAnonymous]
 [Route("api/v1/mobile/auth")]
@@ -45,21 +45,26 @@ public sealed class AuthRecoveryController(
         }
 
         var user = await FindLocalUserAsync(normalizedEmail, cancellationToken);
-        if (user is not null)
+        if (user is null)
         {
-            try
-            {
-                await notifier.SendPasswordResetAsync(user, cancellationToken);
-                await dbContext.SaveChangesAsync(cancellationToken);
-            }
-            catch (Exception exception) when (exception is not OperationCanceledException)
-            {
-                // Issuance retires the previous code before rendering the email.
-                // Do not leave those unsaved changes available to a later save
-                // in this request when queuing or persistence fails.
-                dbContext.ChangeTracker.Clear();
-                logger.LogError(exception, "Password reset email could not be queued for user {UserId}.", user.Id);
-            }
+            return Failure<VerificationCodeIssuedResponseDto>(
+                "auth.password_reset.account_not_found",
+                "No app login was found for this email. Check the address or use Connect existing account on the sign-in screen.",
+                StatusCodes.Status400BadRequest);
+        }
+
+        try
+        {
+            await notifier.SendPasswordResetAsync(user, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // Issuance retires the previous code before rendering the email.
+            // Do not leave those unsaved changes available to a later save
+            // in this request when queuing or persistence fails.
+            dbContext.ChangeTracker.Clear();
+            logger.LogError(exception, "Password reset email could not be queued for user {UserId}.", user.Id);
         }
 
         return Accepted(new VerificationCodeIssuedResponseDto

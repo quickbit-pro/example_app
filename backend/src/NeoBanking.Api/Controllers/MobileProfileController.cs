@@ -273,7 +273,7 @@ public sealed class MobileProfileController(
             GetNestedString(payload, "Interlace", "Status");
         var action = GetNestedString(payload, "interlace", "requiredAction") ??
             GetNestedString(payload, "Interlace", "RequiredAction");
-        return string.IsNullOrWhiteSpace(action) && approved != false &&
+        return string.IsNullOrWhiteSpace(action) && approved == true &&
             string.Equals(status, "approved", StringComparison.OrdinalIgnoreCase);
     }
 

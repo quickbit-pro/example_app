@@ -332,7 +332,9 @@ class _ExampleDesktopShell extends StatelessWidget {
                 child: Semantics(
                     container: true,
                     explicitChildNodes: true,
-                    child: Theme(data: shellTheme, child: child)),
+                    child: Align(alignment: Alignment.topCenter,
+                        child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1280),
+                          child: Theme(data: shellTheme, child: child)))),
               ),
               if (showAside)
                 _ExampleHomeAside(

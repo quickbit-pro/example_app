@@ -1,3 +1,6 @@
+import 'package:intl/intl.dart';
+import 'exchange_support.dart';
+import 'exchange_transfer_decision.dart';
 import '../../../shared/widgets/refresh_action.dart';
 import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'dart:async';
@@ -2995,7 +2998,7 @@ class _TransferProgressList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final visible =
-        transfers.where((transfer) => !_isFinished(transfer)).toList();
+        transfers.where((transfer) => transfer.showInProgress).toList();
     if (visible.isEmpty) {
       if (context.isExampleTheme) {
         // Nothing to do is good news, so it reads as a settled fact in the
@@ -3044,7 +3047,7 @@ class _TransferProgressList extends StatelessWidget {
     return Column(
       children: [
         for (var index = 0; index < visible.length; index++) ...[
-          _TransferProgressCard(
+          ExchangeTransferProgressCard(
             transfer: visible[index],
             outflowsEnabled: outflowsEnabled,
           ),
@@ -3055,16 +3058,11 @@ class _TransferProgressList extends StatelessWidget {
     );
   }
 
-  static bool _isFinished(BoomFiTransfer transfer) {
-    final status = transfer.status.toLowerCase();
-    return status == 'completed' ||
-        status == 'settled' ||
-        status == 'cancelled';
-  }
 }
 
-class _TransferProgressCard extends ConsumerWidget {
-  const _TransferProgressCard({
+class ExchangeTransferProgressCard extends ConsumerWidget {
+  const ExchangeTransferProgressCard({
+    super.key,
     required this.transfer,
     required this.outflowsEnabled,
   });
@@ -3074,18 +3072,26 @@ class _TransferProgressCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final stage = _transferStage(transfer.status);
+    final stage = transfer.progressStage;
     final needsAttention = transfer.needsFundsDecision ||
         transfer.needsQuoteDecision ||
         transfer.status.toLowerCase().contains('error') ||
         transfer.status.toLowerCase().contains('failed');
-    final direction = _transferDirection(transfer.direction);
+    final direction = transfer.flowLabel;
     final isExample = context.isExampleTheme;
     final parsedAmount = double.tryParse(transfer.cryptoAmount);
+    final statusPill = _WalletStatusPill(
+      label: transfer.progressStatusLabel ?? (needsAttention
+          ? context.tr('Action needed') : friendlyStatus(transfer.status)),
+      emphasized: needsAttention,
+    );
     return NeoSurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          LayoutBuilder(builder: (context, constraints) {
+            final compact = constraints.maxWidth < 560;
+            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(
             children: [
               if (isExample)
@@ -3109,7 +3115,7 @@ class _TransferProgressCard extends ConsumerWidget {
                         amount: parsedAmount,
                         currency: transfer.cryptoCurrency,
                         size: ExampleAmountSize.small,
-                        code: ExampleAmountCode.never,
+                        code: ExampleAmountCode.always,
                       )
                     else
                       Text(
@@ -3133,17 +3139,20 @@ class _TransferProgressCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: AppSpacing.xs),
-              _WalletStatusPill(
-                label: needsAttention
-                    ? context.tr('Action needed')
-                    : friendlyStatus(transfer.status),
-                emphasized: needsAttention,
-              ),
+              if (!compact) ...[
+                const SizedBox(width: AppSpacing.xs),
+                statusPill,
+              ],
             ],
           ),
+          if (compact) ...[
+            const SizedBox(height: AppSpacing.xs),
+            statusPill,
+          ],
+          ]);
+          }),
           const SizedBox(height: AppSpacing.md),
-          _TransferTimeline(stage: stage, attention: needsAttention),
+          _TransferTimeline(stage: stage, attention: needsAttention, labels: transfer.progressLabels),
           if (transfer.completionMessage.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
@@ -3157,6 +3166,19 @@ class _TransferProgressCard extends ConsumerWidget {
                   : Theme.of(context).textTheme.bodySmall,
             ),
           ],
+          if (!transfer.isTerminal && exchangeActionUrl(transfer.details) != null)
+            TextButton(onPressed: () => openExchangeUrl(exchangeActionUrl(transfer.details)!), child: const Text('Complete provider verification')),
+          if (!transfer.isTerminal && transfer.detail('fiatWithdrawalDeadlineAt').isNotEmpty)
+            Text('Bank withdrawal due by ${_transferLocalDate(transfer.detail('fiatWithdrawalDeadlineAt'))}.'),
+          if (!transfer.isTerminal && transfer.detail('fiatWithdrawalOverdue') == 'true')
+            const Text('Withdrawal deadline passed. Contact support to resolve this transfer.'),
+          if (transfer.needsQuoteDecision) ...[
+            Text('Original rate: ${transfer.detail('initialExchangeRate')}'),
+            Text('Updated rate: ${transfer.detail('effectiveRate')}'),
+            Text('You receive: ${transfer.detail('toAmount')} ${transfer.direction == 'equals_to_interlace' ? transfer.cryptoCurrency : transfer.fiatCurrency}'),
+            Text('Fee: ${transfer.detail('currentFeeAmount')} ${transfer.detail('currentFeeCurrency')}'),
+            Text('Rate change: ${transfer.detail('rateDeviationPercent')}% · Quote expires ${transfer.detail('quoteExpiresAt')}'),
+          ],
           if (transfer.needsQuoteDecision && outflowsEnabled) ...[
             const SizedBox(height: AppSpacing.sm),
             Wrap(
@@ -3168,7 +3190,7 @@ class _TransferProgressCard extends ConsumerWidget {
                   onPressed: () => _decideTransfer(
                     context,
                     ref,
-                    transfer.id,
+                    transfer,
                     'approve',
                   ),
                   child: Text(context.tr('Approve quote')),
@@ -3178,7 +3200,7 @@ class _TransferProgressCard extends ConsumerWidget {
                   onPressed: () => _decideTransfer(
                     context,
                     ref,
-                    transfer.id,
+                    transfer,
                     'decline',
                   ),
                   child: Text(context.tr('Decline')),
@@ -3192,12 +3214,12 @@ class _TransferProgressCard extends ConsumerWidget {
               spacing: AppSpacing.xs,
               runSpacing: AppSpacing.xs,
               children: [
-                OutlinedButton(
+                if (transfer.canKeepFunds) OutlinedButton(
                   style: isExample ? _transferOutlineStyle(context) : null,
                   onPressed: () => _decideTransfer(
                     context,
                     ref,
-                    transfer.id,
+                    transfer,
                     'keep',
                   ),
                   child: Text(context.tr('Keep in Exchange')),
@@ -3207,7 +3229,7 @@ class _TransferProgressCard extends ConsumerWidget {
                   onPressed: () => _decideTransfer(
                     context,
                     ref,
-                    transfer.id,
+                    transfer,
                     'return',
                   ),
                   child: Text(context.tr('Return funds')),
@@ -3220,7 +3242,7 @@ class _TransferProgressCard extends ConsumerWidget {
             alignment: Alignment.centerRight,
             child: OutlinedButton(
               style: isExample ? _transferOutlineStyle(context) : null,
-              onPressed: () => context.push('/transactions'),
+              onPressed: () => _showExchangeTransferDetails(context, transfer),
               child: Text(context.tr('View details')),
             ),
           ),
@@ -3255,42 +3277,17 @@ ButtonStyle _transferOutlineStyle(BuildContext context) =>
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
 
-Future<void> _decideTransfer(
-  BuildContext context,
-  WidgetRef ref,
-  int id,
-  String decision,
-) async {
-  try {
-    final result = await ref
-        .read(mobilePlatformApiProvider)
-        .decideExchangeTransfer(id, decision);
-    ref.invalidate(exchangeTransfersProvider);
-    ref.invalidate(exchangeOverviewProvider);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(result.message)));
-    }
-  } catch (error) {
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error.toString())),
-    );
-  }
-}
+Future<void> _decideTransfer(BuildContext context, WidgetRef ref, BoomFiTransfer transfer, String decision) =>
+    showExchangeTransferDecision(context, ref, transfer, decision);
+
 
 class _TransferTimeline extends StatelessWidget {
-  const _TransferTimeline({required this.stage, required this.attention});
+  const _TransferTimeline({required this.stage, required this.attention, required this.labels});
 
   final int stage;
   final bool attention;
 
-  static const labels = [
-    'Sent from\nCrypto cards',
-    'Received by\nExchange',
-    'Converting',
-    'Sent to\nFiat account',
-  ];
+  final List<String> labels;
 
   @override
   Widget build(BuildContext context) {
@@ -3310,72 +3307,41 @@ class _TransferTimeline extends StatelessWidget {
     final quiet =
         isExample ? ExampleInk.secondary(context) : colors.onSurfaceVariant;
     return Semantics(
-      label: 'Transfer step ${stage.clamp(1, labels.length)} of '
-          '${labels.length}',
+      label: '${stage.clamp(0, labels.length)} of ${labels.length} steps completed. '
+          '${labels.map((label) => label.replaceAll('\n', ' ')).join(' → ')}',
       excludeSemantics: true,
-      child: Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              for (var index = 0; index < labels.length; index++) ...[
-                if (index > 0)
-                  Expanded(
-                    child: Container(
-                      height: 2,
-                      color: index <= stage ? done : rest,
-                    ),
-                  ),
+          for (var index = 0; index < labels.length; index++)
+            Expanded(child: Column(children: [
+              SizedBox(height: 28, child: Stack(alignment: Alignment.center, children: [
+                Row(children: [
+                  Expanded(child: Container(height: 2, color: index == 0 ? Colors.transparent : (index <= stage ? done : rest))),
+                  Expanded(child: Container(height: 2, color: index == labels.length - 1 ? Colors.transparent : (index < stage ? done : rest))),
+                ]),
                 Container(
-                  width: 28,
-                  height: 28,
-                  alignment: Alignment.center,
+                  width: 28, height: 28, alignment: Alignment.center,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: index < stage ? done : wellFill,
-                    border: Border.all(
-                      width: 2,
-                      color: index <= stage
-                          ? (attention && index == stage ? alert : done)
-                          : rest,
-                    ),
+                    border: Border.all(width: 2, color: index <= stage
+                      ? (attention && index == stage ? alert : done) : rest),
                   ),
                   child: index < stage
-                      ? Icon(Icons.check_rounded, color: onDone, size: 17)
-                      : Text(
-                          '${index + 1}',
-                          style:
-                              Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: index == stage
-                                        ? (attention ? alert : done)
-                                        : quiet,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                        ),
+                    ? Icon(Icons.check_rounded, color: onDone, size: 17)
+                    : Text('${index + 1}', style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: index == stage ? (attention ? alert : done) : quiet,
+                        fontWeight: FontWeight.w800,
+                      )),
                 ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 7),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final label in labels)
-                Expanded(
-                  child: Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          // 9 px was unreadable at any contrast ratio. 10.5
-                          // on the secondary ink clears the 4.5:1 floor in
-                          // both themes and still fits four columns at 375.
-                          fontSize: isExample ? 10.5 : 9,
-                          height: isExample ? 1.25 : null,
-                          color: quiet,
-                        ),
-                  ),
-                ),
-            ],
-          ),
+              ])),
+              const SizedBox(height: 7),
+              Text(labels[index], textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  fontSize: 11, height: 1.25, color: quiet,
+                )),
+            ])),
         ],
       ),
     );
@@ -3420,26 +3386,41 @@ class _WalletStatusPill extends StatelessWidget {
   }
 }
 
-int _transferStage(String status) {
-  final normalized = status.toLowerCase();
-  if (normalized.contains('complete') || normalized.contains('settled')) {
-    return 4;
-  }
-  if (normalized.contains('convert') || normalized.contains('quote')) return 2;
-  if (normalized.contains('deposit') ||
-      normalized.contains('received') ||
-      normalized.contains('fund')) {
-    return 1;
-  }
-  return 1;
+String _transferLocalDate(String value) {
+  final date = DateTime.tryParse(value)?.toLocal();
+  return date == null ? 'Pending confirmation' : DateFormat('d MMM yyyy, HH:mm').format(date);
 }
 
-String _transferDirection(String value) {
-  final normalized = value.toLowerCase();
-  if (normalized.contains('equals') && normalized.indexOf('equals') == 0) {
-    return 'Fiat account to crypto cards';
-  }
-  return 'Crypto cards to fiat account';
+void _showExchangeTransferDetails(BuildContext context, BoomFiTransfer transfer) {
+  showDialog<void>(context: context, builder: (context) => AlertDialog(
+    title: Text(transfer.isBankExchange ? 'Exchange and bank withdrawal' : 'Transfer details'),
+    content: SizedBox(width: 460, child: SingleChildScrollView(child: Column(
+      mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(transfer.flowLabel),
+        const SizedBox(height: 12),
+        Text('Amount: ${transfer.cryptoAmount} ${transfer.cryptoCurrency}'),
+        Text('Status: ${transfer.progressStatusLabel ?? friendlyStatus(transfer.status)}'),
+        if (transfer.conversionSettled) const Text('Conversion: completed'),
+        if (transfer.detail('toAmount').isNotEmpty)
+          Text('Settled proceeds: ${transfer.detail('toAmount')} ${transfer.fiatCurrency}'),
+        if (transfer.completionMessage.isNotEmpty) ...[
+          const SizedBox(height: 12), Text(transfer.completionMessage),
+        ],
+        if (transfer.detail('fiatWithdrawalDeadlineAt').isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text('Withdrawal due: ${_transferLocalDate(transfer.detail('fiatWithdrawalDeadlineAt'))}'),
+        ],
+        if (transfer.detail('boomFiOrderId').isNotEmpty) ...[
+          const SizedBox(height: 12),
+          SelectableText('Exchange ID: ${transfer.detail('boomFiOrderId')}'),
+        ],
+        if (transfer.detail('boomFiQuoteId').isNotEmpty)
+          SelectableText('Quote ID: ${transfer.detail('boomFiQuoteId')}'),
+      ],
+    ))),
+    actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Done'))],
+  ));
 }
 
 String _compactTransferAmount(String value) {
