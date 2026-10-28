@@ -1,3 +1,6 @@
+import 'exchange_fees_and_limits.dart';
+export 'exchange_fees_and_limits.dart';
+
 class BoomFiExchangeOverview {
   const BoomFiExchangeOverview({
     required this.accountId,
@@ -8,6 +11,8 @@ class BoomFiExchangeOverview {
     required this.settlementAccounts,
     required this.subAccounts,
     required this.fiatFundingCurrencies,
+    this.feesAndLimits,
+    this.fiatFundingFeesAndLimits = const {},
     this.deposits = const [],
     this.payments = const [],
     this.restrictedTradingCurrencies = const [],
@@ -17,6 +22,9 @@ class BoomFiExchangeOverview {
     final account = _map(_value(json, 'account', 'Account'));
     final balanceEnvelope = _map(_value(json, 'balances', 'Balances'));
     return BoomFiExchangeOverview(
+      feesAndLimits: _fees(account),
+      fiatFundingFeesAndLimits: _map(json['fiat_funding_fees_and_limits'] ?? json['fiatFundingFeesAndLimits'] ?? json['FiatFundingFeesAndLimits'])
+          .map((key, value) => MapEntry(key.toUpperCase(), BoomFiFeesAndLimits.fromJson(_map(value)))),
       restrictedTradingCurrencies: _list(_value(json, 'restricted_trading_currencies', 'RestrictedTradingCurrencies') ?? json['restrictedTradingCurrencies']).map((v) => v.toString().trim().toUpperCase()).toList(),
       payments: _list(_value(json, 'payments', 'Payments')).map((item) => BoomFiDeposit.fromJson(_map(item))).toList(),
       deposits: _list(_value(json, 'deposits', 'Deposits'))
@@ -43,6 +51,30 @@ class BoomFiExchangeOverview {
           .where((item) => item.isNotEmpty)
           .toList(),
     );
+  }
+
+  final BoomFiFeesAndLimits? feesAndLimits;
+  final Map<String, BoomFiFeesAndLimits> fiatFundingFeesAndLimits;
+
+  BoomFiFeesAndLimits? feesFor(BoomFiExchangeBalance balance) {
+    if (balance.accountId <= 0) return null;
+    if (balance.feesAndLimits != null) return balance.feesAndLimits;
+    if (balance.accountId == accountId) return feesAndLimits;
+    BoomFiFeesAndLimits? find(List<Map<String, dynamic>> accounts) {
+      for (final account in accounts) {
+        final chain = _map(_value(account, 'chain', 'Chain'));
+        final chainId = _integer(_value(account, 'chain_id', 'ChainId') ??
+            _value(chain, 'id', 'Id'));
+        if (_integer(_value(account, 'id', 'Id')) == balance.accountId &&
+            chainId == balance.chainId) {
+          return _fees(account);
+        }
+        final nested = find(_list(_value(account, 'sub_accounts', 'SubAccounts')).map(_map).toList());
+        if (nested != null) return nested;
+      }
+      return null;
+    }
+    return find(subAccounts);
   }
 
   final List<String> restrictedTradingCurrencies;
@@ -97,11 +129,13 @@ class BoomFiExchangeBalance {
     required this.chainId,
     required this.chainName,
     required this.tokenAddress,
+    this.feesAndLimits,
   });
 
   factory BoomFiExchangeBalance.fromJson(Map<String, dynamic> json) {
     final chain = _map(_value(json, 'chain', 'Chain'));
     return BoomFiExchangeBalance(
+      feesAndLimits: _fees(json),
       accountId: _integer(_value(json, 'account_id', 'AccountId')),
       currency: _text(_value(json, 'currency', 'Currency')).toUpperCase(),
       amount: _decimal(_value(json, 'amount', 'Amount')),
@@ -119,6 +153,7 @@ class BoomFiExchangeBalance {
   final int chainId;
   final String chainName;
   final String tokenAddress;
+  final BoomFiFeesAndLimits? feesAndLimits;
 
   bool get isCrypto => chainId != 0;
   String get key => '$accountId:$currency:$chainId';
@@ -177,13 +212,27 @@ class BoomFiTransfer {
         'funds_held'
       }.contains(status);
 
+  String get proceedsCurrency => direction == 'equals_to_interlace' ? cryptoCurrency : fiatCurrency;
+  bool get hasVerifiedProceeds => const {
+    'payout_ready', 'payout_submitting', 'payout_submitted', 'payout_failed',
+    'payout_submission_unknown', 'completed', 'withdrawal_ready',
+    'withdrawal_submitting', 'direct_exchange_completed'
+  }.contains(status);
+  String get proceedsLabel => hasVerifiedProceeds ? 'Settled proceeds' : 'Expected proceeds';
+
   bool get isBankExchange => direction == 'exchange_to_bank';
   bool get deliversToCard => direction == 'exchange_to_crypto' && detail('destinationCryptoAddress').isNotEmpty;
   bool get conversionSettled => detail('fiatSettledAt').isNotEmpty ||
       const {'completed', 'settled', 'success', 'succeeded'}.contains(detail('boomFiSettlementStatus').toLowerCase());
   bool get awaitingSettlementDetails => isBankExchange && conversionSettled &&
       status == 'exchange_submitted' && detail('toAmount').isEmpty;
+  // Equals funding marks failures before submission as failed; uncertain
+  // submissions use source_transfer_review_required and must remain visible.
+  bool get failedBeforeFunding => direction == 'equals_to_interlace' &&
+      status == 'failed' && detail('sourceTransferId').isEmpty &&
+      detail('boomFiOrderId').isEmpty && !conversionSettled;
   bool get showInProgress {
+    if (failedBeforeFunding) return false;
     if (const {'completed', 'direct_exchange_completed', 'settled', 'returned',
       'cancelled', 'canceled', 'funds_held', 'exchange_quoted', 'direct_exchange_quoted'}.contains(status)) { return false; }
     // A quote that failed before acceptance never moved money. Retain failures
@@ -206,6 +255,7 @@ class BoomFiTransfer {
     _ => ['Crypto\ncard', 'Received by\nExchange', 'Converting', 'Fiat\naccount'],
   };
   int get progressStage {
+    if (failedBeforeFunding) return 0;
     if (const {'completed','direct_exchange_completed','settled'}.contains(status)) return progressLabels.length;
     if (isBankExchange) {
       if (conversionSettled || const {'withdrawal_ready','withdrawal_submitting','payout_submitted'}.contains(status)) return 2;
@@ -220,6 +270,7 @@ class BoomFiTransfer {
     return 1;
   }
   String? get progressStatusLabel {
+    if (failedBeforeFunding) return 'Not sent';
     if (awaitingSettlementDetails) return 'Awaiting provider details';
     if (!isBankExchange) return null;
     return switch (status) {
@@ -250,7 +301,7 @@ Map<String, dynamic> _map(Object? value) {
 List<Object?> _list(Object? value) => value is List ? value : const [];
 
 Object? _value(Map<String, dynamic> json, String first, String second) =>
-    json[first] ?? json[second];
+    json[first] ?? json[second] ?? json['${second[0].toLowerCase()}${second.substring(1)}'];
 
 String _text(Object? value) => value?.toString().trim() ?? '';
 
@@ -327,4 +378,9 @@ class BoomFiDeposit {
     }
     return uri.toString();
   }
+}
+
+BoomFiFeesAndLimits? _fees(Map<String, dynamic> json) {
+  final raw = json['fees_and_limits'] ?? json['feesAndLimits'] ?? json['FeesAndLimits'];
+  return raw is Map ? BoomFiFeesAndLimits.fromJson(_map(raw)) : null;
 }

@@ -22,11 +22,13 @@ import '../../../shared/widgets/app_progress_indicator.dart';
 class CryptoTradeScreen extends ConsumerStatefulWidget {
   const CryptoTradeScreen({
     this.initialSide = CryptoTradeSide.buy,
+    this.initialAsset = 'USDC',
     this.asSheet = false,
     super.key,
   });
 
   final CryptoTradeSide initialSide;
+  final String initialAsset;
 
   final bool asSheet;
 
@@ -39,6 +41,7 @@ const _exchangeAssets = ['USDC', 'USDT'];
 Future<void> showCryptoExchangeSheet(
   BuildContext context, {
   CryptoTradeSide initialSide = CryptoTradeSide.buy,
+  String initialAsset = 'USDC',
 }) =>
     showModalBottomSheet<void>(
       context: context,
@@ -47,7 +50,7 @@ Future<void> showCryptoExchangeSheet(
       showDragHandle: true,
       builder: (_) => FractionallySizedBox(
         heightFactor: .93,
-        child: CryptoTradeScreen(initialSide: initialSide, asSheet: true),
+        child: CryptoTradeScreen(initialSide: initialSide, initialAsset: initialAsset, asSheet: true),
       ),
     );
 
@@ -65,7 +68,7 @@ Widget _aliveLayer(BuildContext context, Widget child) =>
 class _CryptoTradeScreenState extends ConsumerState<CryptoTradeScreen> {
   final _amountController = TextEditingController();
   late CryptoTradeSide _side = widget.initialSide;
-  String _asset = 'USDC';
+  late String _asset = _exchangeAssets.contains(widget.initialAsset.toUpperCase()) ? widget.initialAsset.toUpperCase() : 'USDC';
   QuantumTopUpEstimate? _estimate;
   bool _estimating = false;
   String? _estimateError;

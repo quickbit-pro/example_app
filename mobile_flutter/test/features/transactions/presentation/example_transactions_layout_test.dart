@@ -636,7 +636,8 @@ void main() {
     final row =
         tester.widget<ExampleTransactionRow>(find.byType(ExampleTransactionRow));
     expect(row.amount, -10.5);
-    expect(row.identityLabel, contains('Consumption fee USD 0.50'));
+    // Charges are included in the total; itemized fees live in the receipt.
+    expect(row.identityLabel, isNull);
     expect(find.text('Separate consumption fee'), findsNothing);
     expect(tester.takeException(), isNull);
     await _writeActivityScreenshot(tester, 'grouped-card-fee-phone.png');
@@ -870,11 +871,11 @@ void main() {
     for (final shown in ['80005', '76748', '53420']) {
       expect(find.byKey(ValueKey<String>(shown)), findsOneWidget);
     }
-    expect(find.textContaining('Fee EUR 0.01'), findsOneWidget);
+    expect(find.textContaining('Fee EUR 0.01'), findsNothing);
     expect(
         find.textContaining('Decline fee USD 0.50 · Consumption fee USD 0.50'),
-        findsOneWidget);
-    expect(find.textContaining('Decline fee USD 0.50'), findsNWidgets(2));
+        findsNothing);
+    expect(find.textContaining('Decline fee USD 0.50'), findsNothing);
     // The two declines say so on the row, and their amount is the fee taken.
     expect(find.text('Failed'), findsNWidgets(2));
     expect(find.text('3 EVENTS'), findsOneWidget);

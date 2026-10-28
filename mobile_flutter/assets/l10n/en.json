@@ -1,4 +1,17 @@
 {
+  "Completed transfers": "Completed transfers",
+  "Received by Exchange: {p0} {p1}": "Received by Exchange: {p0} {p1}",
+  "Started {p0}": "Started {p0}",
+
+  "Transaction fees": "Transaction fees",
+  "Amount before fees": "Amount before fees",
+  "Amount before fees: {p0}": "Amount before fees: {p0}",
+  "Charged": "Charged",
+
+  "Payment confirmation PDF": "Payment confirmation PDF",
+  "Payment confirmation is not available for this transaction yet.": "Payment confirmation is not available for this transaction yet.",
+  "Could not download the payment confirmation. Please try again.": "Could not download the payment confirmation. Please try again.",
+
   "No app login was found for this email. Check the address or use Connect existing account on the sign-in screen.": "No app login was found for this email. Check the address or use Connect existing account on the sign-in screen.",
   "We could not complete that request. Please try again.": "We could not complete that request. Please try again.",
   "We could not reach the service. Check your connection and try again.": "We could not reach the service. Check your connection and try again.",
@@ -2351,6 +2364,10 @@
   "EqualsMoney needs a liveness check before the account can be approved.": "EqualsMoney needs a liveness check before the account can be approved.",
   "Upload the requested documents here, then continue the secure EqualsMoney check.": "Upload the requested documents here, then continue the secure EqualsMoney check.",
   "Upload each requested document so EqualsMoney can continue the review.": "Upload each requested document so EqualsMoney can continue the review.",
+  "Your music.\nYour money.": "Your music.\nYour money.",
+  "Accounts, cards and payments. One place for your money.": "Accounts, cards and payments. One place for your money.",
+  "Cards, crypto and payments. One place for your money.": "Cards, crypto and payments. One place for your money.",
+  "The bridge between your music and your finances.": "The bridge between your music and your finances.",
   "This transaction belongs to the ZBX Exchange service.": "This transaction belongs to the ZBX Exchange service powered through ZBX.",
   "Fund my payment card wallet": "Fund my payment card wallet",
   "USDT is not enabled for EU residents. Please choose USDC.": "USDT is not enabled for EU residents. Please choose USDC."

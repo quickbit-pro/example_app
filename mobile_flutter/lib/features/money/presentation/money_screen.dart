@@ -26,6 +26,7 @@ import '../../wallets/domain/wallet_models.dart';
 import '../../wallets/presentation/wallets_screen.dart';
 import '../domain/payment_balance_options.dart';
 import 'accounts_hub_header.dart';
+import '../../wallets/presentation/exchange_panel.dart';
 import '../domain/bank_payee_draft.dart';
 import 'payee_country_field.dart';
 import '../domain/balance_value_order.dart';
@@ -195,6 +196,10 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen>
                                 true,
                         showCrypto: !isBusinessAccount,
                         showExchange: exchangeEnabled,
+                        transferActions: exchangeEnabled && !isBusinessAccount
+                            ? ExchangeAccountTransferActions(onConvertToEur: (budget) =>
+                                showEqualsMoneyConversionDialog(context, ref, [budget], targetCurrency: 'EUR'))
+                            : null,
                       ),
                     ),
                     SizedBox(height: isExample ? 14 : 18),
@@ -1569,7 +1574,7 @@ class _EqualsMoneyActionRequired extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(context.tr('Accounts'))),
+      appBar: AppBar( title: Text(context.tr('Accounts'))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -1595,7 +1600,7 @@ class _BankingRequired extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(context.tr('Accounts'))),
+      appBar: AppBar( title: Text(context.tr('Accounts'))),
       body: Column(
         children: [
           if (header != null)
@@ -2549,11 +2554,9 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
                 ),
             const Divider(height: 32),
             if (widget.initialDraft != null && _showPayeeForm) ...[
-              Text(context.tr(
-                  'Review the bank details and complete the recipient information before saving. Payment routes are validated when you submit.')),
+              Text(context.tr('Review the bank details and complete the recipient information before saving. Payment routes are validated when you submit.')),
               if (widget.initialDraft!.paymentReference.isNotEmpty)
-                SelectableText(context.tr(
-                    'Use payment reference {p0} when transferring funds.',
+                SelectableText(context.tr('Use payment reference {p0} when transferring funds.',
                     {'p0': widget.initialDraft!.paymentReference})),
               const SizedBox(height: 16),
             ],
@@ -2671,8 +2674,8 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: PayeeCountryField(
-                      label: context.tr('Account country'),
-                      value: _countryCode,
+                label: context.tr('Account country'),
+                value: _countryCode,
                       onChanged: (value) => setState(() {
                         _countryCode = value;
                         _resetPayeeVerification();
@@ -2957,14 +2960,10 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
       return;
     }
 
-    final candidate = BankPayeeDraft(
-        iban: _accountController.text,
-        accountHolder: _accountHolderController.text,
-        bankCountry: _bankCountryCode);
-    if (_currency == 'EUR' &&
-        (ref.read(payeesProvider).valueOrNull ?? []).any(candidate.matches)) {
-      setState(() => _payeeErrorMessage = context.tr(
-          'This account is already in your payees. Use the saved recipient or complete its pending approval.'));
+    final candidate = BankPayeeDraft(iban: _accountController.text,
+        accountHolder: _accountHolderController.text, bankCountry: _bankCountryCode);
+    if (_currency == 'EUR' && (ref.read(payeesProvider).valueOrNull ?? []).any(candidate.matches)) {
+      setState(() => _payeeErrorMessage = context.tr('This account is already in your payees. Use the saved recipient or complete its pending approval.'));
       return;
     }
     try {
@@ -3305,7 +3304,7 @@ class _PayeeQrScannerScreenState extends State<_PayeeQrScannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(context.tr('Scan account QR'))),
+      appBar: AppBar( title: Text(context.tr('Scan account QR'))),
       body: Stack(
         children: [
           MobileScanner(

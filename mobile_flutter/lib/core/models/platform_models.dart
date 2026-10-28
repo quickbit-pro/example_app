@@ -64,6 +64,8 @@ class PlatformResource {
         json['Uuid'] ??
         json['reference'] ??
         json['Reference'] ??
+        json['budgetId'] ??
+        json['BudgetId'] ??
         json['accountId'] ??
         json['AccountId'] ??
         json['walletId'] ??

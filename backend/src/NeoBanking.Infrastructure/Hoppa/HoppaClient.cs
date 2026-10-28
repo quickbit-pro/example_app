@@ -59,8 +59,15 @@ public sealed class HoppaClient : IHoppaClient
     {
         var configurationError=ValidateConfiguration<HoppaDownload>();
         if(configurationError is not null) return configurationError;
-        // Download routes are server-constructed and confined to referral resources.
-        if(request.Method!=HttpMethod.Get || !request.Path.StartsWith("/api/v2/referrals/",StringComparison.Ordinal) ||
+        // Downloads are confined to existing referral resources and the exact
+        // user-scoped payment-confirmation route; never accept arbitrary URLs.
+        var paymentConfirmation = System.Text.RegularExpressions.Regex.IsMatch(request.Path,
+            @"^/api/v2/transactions/[1-9][0-9]*/equals-money/payment-confirmation\z",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        if (paymentConfirmation && (!request.Query.TryGetValue("userId", out var userId) ||
+            !int.TryParse(userId, out var numericUserId) || numericUserId <= 0))
+            return Failure<HoppaDownload>("hoppa.download.invalid_identity", "A user is required for payment confirmations.", HttpStatusCode.BadRequest);
+        if(request.Method!=HttpMethod.Get || (!paymentConfirmation && !request.Path.StartsWith("/api/v2/referrals/",StringComparison.Ordinal)) ||
             request.Path.Contains("..",StringComparison.Ordinal) || request.Path.Contains('\\'))
             return Failure<HoppaDownload>("hoppa.download.invalid_path","Invalid download path.",HttpStatusCode.BadRequest);
         using var outgoing=new HttpRequestMessage(HttpMethod.Get,BuildRequestUri(request.Path,request.Query));
@@ -75,6 +82,12 @@ public sealed class HoppaClient : IHoppaClient
                 var detail=await response.Content.ReadAsStringAsync(ct);
                 var error=Failure<HoppaDownload>(request.FailureCode,request.FailureMessage,response.StatusCode,detail);
                 response.Dispose(); return error;
+            }
+            if (paymentConfirmation && !string.Equals(response.Content.Headers.ContentType?.MediaType,
+                "application/pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                response.Dispose();
+                return Failure<HoppaDownload>("hoppa.download.invalid_pdf", "The payment confirmation was not a PDF.", HttpStatusCode.BadGateway);
             }
             var stream=await response.Content.ReadAsStreamAsync(ct);
             return ApplicationResult<HoppaDownload>.Success(new HoppaDownload(response,stream));

@@ -1,14 +1,20 @@
 import 'banking_models.dart';
 import 'group_card_fees.dart';
 
-/// A presentation group. Its amount comes from [primary], never from summing
-/// ledger legs (which can describe the same money in different currencies).
+/// A presentation group. Fees are attached to [primary]; duplicate provider
+/// views and the two currencies of an exchange are never summed together.
 class ActivityTransactionGroup {
   ActivityTransactionGroup(this.primary, List<LedgerTransaction> entries)
       : entries = List.unmodifiable(entries);
 
   final LedgerTransaction primary;
   final List<LedgerTransaction> entries;
+
+  /// Fee records (including duplicate provider views) belong in the receipt.
+  List<LedgerTransaction> get activityEntries => [
+        for (final movement in ledgerDuplicateGroups(entries))
+          if (!isLedgerFee(movement.first)) ...movement,
+      ];
 }
 
 String _key(String value) =>
@@ -212,8 +218,8 @@ List<ActivityTransactionGroup> groupActivityTransactions(
   joinUnique(credits);
 
   // A legacy top-up fee lacks a parent reference, but the top-up reports the
-  // exact charged fee. Keep the credited amount as the summary; subtracting
-  // this fee again would understate what reached the card.
+  // exact charged fee. Preserve the credited ledger amount; the Activity
+  // presentation separately shows the source deduction including the fee.
   final topupFees = <int, Set<int>>{};
   for (var i = 0; i < rows.length; i++) {
     if (_key(rows[i].rawType) != 'fees' ||
@@ -257,11 +263,90 @@ List<ActivityTransactionGroup> groupActivityTransactions(
   return [
     for (final group in members.entries)
       ActivityTransactionGroup(
-          summaries[group.key] ?? group.value.first, group.value),
+          _withGroupFees(
+              summaries[group.key] ?? group.value.first, group.value),
+          group.value),
   ];
 }
 
+LedgerTransaction _withGroupFees(
+    LedgerTransaction primary, List<LedgerTransaction> entries) {
+  if (isLedgerFee(primary)) return primary;
+  final fees = dedupeLedgerDuplicates([
+    ...primary.cardFees,
+    for (final row in dedupeLedgerDuplicates(entries))
+      if (isLedgerFee(row)) row,
+  ]);
+  final seen = <String>{};
+  final unique =
+      fees.where((fee) => fee.id.isEmpty || seen.add(fee.id)).toList();
+  return unique.isEmpty ? primary : primary.withCardFees(unique);
+}
+
+/// Source amount for a funding/conversion operation, before its fees. The
+/// received amount remains on the ledger record and in the receipt breakdown.
+Money activityPrincipalAmount(LedgerTransaction row) {
+  final fields = {
+    for (final field in row.metadata.entries) _key(field.key): field.value,
+  };
+  final type = _key(row.rawType);
+  if (type == 'cardtopup') {
+    return row.amount.isPositive ? row.amount.negated : row.amount;
+  }
+  if (const {'fxtrade', 'exchange'}.contains(type)) {
+    final sell = double.tryParse('${fields['sellamount']}');
+    final currency = fields['sellcurrency']?.toString().trim().toUpperCase();
+    if (sell != null &&
+        sell.isFinite &&
+        sell > 0 &&
+        currency != null &&
+        currency.isNotEmpty) {
+      return Money(
+          currency: currency,
+          minorUnits: -(sell * 100).round(),
+          decimalAmount: -sell);
+    }
+  }
+  return row.amount;
+}
+
+/// Amount that moved in the source currency. Foreign-currency fees remain
+/// separate in details; they cannot be arithmetically added to this amount.
+Money activityListAmount(LedgerTransaction row, {bool sourceAmounts = true}) {
+  // A selected card/account shows that balance's ledger leg. In particular,
+  // the source-wallet fee must not reduce the amount credited to the card.
+  if (!sourceAmounts) {
+    return _key(row.rawType) == 'cardtopup'
+        ? row.displayAmount
+        : cardListAmount(row);
+  }
+  final principal = activityPrincipalAmount(row);
+  final funding = _key(row.rawType) == 'cardtopup';
+  final conversion = const {'fxtrade', 'exchange'}.contains(_key(row.rawType));
+  if (!funding && !conversion) return cardListAmount(row);
+  final charged = row.cardFees.where(cardFeeWasCharged).where((fee) =>
+      feeChargedAmount(fee).currency.toUpperCase() ==
+      principal.currency.toUpperCase());
+  final failed = const {
+    'failed',
+    'fail',
+    'declined',
+    'rejected',
+    'cancelled',
+    'canceled',
+    'reverted'
+  }.contains(_key(row.status));
+  final total = (failed ? 0.0 : principal.decimalAmount) +
+      charged.fold<double>(
+          0, (sum, fee) => sum + feeChargedAmount(fee).decimalAmount);
+  return Money(
+      currency: principal.currency,
+      minorUnits: (total * 100).round(),
+      decimalAmount: total);
+}
+
 int _rank(LedgerTransaction row) {
+  if (isLedgerFee(row)) return 100;
   final type = _key(row.rawType);
   final kind = switch (type) {
     'fxtrade' => 0,

@@ -1,6 +1,10 @@
+import 'transaction_fee_summary.dart';
+import '../domain/equals_payment_confirmation.dart';
+import 'equals_payment_confirmation_button.dart';
 import '../../wallets/presentation/exchange_deposit_history.dart';
 import '../../wallets/domain/exchange_models.dart';
 import '../../../core/models/group_card_fees.dart';
+import '../../../core/models/group_activity_transactions.dart';
 import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,16 +48,20 @@ class TransactionDetailScreen extends ConsumerWidget {
     final cardId = this.cardId;
     final fromCard = cardId != null && cardId.isNotEmpty;
     final transactions = fromCard
-        ? ref.watch(cardTransactionsProvider(cardId)).whenData(
-              (items) => items
-                  .map(_ledgerTransactionFromCardResource)
-                  .toList(growable: false),
-            )
+        ? ref
+              .watch(cardTransactionsProvider(cardId))
+              .whenData(
+                (items) => items
+                    .map(_ledgerTransactionFromCardResource)
+                    .toList(growable: false),
+              )
         : ref.watch(activityTransactionsProvider);
-    final backRoute =
-        fromCard ? '/cards/$cardId/transactions' : AppRoutes.activity;
+    final backRoute = fromCard
+        ? '/cards/$cardId/transactions'
+        : AppRoutes.activity;
     final isExample = context.isExampleTheme;
-    final desktop = isExample &&
+    final desktop =
+        isExample &&
         MediaQuery.sizeOf(context).width >= ExampleBreakpoints.desktop;
     final exportTransaction = transactions.isLoading || transactions.hasError
         ? null
@@ -61,7 +69,7 @@ class TransactionDetailScreen extends ConsumerWidget {
     final exportIdentity = exportTransaction == null
         ? null
         : (fromCard ? ref.watch(cardIdentityProvider(cardId)) : null) ??
-            ref.watch(transactionIdentityProvider(exportTransaction));
+              ref.watch(transactionIdentityProvider(exportTransaction));
 
     void retry() => fromCard
         ? ref.invalidate(cardTransactionsProvider(cardId))
@@ -78,13 +86,16 @@ class TransactionDetailScreen extends ConsumerWidget {
                 icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 19),
               )
             : null,
-        title: Text(desktop
-            ? context.tr('Transaction details')
-            : context.tr('Transaction')),
+        title: Text(
+          desktop
+              ? context.tr('Transaction details')
+              : context.tr('Transaction'),
+        ),
         actions: [
           TransactionPdfExportButton(
-            transactions:
-                exportTransaction == null ? null : [exportTransaction],
+            transactions: exportTransaction == null
+                ? null
+                : [exportTransaction],
             receipt: true,
             identityFor: (_) => exportIdentity,
           ),
@@ -98,22 +109,24 @@ class TransactionDetailScreen extends ConsumerWidget {
                 ? _ExampleDetailHost(
                     child: ExampleEmptyState(
                       title: context.tr('Transaction not found'),
-                      body:
-                          context.tr('This transaction may still be syncing.'),
+                      body: context.tr(
+                        'This transaction may still be syncing.',
+                      ),
                       icon: Icons.receipt_long_outlined,
                     ),
                   )
                 : EmptyState(
                     title: context.tr('Transaction not found'),
-                    message:
-                        context.tr('This transaction may still be syncing.'),
+                    message: context.tr(
+                      'This transaction may still be syncing.',
+                    ),
                     icon: Icons.receipt_long_outlined,
                   );
           }
 
           final identity =
               (fromCard ? ref.watch(cardIdentityProvider(cardId)) : null) ??
-                  ref.watch(transactionIdentityProvider(transaction));
+              ref.watch(transactionIdentityProvider(transaction));
           return _TransactionDetail(
             transaction: transaction,
             identity: identity,
@@ -131,50 +144,34 @@ class TransactionDetailScreen extends ConsumerWidget {
 bool _hasChargedFees(LedgerTransaction transaction) {
   final charged = transaction.cardFees.where(cardFeeWasCharged);
   return charged.isNotEmpty &&
-      charged.every((fee) =>
-          feeChargedAmount(fee).currency.toUpperCase() ==
-          transaction.amount.currency.toUpperCase());
+      charged.every(
+        (fee) =>
+            feeChargedAmount(fee).currency.toUpperCase() ==
+            activityPrincipalAmount(transaction).currency.toUpperCase(),
+      );
 }
 
 Money? _secondaryReceiptAmount(LedgerTransaction transaction) =>
-    _hasChargedFees(transaction)
-        ? transaction.displayAmount
-        : transaction.secondarySettlementAmount;
+    _isFundingOrConversion(transaction)
+    ? transaction.secondarySettlementAmount ?? transaction.amount
+    : _hasChargedFees(transaction)
+    ? transaction.displayAmount
+    : transaction.secondarySettlementAmount;
 
 String _secondaryReceiptLabel(LedgerTransaction transaction) =>
-    transaction.isBoomFiExchange ? 'Converted to {p0}' :
-    _hasChargedFees(transaction) ? 'Purchase amount: {p0}' : '{p0} settled';
+    _isFundingOrConversion(transaction)
+    ? 'Received: {p0}'
+    : _hasChargedFees(transaction)
+    ? (transaction.type == TransactionType.card
+          ? 'Purchase amount: {p0}'
+          : 'Amount before fees: {p0}')
+    : '{p0} settled';
 
-class _CardFeeDetails extends StatelessWidget {
-  const _CardFeeDetails({required this.transaction});
-  final LedgerTransaction transaction;
-  @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(context.tr('Card fees'),
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          NeoGroupedCard(children: [
-            _DetailRow(
-                label: context.tr('Purchase amount'),
-                value: transaction.displayAmount.formatted),
-            for (final fee in transaction.cardFees)
-              _DetailRow(
-                  label: context.tr(cardFeeLabel(fee)),
-                  value:
-                      '${feeChargedAmount(fee).currency} ${feeChargedAmount(fee).decimalAmount.abs().toStringAsFixed(2)} · ${cardFeeWasCharged(fee) ? 'Charged' : fee.status}'),
-            if (transaction.cardFees.any(cardFeeWasCharged) &&
-                transaction.cardFees.where(cardFeeWasCharged).every((fee) =>
-                    feeChargedAmount(fee).currency.toUpperCase() ==
-                    transaction.amount.currency.toUpperCase()))
-              _DetailRow(
-                  label: context.tr('Total including fees'),
-                  value: cardListAmount(transaction).formatted),
-          ]),
-        ],
-      );
-}
+bool _isFundingOrConversion(LedgerTransaction row) => const {
+  'card_topup',
+  'fx_trade',
+  'exchange',
+}.contains(row.rawType.toLowerCase());
 
 class _TransactionDetail extends StatelessWidget {
   const _TransactionDetail({required this.transaction, this.identity});
@@ -184,12 +181,17 @@ class _TransactionDetail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final deposit = transaction.metadata['boomFiDeposit'] ?? transaction.metadata['BoomFiDeposit'] ?? transaction.metadata['boomFiPayment'];
+    final deposit =
+        transaction.metadata['boomFiDeposit'] ??
+        transaction.metadata['BoomFiDeposit'] ??
+        transaction.metadata['boomFiPayment'];
     if (deposit is Map) {
-      return ExchangeDepositReceipt(deposit: BoomFiDeposit.fromJson(Map<String, dynamic>.from(deposit)));
+      return ExchangeDepositReceipt(
+        deposit: BoomFiDeposit.fromJson(Map<String, dynamic>.from(deposit)),
+      );
     }
     final colorScheme = Theme.of(context).colorScheme;
-    final displayAmount = cardListAmount(transaction);
+    final displayAmount = activityListAmount(transaction);
     final positive = displayAmount.isPositive;
     final metadataRows = _metadataRows(transaction.metadata);
     final isExample = context.isExampleTheme;
@@ -245,25 +247,26 @@ class _TransactionDetail extends StatelessWidget {
                 Text(
                   displayAmount.formatted,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: positive
-                            ? ExamplePalette.of(context).design.color(
-                                  Theme.of(context).brightness,
-                                  'success',
-                                  fallback: Colors.green.shade700,
-                                )
-                            : null,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: positive
+                        ? ExamplePalette.of(context).design.color(
+                            Theme.of(context).brightness,
+                            'success',
+                            fallback: Colors.green.shade700,
+                          )
+                        : null,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 if (_secondaryReceiptAmount(transaction)
                     case final amount?) ...[
                   const SizedBox(height: 4),
                   Text(
-                    context.tr(_secondaryReceiptLabel(transaction),
-                        {'p0': amount.formatted}),
+                    context.tr(_secondaryReceiptLabel(transaction), {
+                      'p0': amount.formatted,
+                    }),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 6),
@@ -275,8 +278,8 @@ class _TransactionDetail extends StatelessWidget {
                 Text(
                   fallbackText(transaction.subtitle, 'No additional details'),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -285,12 +288,18 @@ class _TransactionDetail extends StatelessWidget {
           NeoGroupedCard(
             children: [
               _DetailRow(
-                  label: context.tr('Status'), value: _statusFor(transaction)),
+                label: context.tr('Status'),
+                value: _statusFor(transaction),
+              ),
               _DetailRow(
-                  label: context.tr('Type'), value: transaction.displayType),
+                label: context.tr('Type'),
+                value: transaction.displayType,
+              ),
               if (identity != null)
                 _DetailRow(
-                    label: context.tr('Account / card'), value: identity!),
+                  label: context.tr('Account / card'),
+                  value: identity!,
+                ),
               _DetailRow(label: context.tr('Reference'), value: transaction.id),
               _DetailRow(
                 label: context.tr('Booked'),
@@ -304,39 +313,59 @@ class _TransactionDetail extends StatelessWidget {
           ),
           if (transaction.cardFees.isNotEmpty) ...[
             const SizedBox(height: 24),
-            _CardFeeDetails(transaction: transaction),
+            TransactionFeeSummary(transaction: transaction),
+          ],
+          if (canDownloadEqualsPaymentConfirmation(transaction)) ...[
+            const SizedBox(height: 24),
+            EqualsPaymentConfirmationButton(
+              key: ValueKey('confirmation-${transaction.id}'),
+              transaction: transaction,
+            ),
           ],
           const SizedBox(height: 24),
           TransactionInvoices(
-              key: ValueKey(transaction.id), transactionId: transaction.id),
+            key: ValueKey(transaction.id),
+            transactionId: transaction.id,
+          ),
           if (metadataRows.isNotEmpty) ...[
             const SizedBox(height: 24),
             ExpansionTile(
               initiallyExpanded: true,
-              leading: Icon(Icons.receipt_long_outlined,
-                  color: Theme.of(context).colorScheme.primary),
-              collapsedBackgroundColor:
-                  Theme.of(context).colorScheme.surfaceContainerHighest,
-              backgroundColor:
-                  Theme.of(context).colorScheme.surfaceContainerHighest,
+              leading: Icon(
+                Icons.receipt_long_outlined,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              collapsedBackgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                      color: Theme.of(context).colorScheme.outlineVariant)),
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
               collapsedShape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                      color: Theme.of(context).colorScheme.outlineVariant)),
-              title: Text(context.tr('Advanced details'),
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700)),
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
+              title: Text(
+                context.tr('Advanced details'),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
               children: [
-                NeoGroupedCard(children: [
-                  for (final row in metadataRows)
-                    _DetailRow(label: row.label, value: row.value),
-                ]),
+                NeoGroupedCard(
+                  children: [
+                    for (final row in metadataRows)
+                      _DetailRow(label: row.label, value: row.value),
+                  ],
+                ),
               ],
             ),
           ],
@@ -379,8 +408,9 @@ class _ExampleTransactionDetail extends StatelessWidget {
           status: status,
           statusColor: statusColor,
           tracked: tracked,
-          alignment:
-              wide ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+          alignment: wide
+              ? CrossAxisAlignment.start
+              : CrossAxisAlignment.center,
         );
 
         final facts = ExampleListGroup(
@@ -398,7 +428,9 @@ class _ExampleTransactionDetail extends StatelessWidget {
                 valueColor: statusColor,
               ),
             _ExampleDetailRow(
-                label: context.tr('Type'), value: transaction.displayType),
+              label: context.tr('Type'),
+              value: transaction.displayType,
+            ),
             if (identity != null)
               _ExampleDetailRow(
                 label: context.tr('Account / card'),
@@ -427,34 +459,52 @@ class _ExampleTransactionDetail extends StatelessWidget {
             facts,
             if (transaction.cardFees.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.lg),
-              _CardFeeDetails(transaction: transaction),
+              TransactionFeeSummary(transaction: transaction),
+            ],
+            if (canDownloadEqualsPaymentConfirmation(transaction)) ...[
+              const SizedBox(height: AppSpacing.lg),
+              EqualsPaymentConfirmationButton(
+                key: ValueKey('confirmation-${transaction.id}'),
+                transaction: transaction,
+              ),
             ],
             const SizedBox(height: AppSpacing.lg),
             TransactionInvoices(
-                key: ValueKey(transaction.id), transactionId: transaction.id),
+              key: ValueKey(transaction.id),
+              transactionId: transaction.id,
+            ),
             if (metadataRows.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.lg),
               ExpansionTile(
                 initiallyExpanded: true,
-                leading: Icon(Icons.receipt_long_outlined,
-                    color: Theme.of(context).colorScheme.primary),
-                collapsedBackgroundColor:
-                    Theme.of(context).colorScheme.surfaceContainerHighest,
-                backgroundColor:
-                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                leading: Icon(
+                  Icons.receipt_long_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                collapsedBackgroundColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(
-                        color: Theme.of(context).colorScheme.outlineVariant)),
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                ),
                 collapsedShape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(
-                        color: Theme.of(context).colorScheme.outlineVariant)),
-                title: Text(context.tr('Advanced details'),
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700)),
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                ),
+                title: Text(
+                  context.tr('Advanced details'),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 children: [
                   ExampleListGroup(
                     dividerInset: AppSpacing.md,
@@ -548,7 +598,7 @@ class _ExampleDetailSummary extends StatelessWidget {
     final centred = alignment == CrossAxisAlignment.center;
     final textAlign = centred ? TextAlign.center : TextAlign.start;
     final title = transaction.title;
-    final amount = cardListAmount(transaction);
+    final amount = activityListAmount(transaction);
     final positive = amount.isPositive;
     final settled = _secondaryReceiptAmount(transaction);
     final place = _placeOf(transaction);
@@ -596,22 +646,24 @@ class _ExampleDetailSummary extends StatelessWidget {
             child: Text(
               '${positive ? '+' : ''}${amount.formatted}',
               textAlign: textAlign,
-              style: ExampleTextStyles.amount(
-                context,
-                size: ExampleAmountSize.hero,
-              ).copyWith(
-                color: positive
-                    ? ExamplePalette.of(context).success
-                    : ExampleInk.primary(context),
-              ),
+              style:
+                  ExampleTextStyles.amount(
+                    context,
+                    size: ExampleAmountSize.hero,
+                  ).copyWith(
+                    color: positive
+                        ? ExamplePalette.of(context).success
+                        : ExampleInk.primary(context),
+                  ),
             ),
           ),
         ),
         if (settled != null) ...[
           const SizedBox(height: AppSpacing.xxs),
           Text(
-            context.tr(
-                _secondaryReceiptLabel(transaction), {'p0': settled.formatted}),
+            context.tr(_secondaryReceiptLabel(transaction), {
+              'p0': settled.formatted,
+            }),
             textAlign: textAlign,
             style: TextStyle(
               fontSize: 12.5,
@@ -625,8 +677,9 @@ class _ExampleDetailSummary extends StatelessWidget {
           alignment: centred ? Alignment.center : Alignment.centerLeft,
           child: tracked
               ? _ExampleSettlementTrack(
-                  bookedAt:
-                      transaction.hasBookedAt ? transaction.bookedAt : null,
+                  bookedAt: transaction.hasBookedAt
+                      ? transaction.bookedAt
+                      : null,
                   settled: status == 'Complete',
                 )
               : ExamplePill(
@@ -669,10 +722,7 @@ class _ExampleDetailSummary extends StatelessWidget {
 /// in the record below, and two short words cannot truncate at any width or
 /// text scale.
 class _ExampleSettlementTrack extends StatelessWidget {
-  const _ExampleSettlementTrack({
-    required this.bookedAt,
-    required this.settled,
-  });
+  const _ExampleSettlementTrack({required this.bookedAt, required this.settled});
 
   final DateTime? bookedAt;
   final bool settled;
@@ -829,8 +879,9 @@ class _ExampleTrackLabel extends StatelessWidget {
         fontSize: 12,
         height: 1.3,
         fontWeight: FontWeight.w600,
-        color:
-            strong ? ExampleInk.primary(context) : ExampleInk.secondary(context),
+        color: strong
+            ? ExampleInk.primary(context)
+            : ExampleInk.secondary(context),
       ),
     );
   }
@@ -1007,15 +1058,16 @@ class _ExampleDetailLoading extends StatelessWidget {
 
 // Semantic tokens are resolved by ExamplePill and ExampleInk at the point of use.
 Color _statusColor(String status) => switch (status) {
-      'Pending' => ExampleColors.warning,
-      'Complete' => ExampleColors.success,
-      'Declined' => ExampleColors.danger,
-      _ => ExampleColors.lavender,
-    };
+  'Pending' => ExampleColors.warning,
+  'Complete' => ExampleColors.success,
+  'Declined' => ExampleColors.danger,
+  _ => ExampleColors.lavender,
+};
 
 /// Everything that might name a category, joined for the avatar tint.
 String _categoryOf(LedgerTransaction transaction) {
-  final metadata = transaction.metadata['merchantCategory'] ??
+  final metadata =
+      transaction.metadata['merchantCategory'] ??
       transaction.metadata['MerchantCategory'];
   return [
     transaction.merchantCategory,
@@ -1100,10 +1152,13 @@ List<({String label, String value})> _metadataRows(
   }
 
   add(metadata, '', '');
-  final rows = values.entries
-      .map((entry) => (label: _metadataLabel(entry.key), value: entry.value))
-      .toList()
-    ..sort((left, right) => left.label.compareTo(right.label));
+  final rows =
+      values.entries
+          .map(
+            (entry) => (label: _metadataLabel(entry.key), value: entry.value),
+          )
+          .toList()
+        ..sort((left, right) => left.label.compareTo(right.label));
   return rows;
 }
 
@@ -1168,13 +1223,18 @@ LedgerTransaction? _findTransaction(
   List<LedgerTransaction> items,
   String transactionId,
 ) {
-  for (final item in [...groupCardFees(items), ...items]) {
+  final presented = [
+    for (final group in groupActivityTransactions(items)) group.primary,
+    ...groupCardFees(items),
+    ...items,
+  ];
+  for (final item in presented) {
     if (item.id == transactionId) {
       return item;
     }
   }
   // Card ledgers key rows by their provider reference; fall back to it.
-  for (final item in [...groupCardFees(items), ...items]) {
+  for (final item in presented) {
     final reference = item.metadata['reference'] ?? item.metadata['Reference'];
     if (reference?.toString() == transactionId) {
       return item;

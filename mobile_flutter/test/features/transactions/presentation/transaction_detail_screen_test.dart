@@ -9,7 +9,65 @@ import 'package:mobile_flutter/features/platform/application/platform_providers.
 import 'package:mobile_flutter/features/transactions/presentation/transaction_detail_screen.dart';
 
 void main() {
+  testWidgets(
+      'top-up receipt shows credited amount, fee and full source deduction',
+      (tester) async {
+    final rows = [
+      LedgerTransaction.fromJson({
+        'id': 'topup',
+        'type': 'card_topup',
+        'amount': 15.67,
+        'currency': 'USD',
+        'status': 'completed',
+        'transactionDate': '2026-09-04T10:43:00',
+        'metadata': {'fee': .24, 'grossAmount': 15.91},
+      }),
+      LedgerTransaction.fromJson({
+        'id': 'fee',
+        'type': 'fees',
+        'description': 'fees: card_topup_fee',
+        'amount': -.24,
+        'currency': 'USD',
+        'status': 'completed',
+        'transactionDate': '2026-09-04T10:43:00',
+      }),
+    ];
+    await tester.pumpWidget(ProviderScope(
+        overrides: [
+          transactionDocumentsProvider.overrideWith((ref, id) async => []),
+          activityTransactionsProvider.overrideWith((ref) async => rows),
+        ],
+        child: const MaterialApp(
+            home: TransactionDetailScreen(transactionId: 'topup'))));
+    await tester.pumpAndSettle();
+    expect(find.text('-\$15.91'), findsWidgets);
+    await tester.scrollUntilVisible(find.text('Top-up fee'), 180,
+        scrollable: find.byType(Scrollable).first);
+    expect(find.text('USD 0.24 · Charged'), findsOneWidget);
+    expect(find.text('Amount received'), findsOneWidget);
+    expect(find.text('\$15.67'), findsOneWidget);
+    expect(find.text('Total including fees'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final example in [false, true]) {
+    testWidgets('Equals payment confirmation is available (Example: $example)', (tester) async {
+      final transaction = LedgerTransaction.fromJson({
+        'id': 91191, 'type': 'payout', 'amount': -10, 'currency': 'EUR',
+        'metadata': {'provider': 'equalsmoney', 'paymentId': 9433626}
+      });
+      await tester.pumpWidget(ProviderScope(overrides: [
+        transactionDocumentsProvider.overrideWith((ref, id) async => []),
+        activityTransactionsProvider.overrideWith((ref) async => [transaction]),
+      ], child: MaterialApp(
+        theme: example ? ThemeData.dark().copyWith(extensions: [const ExampleBrand()]) : null,
+        home: const TransactionDetailScreen(transactionId: '91191'))));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Payment confirmation PDF'), 180,
+          scrollable: find.byType(Scrollable).first);
+      expect(find.text('Payment confirmation PDF'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
     testWidgets('linked fee and charged headline (Example: $example)',
         (tester) async {
       final rows = [

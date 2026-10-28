@@ -258,12 +258,14 @@ class ExchangeDialog extends StatelessWidget {
       required this.child,
       required this.actions,
       this.subtitle,
+      this.scrollController,
       this.width = 600});
   final String title;
   final String? subtitle;
   final Widget child;
   final List<Widget> actions;
   final double width;
+  final ScrollController? scrollController;
   @override
   Widget build(BuildContext context) => Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -293,6 +295,7 @@ class ExchangeDialog extends StatelessWidget {
                       ])),
               Flexible(
                   child: SingleChildScrollView(
+                      controller: scrollController,
                       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
                       child: child)),
               const Divider(height: 1),
@@ -305,6 +308,38 @@ class ExchangeDialog extends StatelessWidget {
                       children: actions)),
             ]),
       ));
+}
+
+/// A single compact group for provider fees and limits, with wrapping on mobile.
+class ExchangeFeesSummary extends StatelessWidget {
+  const ExchangeFeesSummary({required this.title, required this.details, super.key});
+  final String title;
+  final List<String> details;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: .08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(Icons.info_outline, size: 18, color: theme.colorScheme.primary),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Wrap(spacing: 16, runSpacing: 4, children: [
+            for (final detail in details)
+              Text(detail, style: theme.textTheme.bodySmall?.copyWith(height: 1.35)),
+          ]),
+        ])),
+      ]),
+    );
+  }
 }
 
 class ExchangeNotice extends StatelessWidget {

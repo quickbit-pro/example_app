@@ -1,3 +1,6 @@
+import 'exchange_account_transfers_test.dart' as transfers;
+import 'package:mobile_flutter/features/money/presentation/accounts_hub_header.dart';
+import 'package:mobile_flutter/features/wallets/data/wallet_providers.dart';
 import 'package:mobile_flutter/features/banking/application/banking_providers.dart';
 import 'package:mobile_flutter/features/rewards/domain/rewards_models.dart';
 import 'package:mobile_flutter/features/wallets/presentation/exchange_panel.dart';
@@ -122,6 +125,59 @@ void main() {
     }
   });
 
+  for (final width in [375.0, 1440.0]) {
+    for (final scale in [1.0, 1.5]) {
+      testWidgets('themed account transfers fit $width at $scale', (tester) async {
+        tester.view.physicalSize = Size(width, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+      final config = jsonDecode(File('config/hoppa.json').readAsStringSync())
+          as Map<String, dynamic>;
+      final theme = buildAppThemes(AppBranding(
+              appName: 'Hoppa',
+              brandId: 'hoppa',
+              primarySeedHex: '621A96',
+              accentSeedHex: 'C6F24E',
+              loginBackgroundHex: '',
+              themeMode: 'dark',
+              fontFamily: 'Inter',
+              logoAsset: '',
+              radiusScale: '1',
+              supportEmail: '',
+              supportPhone: '',
+              legalEntity: '',
+              design: AppDesign.fromJsonString(jsonEncode(config['design']))))
+          .dark;
+
+
+        final capture = GlobalKey();
+        await tester.pumpWidget(ProviderScope(overrides: [
+          exchangeOverviewProvider.overrideWith((ref) async => transfers.overview()),
+          exchangeCardDepositAddressesProvider.overrideWith((ref) async => transfers.addresses),
+        ], child: RepaintBoundary(key: capture, child: MaterialApp(theme: theme,
+          debugShowCheckedModeBanner: false,
+          builder: (context, child) => MediaQuery(data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)), child: child!),
+          home: Scaffold(body: SingleChildScrollView(padding: const EdgeInsets.all(20), child:
+            AccountsHubHeader(selected: AccountsHubSection.exchange, showCrypto: true, showExchange: true,
+              transferActions: ExchangeAccountTransferActions(
+                config: MobileTenantConfig.fromJson(const {'features': {'walletOutflowsEnabled': true}}),
+                budgets: [transfers.budget(20)], wallets: transfers.assets))))))));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.text('Fiat account to Crypto card'), findsOneWidget);
+        expect(find.text('Crypto card to Fiat account'), findsOneWidget);
+        if (const bool.fromEnvironment('CAPTURE_EXCHANGE_UI')) {
+          await tester.runAsync(() async {
+            final image = await (capture.currentContext!.findRenderObject() as RenderRepaintBoundary).toImage(pixelRatio: 1);
+            final png = await image.toByteData(format: ui.ImageByteFormat.png);
+            File('/private/tmp/hoppa-transfer-tabs-${width.toInt()}-$scale.png').writeAsBytesSync(png!.buffer.asUint8List());
+            image.dispose();
+          });
+        }
+      });
+    }
+  }
+
   for (final size in [
     const Size(375, 812),
     const Size(1000, 900),
@@ -129,6 +185,7 @@ void main() {
   ]) {
     for (final scale in [1.0, 1.3]) {
       for (final scene in [
+        'fees',
         'deposit',
         'withdraw',
         'convert',
@@ -161,7 +218,15 @@ void main() {
 
           final api = UiApi()..fail = scene == 'error';
           final capture = GlobalKey();
-          final dialog = scene == 'deposit'
+          final dialog = scene == 'fees'
+              ? ExchangeDialog(title: 'Transfer overview',
+                  child: const ExchangeFormColumn(children: [
+                    ExchangeFeesSummary(title: 'After conversion', details: [
+                      'Minimum withdrawal: 5 USDC', 'Fixed withdrawal fee: 1 USDC', 'Variable withdrawal fee: 0%',
+                    ]),
+                  ]),
+                  actions: [TextButton(onPressed: () {}, child: const Text('Cancel'))])
+              : scene == 'deposit'
               ? const ExchangeAccountDetails()
               : scene == 'error'
                   ? const ExchangeAccountDetails(destinations: true)
@@ -194,6 +259,12 @@ void main() {
           await tester.tap(find.text('Open'));
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
+          if (scene == 'fees') {
+            expect(find.byType(ExchangeFeesSummary), findsOneWidget);
+            expect(find.text('After conversion'), findsOneWidget);
+            expect(find.text('Variable withdrawal fee: 0%'), findsOneWidget);
+            expect(find.byType(ExchangeNotice), findsNothing);
+          }
           final close = find
               .text(scene == 'deposit' || scene == 'error' ? 'Done' : 'Cancel');
           var footer = tester.getRect(close);

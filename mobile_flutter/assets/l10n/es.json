@@ -1,4 +1,17 @@
 {
+  "Completed transfers": "Transferencias completadas",
+  "Received by Exchange: {p0} {p1}": "Recibido por Exchange: {p0} {p1}",
+  "Started {p0}": "Iniciado el {p0}",
+
+  "Transaction fees": "Comisiones de la transacción",
+  "Amount before fees": "Importe antes de comisiones",
+  "Amount before fees: {p0}": "Importe antes de comisiones: {p0}",
+  "Charged": "Cobrado",
+
+  "Payment confirmation PDF": "Confirmación de pago en PDF",
+  "Payment confirmation is not available for this transaction yet.": "La confirmación de pago aún no está disponible para esta transacción.",
+  "Could not download the payment confirmation. Please try again.": "No se pudo descargar la confirmación de pago. Inténtalo de nuevo.",
+
   "We could not complete that request. Please try again.": "No pudimos completar la solicitud. Inténtalo de nuevo.",
   "We could not reach the service. Check your connection and try again.": "No pudimos conectar con el servicio. Revisa tu conexión e inténtalo de nuevo.",
   " and ": " y ",
@@ -2338,6 +2351,10 @@
   "KYC level": "Nivel de verificación KYC",
   "Accept & order card": "Aceptar y pedir tarjeta",
   "To add this card to Apple Pay or Google Wallet, its balance must be greater than 0.": "Para añadir esta tarjeta a Apple Pay o Google Wallet, su saldo debe ser mayor que 0.",
+  "Your music.\nYour money.": "Tu música.\nTu dinero.",
+  "Accounts, cards and payments. One place for your money.": "Cuentas, tarjetas y pagos. Un solo lugar para tu dinero.",
+  "Cards, crypto and payments. One place for your money.": "Tarjetas, criptomonedas y pagos. Un solo lugar para tu dinero.",
+  "The bridge between your music and your finances.": "El puente entre tu música y tus finanzas.",
   "This transaction belongs to the ZBX Exchange service.": "Esta transacción corresponde al servicio ZBX Exchange prestado a través de ZBX.",
   "Fund my payment card wallet": "Añadir fondos a la cartera de mi tarjeta de pago",
   "USDT is not enabled for EU residents. Please choose USDC.": "USDT no está habilitado para residentes de la UE. Elige USDC."

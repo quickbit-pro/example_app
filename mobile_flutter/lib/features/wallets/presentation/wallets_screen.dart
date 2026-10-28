@@ -1,3 +1,4 @@
+import '../domain/exchange_history_links.dart';
 import 'package:intl/intl.dart';
 import 'exchange_support.dart';
 import 'exchange_transfer_decision.dart';
@@ -248,6 +249,10 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
               showMoney: tenantConfig.valueOrNull?.equalsMoneyEnabled ?? true,
               showCrypto: !isBusinessAccount,
               showExchange: exchangeEnabled,
+              transferActions: exchangeEnabled && !isBusinessAccount && tenantConfig.valueOrNull?.equalsMoneyEnabled == true
+                  ? ExchangeAccountTransferActions(onConvertToEur: (budget) =>
+                      showEqualsMoneyConversionDialog(context, ref, [budget], targetCurrency: 'EUR'))
+                  : null,
             ),
             const SizedBox(height: 22),
           ],
@@ -319,6 +324,7 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
                     config: config,
                     budgets: budgets.valueOrNull ?? const [],
                     wallets: const [],
+                    onConvertToEur: (budget) => showEqualsMoneyConversionDialog(context, ref, [budget], targetCurrency: 'EUR'),
                     transferSection: _ExchangeTransfersContent(
                       outflowsEnabled: config.walletOutflowsEnabled,
                     ),
@@ -330,6 +336,7 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
                       config: config,
                       budgets: budgetItems,
                       wallets: walletItems,
+                      onConvertToEur: (budget) => showEqualsMoneyConversionDialog(context, ref, [budget], targetCurrency: 'EUR'),
                       transferSection: _ExchangeTransfersContent(
                         outflowsEnabled: config.walletOutflowsEnabled,
                       ),
@@ -672,8 +679,11 @@ Future<void> showEqualsMoneyConversionDialog(
   List<PlatformResource> budgets, {
   String initialBudgetId = '',
   String initialSourceCurrency = '',
+  String targetCurrency = '',
 }) async {
-  final convertible = _convertibleEqualsBudgets(budgets);
+  final convertible = _convertibleEqualsBudgets(budgets).where((budget) => targetCurrency.isEmpty ||
+      (_conversionCurrencies(budget).contains(targetCurrency) &&
+       _fundedBudgetBalanceRows(budget).any((row) => row.currency != targetCurrency))).toList();
   if (convertible.isEmpty) return;
 
   await showDialog<void>(
@@ -684,6 +694,7 @@ Future<void> showEqualsMoneyConversionDialog(
       budgets: convertible,
       initialBudgetId: initialBudgetId,
       initialSourceCurrency: initialSourceCurrency,
+      fixedTargetCurrency: targetCurrency,
     ),
   );
 }
@@ -693,11 +704,13 @@ class _EqualsMoneyConversionDialog extends ConsumerStatefulWidget {
     required this.budgets,
     this.initialBudgetId = '',
     this.initialSourceCurrency = '',
+    this.fixedTargetCurrency = '',
   });
 
   final List<PlatformResource> budgets;
   final String initialBudgetId;
   final String initialSourceCurrency;
+  final String fixedTargetCurrency;
 
   @override
   ConsumerState<_EqualsMoneyConversionDialog> createState() =>
@@ -711,14 +724,17 @@ class _EqualsMoneyConversionDialogState
           .where((item) => _budgetId(item) == widget.initialBudgetId)
           .firstOrNull ??
       convertible.first;
-  late String sourceCurrency = _fundedBudgetBalanceRows(budget)
+  List<_BudgetBalanceRow> sourceRows(PlatformResource account) => _fundedBudgetBalanceRows(account)
+      .where((row) => row.currency != widget.fixedTargetCurrency).toList();
+  String defaultTarget(String source) => widget.fixedTargetCurrency.isNotEmpty
+      ? widget.fixedTargetCurrency : _conversionCurrencies(budget).firstWhere((currency) => currency != source);
+  late String sourceCurrency = sourceRows(budget)
           .where((row) =>
               row.currency == widget.initialSourceCurrency.toUpperCase())
           .firstOrNull
           ?.currency ??
-      _fundedBudgetBalanceRows(budget).first.currency;
-  late String targetCurrency = _conversionCurrencies(budget)
-      .firstWhere((currency) => currency != sourceCurrency);
+      sourceRows(budget).first.currency;
+  late String targetCurrency = defaultTarget(sourceCurrency);
   final amountController = TextEditingController();
   Map<String, dynamic>? quote;
   bool loading = false;
@@ -738,9 +754,10 @@ class _EqualsMoneyConversionDialogState
       child: Builder(
         builder: (dialogContext) {
           final setDialogState = setState;
-          final fundedRows = _fundedBudgetBalanceRows(budget);
+          final fundedRows = sourceRows(budget);
           final targetCurrencies = _conversionCurrencies(budget)
-              .where((currency) => currency != sourceCurrency)
+              .where((currency) => currency != sourceCurrency &&
+                  (widget.fixedTargetCurrency.isEmpty || currency == widget.fixedTargetCurrency))
               .toList();
           final selectedBalance = fundedRows
               .where((row) => row.currency == sourceCurrency)
@@ -881,10 +898,8 @@ class _EqualsMoneyConversionDialogState
                           (item) => _budgetId(item) == value,
                         );
                         sourceCurrency =
-                            _fundedBudgetBalanceRows(budget).first.currency;
-                        targetCurrency = _conversionCurrencies(budget)
-                            .firstWhere(
-                                (currency) => currency != sourceCurrency);
+                            sourceRows(budget).first.currency;
+                        targetCurrency = defaultTarget(sourceCurrency);
                         amountController.clear();
                         error = null;
                       });
@@ -895,8 +910,7 @@ class _EqualsMoneyConversionDialogState
                       if (value == null) return;
                       setDialogState(() {
                         sourceCurrency = value;
-                        targetCurrency = _conversionCurrencies(budget)
-                            .firstWhere((currency) => currency != value);
+                        targetCurrency = defaultTarget(value);
                         error = null;
                       });
                     },
@@ -983,13 +997,11 @@ class _EqualsMoneyConversionDialogState
                                   (item) => _budgetId(item) == value,
                                 );
                                 sourceCurrency =
-                                    _fundedBudgetBalanceRows(budget)
+                                    sourceRows(budget)
                                         .first
                                         .currency;
                                 targetCurrency =
-                                    _conversionCurrencies(budget).firstWhere(
-                                  (currency) => currency != sourceCurrency,
-                                );
+                                    defaultTarget(sourceCurrency);
                                 amountController.clear();
                                 error = null;
                               });
@@ -1017,8 +1029,7 @@ class _EqualsMoneyConversionDialogState
                             if (value == null) return;
                             setDialogState(() {
                               sourceCurrency = value;
-                              targetCurrency = _conversionCurrencies(budget)
-                                  .firstWhere((currency) => currency != value);
+                              targetCurrency = defaultTarget(value);
                               error = null;
                             });
                           },
@@ -2613,10 +2624,14 @@ class _ExchangeTransfersContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final transfers = ref.watch(exchangeTransfersProvider);
     final isExample = context.isExampleTheme;
+    final items = transfers.valueOrNull;
+    final showActiveHeading = items == null || items.any((item) => item.showInProgress) ||
+        !items.any(showTransferInHistory);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (showActiveHeading) ...[
         if (isExample)
           ExampleSectionTitle(
             title: context.tr('Transfers in progress'),
@@ -2643,9 +2658,11 @@ class _ExchangeTransfersContent extends ConsumerWidget {
                   ),
         ),
         const SizedBox(height: AppSpacing.sm),
+        ],
         transfers.when(
           data: (items) => _TransferProgressList(
             transfers: items,
+            deposits: ref.watch(exchangeOverviewProvider).valueOrNull?.deposits ?? const [],
             outflowsEnabled: outflowsEnabled,
           ),
           loading: () =>
@@ -2879,17 +2896,20 @@ class _ExchangeServiceCard extends StatelessWidget {
 class _TransferProgressList extends StatelessWidget {
   const _TransferProgressList({
     required this.transfers,
+    this.deposits = const [],
     required this.outflowsEnabled,
   });
 
   final List<BoomFiTransfer> transfers;
+  final List<BoomFiDeposit> deposits;
   final bool outflowsEnabled;
 
   @override
   Widget build(BuildContext context) {
     final visible =
         transfers.where((transfer) => transfer.showInProgress).toList();
-    if (visible.isEmpty) {
+    final history = transfers.where(showTransferInHistory).toList();
+    if (visible.isEmpty && history.isEmpty) {
       if (context.isExampleTheme) {
         // Nothing to do is good news, so it reads as a settled fact in the
         // success ink rather than as an empty bucket with a call to action.
@@ -2939,25 +2959,39 @@ class _TransferProgressList extends StatelessWidget {
         for (var index = 0; index < visible.length; index++) ...[
           ExchangeTransferProgressCard(
             transfer: visible[index],
+            fundingDeposit: depositForTransfer(visible[index], deposits, transfers),
             outflowsEnabled: outflowsEnabled,
           ),
           if (index != visible.length - 1)
             const SizedBox(height: AppSpacing.sm),
         ],
+        if (history.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Align(alignment: Alignment.centerLeft,
+            child: Text(context.tr('Completed transfers'), style: Theme.of(context).textTheme.titleLarge)),
+          const SizedBox(height: AppSpacing.sm),
+          for (final transfer in history) Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: ExchangeTransferProgressCard(
+              transfer: transfer,
+              fundingDeposit: depositForTransfer(transfer, deposits, transfers),
+              outflowsEnabled: outflowsEnabled)),
+        ],
       ],
     );
   }
-
 }
 
 class ExchangeTransferProgressCard extends ConsumerWidget {
   const ExchangeTransferProgressCard({
     super.key,
     required this.transfer,
+    this.fundingDeposit,
     required this.outflowsEnabled,
   });
 
   final BoomFiTransfer transfer;
+  final BoomFiDeposit? fundingDeposit;
   final bool outflowsEnabled;
 
   @override
@@ -2971,8 +3005,10 @@ class ExchangeTransferProgressCard extends ConsumerWidget {
     final isExample = context.isExampleTheme;
     final parsedAmount = double.tryParse(transfer.cryptoAmount);
     final statusPill = _WalletStatusPill(
-      label: transfer.progressStatusLabel ?? (needsAttention
-          ? context.tr('Action needed') : friendlyStatus(transfer.status)),
+      label: transfer.progressStatusLabel ??
+          (needsAttention
+              ? context.tr('Action needed')
+              : friendlyStatus(transfer.status)),
       emphasized: needsAttention,
     );
     return NeoSurfaceCard(
@@ -2981,68 +3017,88 @@ class ExchangeTransferProgressCard extends ConsumerWidget {
         children: [
           LayoutBuilder(builder: (context, constraints) {
             final compact = constraints.maxWidth < 560;
-            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(
-            children: [
-              if (isExample)
-                ExampleCurrencyAvatar(code: transfer.cryptoCurrency, size: 34)
-              else
-                CurrencyLogo(
-                  symbol: transfer.cryptoCurrency,
-                  size: 34,
-                  fallbackIcon: Icons.currency_exchange_rounded,
-                ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Tabular figures, so a column of transfers lines up its
-                    // decimal points with the balances above it instead of
-                    // drifting one glyph width per row.
-                    if (isExample && parsedAmount != null)
-                      ExampleAmount(
-                        amount: parsedAmount,
-                        currency: transfer.cryptoCurrency,
-                        size: ExampleAmountSize.small,
-                        code: ExampleAmountCode.always,
-                      )
-                    else
-                      Text(
-                        '${_compactTransferAmount(transfer.cryptoAmount)} ${transfer.cryptoCurrency}',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    Text(
-                      direction,
-                      style: isExample
-                          ? TextStyle(
-                              fontSize: 12,
-                              height: 1.35,
-                              color: ExampleInk.tertiary(context),
-                            )
-                          : Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
+            return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      if (isExample)
+                        ExampleCurrencyAvatar(
+                            code: transfer.cryptoCurrency, size: 34)
+                      else
+                        CurrencyLogo(
+                          symbol: transfer.cryptoCurrency,
+                          size: 34,
+                          fallbackIcon: Icons.currency_exchange_rounded,
+                        ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Tabular figures, so a column of transfers lines up its
+                            // decimal points with the balances above it instead of
+                            // drifting one glyph width per row.
+                            if (isExample && parsedAmount != null)
+                              ExampleAmount(
+                                amount: parsedAmount,
+                                currency: transfer.cryptoCurrency,
+                                size: ExampleAmountSize.small,
+                                code: ExampleAmountCode.always,
+                              )
+                            else
+                              Text(
+                                '${_compactTransferAmount(transfer.cryptoAmount)} ${transfer.cryptoCurrency}',
+                                style: Theme.of(context).textTheme.titleMedium,
                               ),
-                    ),
+                            Text(
+                              direction,
+                              style: isExample
+                                  ? TextStyle(
+                                      fontSize: 12,
+                                      height: 1.35,
+                                      color: ExampleInk.tertiary(context),
+                                    )
+                                  : Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                      ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (!compact) ...[
+                        const SizedBox(width: AppSpacing.xs),
+                        statusPill,
+                      ],
+                    ],
+                  ),
+                  if (compact) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    statusPill,
                   ],
-                ),
-              ),
-              if (!compact) ...[
-                const SizedBox(width: AppSpacing.xs),
-                statusPill,
-              ],
-            ],
-          ),
-          if (compact) ...[
-            const SizedBox(height: AppSpacing.xs),
-            statusPill,
-          ],
-          ]);
+                ]);
           }),
           const SizedBox(height: AppSpacing.md),
-          _TransferTimeline(stage: stage, attention: needsAttention, labels: transfer.progressLabels),
+          _TransferTimeline(
+              stage: stage,
+              attention: needsAttention,
+              labels: transfer.progressLabels),
+          if (fundingDeposit != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(context.tr('Received by Exchange: {p0} {p1}', {
+              'p0': fundingDeposit!.amount, 'p1': fundingDeposit!.currency,
+            }), style: Theme.of(context).textTheme.bodySmall),
+          ],
+          if (transfer.detail('createdAt').isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(context.tr('Started {p0}', {'p0': _transferLocalDate(transfer.detail('createdAt'))}),
+                style: Theme.of(context).textTheme.bodySmall),
+          ],
           if (transfer.completionMessage.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
@@ -3056,18 +3112,29 @@ class ExchangeTransferProgressCard extends ConsumerWidget {
                   : Theme.of(context).textTheme.bodySmall,
             ),
           ],
-          if (!transfer.isTerminal && exchangeActionUrl(transfer.details) != null)
-            TextButton(onPressed: () => openExchangeUrl(exchangeActionUrl(transfer.details)!), child: const Text('Complete provider verification')),
-          if (!transfer.isTerminal && transfer.detail('fiatWithdrawalDeadlineAt').isNotEmpty)
-            Text('Bank withdrawal due by ${_transferLocalDate(transfer.detail('fiatWithdrawalDeadlineAt'))}.'),
-          if (!transfer.isTerminal && transfer.detail('fiatWithdrawalOverdue') == 'true')
-            const Text('Withdrawal deadline passed. Contact support to resolve this transfer.'),
+          if (!transfer.isTerminal &&
+              exchangeActionUrl(transfer.details) != null)
+            TextButton(
+                onPressed: () =>
+                    openExchangeUrl(exchangeActionUrl(transfer.details)!),
+                child: const Text('Complete provider verification')),
+          if (!transfer.isTerminal &&
+              transfer.detail('fiatWithdrawalDeadlineAt').isNotEmpty)
+            Text(
+                'Bank withdrawal due by ${_transferLocalDate(transfer.detail('fiatWithdrawalDeadlineAt'))}.'),
+          if (!transfer.isTerminal &&
+              transfer.detail('fiatWithdrawalOverdue') == 'true')
+            const Text(
+                'Withdrawal deadline passed. Contact support to resolve this transfer.'),
           if (transfer.needsQuoteDecision) ...[
             Text('Original rate: ${transfer.detail('initialExchangeRate')}'),
             Text('Updated rate: ${transfer.detail('effectiveRate')}'),
-            Text('You receive: ${transfer.detail('toAmount')} ${transfer.direction == 'equals_to_interlace' ? transfer.cryptoCurrency : transfer.fiatCurrency}'),
-            Text('Fee: ${transfer.detail('currentFeeAmount')} ${transfer.detail('currentFeeCurrency')}'),
-            Text('Rate change: ${transfer.detail('rateDeviationPercent')}% · Quote expires ${transfer.detail('quoteExpiresAt')}'),
+            Text(
+                'You receive: ${transfer.detail('toAmount')} ${transfer.direction == 'equals_to_interlace' ? transfer.cryptoCurrency : transfer.fiatCurrency}'),
+            Text(
+                'Fee: ${transfer.detail('currentFeeAmount')} ${transfer.detail('currentFeeCurrency')}'),
+            Text(
+                'Rate change: ${transfer.detail('rateDeviationPercent')}% · Quote expires ${transfer.detail('quoteExpiresAt')}'),
           ],
           if (transfer.needsQuoteDecision && outflowsEnabled) ...[
             const SizedBox(height: AppSpacing.sm),
@@ -3104,16 +3171,17 @@ class ExchangeTransferProgressCard extends ConsumerWidget {
               spacing: AppSpacing.xs,
               runSpacing: AppSpacing.xs,
               children: [
-                if (transfer.canKeepFunds) OutlinedButton(
-                  style: isExample ? _transferOutlineStyle(context) : null,
-                  onPressed: () => _decideTransfer(
-                    context,
-                    ref,
-                    transfer,
-                    'keep',
+                if (transfer.canKeepFunds)
+                  OutlinedButton(
+                    style: isExample ? _transferOutlineStyle(context) : null,
+                    onPressed: () => _decideTransfer(
+                      context,
+                      ref,
+                      transfer,
+                      'keep',
+                    ),
+                    child: Text(context.tr('Keep in Exchange')),
                   ),
-                  child: Text(context.tr('Keep in Exchange')),
-                ),
                 FilledButton(
                   style: isExample ? _transferDecisionStyle(context) : null,
                   onPressed: () => _decideTransfer(
@@ -3293,7 +3361,7 @@ void _showExchangeTransferDetails(BuildContext context, BoomFiTransfer transfer)
         Text('Status: ${transfer.progressStatusLabel ?? friendlyStatus(transfer.status)}'),
         if (transfer.conversionSettled) const Text('Conversion: completed'),
         if (transfer.detail('toAmount').isNotEmpty)
-          Text('Settled proceeds: ${transfer.detail('toAmount')} ${transfer.fiatCurrency}'),
+          Text('${transfer.proceedsLabel}: ${transfer.detail('toAmount')} ${transfer.proceedsCurrency}'),
         if (transfer.completionMessage.isNotEmpty) ...[
           const SizedBox(height: 12), Text(transfer.completionMessage),
         ],
@@ -5541,73 +5609,13 @@ Future<void> _showBudgetMoveOptions(
     return;
   }
 
-  final destination = await _chooseCryptoWalletDestination(context, ref);
-  if (destination == null || !context.mounted) return;
-  Navigator.of(context).pop();
-  router.push(
-    Uri(
-      path: '/wallets/exchange',
-      queryParameters: {
-        'sourceBudgetId': _budgetId(budget),
-        'destination': destination,
-      },
-    ).toString(),
-  );
-}
-
-Future<String?> _chooseCryptoWalletDestination(
-  BuildContext context,
-  WidgetRef ref,
-) async {
-  var hasInterlace = false;
-  var hasBPay = false;
-  try {
-    final wallets = await ref.read(hoppaWalletAssetsProvider.future);
-    hasInterlace = wallets.any((wallet) => wallet.walletId.isNotEmpty);
-  } catch (_) {}
-  try {
-    hasBPay = (await ref.read(exchangeOverviewProvider.future)).isReady;
-  } catch (_) {}
-  if (!context.mounted) return null;
-
-  if (!hasInterlace && !hasBPay) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(context.tr('No Crypto Cards Wallet is available.'))),
-    );
-    return null;
-  }
-
-  return showModalBottomSheet<String>(
-    context: context,
-    showDragHandle: true,
-    builder: (sheetContext) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            title: Text(context.tr('Choose wallet destination')),
-            subtitle:
-                Text(context.tr('Only available destinations are shown.')),
-          ),
-          if (hasInterlace)
-            ListTile(
-              leading: const Icon(Icons.account_balance_wallet_outlined),
-              title: Text(context.tr('Crypto card wallet')),
-              subtitle: Text(context.tr('FIAT converted to USDC')),
-              onTap: () => Navigator.of(sheetContext).pop('interlace'),
-            ),
-          if (hasBPay)
-            ListTile(
-              leading: const Icon(Icons.currency_exchange_rounded),
-              title: Text(context.tr('BPay Exchange wallet')),
-              subtitle: Text(context.tr('Available exchange balances')),
-              onTap: () => Navigator.of(sheetContext).pop('bpay'),
-            ),
-          const SizedBox(height: AppSpacing.sm),
-        ],
-      ),
-    ),
+  await showFiatAccountToCryptoCardTransfer(
+    context,
+    ref,
+    sourceBudget: budget,
+    budgets: budgets,
+    onConvertToEur: (selectedBudget) => showEqualsMoneyConversionDialog(
+        context, ref, [selectedBudget], targetCurrency: 'EUR'),
   );
 }
 

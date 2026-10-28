@@ -1,7 +1,8 @@
 # Activity transaction grouping
 
-Activity shows one expandable summary per operation. Each underlying record
-remains available with its own receipt link. Daily counts count the summaries.
+Activity shows one summary per operation. Matched fees appear in the main
+transaction's details, not as list rows or expanded children. Non-fee related
+records remain available on expansion. Daily counts count the summaries.
 The raw API response, persisted display cache, transaction records, and exports
 are unchanged.
 
@@ -29,10 +30,21 @@ restricted and require a unique match in both directions:
 Ambiguous or incomplete matches remain separate. Grouping uses the visible,
 scoped rows, so filters cannot reveal entries outside the selected scope.
 
-The summary uses the principal transaction amount, never a sum of duplicate
-or cross-currency ledger legs. Top-up summaries retain the amount credited to
-the card. Matched wallet views of card funding are excluded from net-flow
-accounting; standalone wallet movements and genuine fees remain included.
+The all-activity summary includes charged fees in the source currency, never a
+sum of duplicate or cross-currency ledger legs. A top-up of $15.67 with a $0.24
+fee shows a $15.91 source deduction; details retain the card credit and fee.
+Selected card/account views retain their own ledger leg. An exchange with
+explicit sell metadata uses the sell amount plus same-currency fees and keeps
+the received amount in details. Declined purchases show only charged fees.
+Account/card boundaries apply before grouping; search, date, direction and
+type filters apply to the group so they cannot detach a fee from its parent.
+Matched wallet views of card funding are excluded from net-flow accounting;
+standalone wallet movements and genuine fees remain included.
+
+The Equals API presentation preserves an unambiguous `relatedCreditId` from a
+duplicate webhook fee when it keeps the authoritative activity record. This
+enriches response metadata without mutating tracked entities or stored ledger
+records. Missing or ambiguous links remain visible as standalone fees.
 
 ## Validation
 
@@ -45,8 +57,9 @@ separate widget tests cover each record's receipt callback.
 Deployment uses each application’s existing release scripts. No customer
 ledger mutation or database migration is required by this fix.
 
-The focused grouping/totals/receipt/cache suite passes 49 tests, and all 18
-localization tests pass (67 distinct tests). Analysis of all changed Dart
-files is clean. The broader inherited layout suite has five
+The October fee-presentation checks pass 60 Flutter tests covering grouping,
+fees, totals, receipts, account menus and mobile/desktop layouts, plus 18 API
+fee-deduplication and metadata-link tests. Analysis of all changed Dart files
+is clean. The previously checked broader inherited layout suite has five
 failures (four large-text app-bar clipping checks and one failed-withdrawal
 status overflow), reproduced with the original screen from HEAD.

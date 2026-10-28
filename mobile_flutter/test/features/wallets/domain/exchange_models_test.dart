@@ -2,6 +2,49 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/features/wallets/domain/exchange_models.dart';
 
 void main() {
+  test('proceeds use the destination currency and require verified settlement', () {
+    for (final direction in ['equals_to_interlace', 'interlace_to_equals']) {
+      for (final status in ['submitted', 'payout_ready', 'payout_submitted', 'completed']) {
+        final transfer = BoomFiTransfer.fromJson({
+          'transferDirection': direction, 'status': status,
+          'cryptoCurrency': 'USDC', 'fiatCurrency': 'EUR',
+          'boomFiSettlementStatus': 'completed', 'toAmount': '11.073355',
+        });
+        expect(transfer.proceedsCurrency, direction == 'equals_to_interlace' ? 'USDC' : 'EUR');
+        expect(transfer.proceedsLabel, status == 'submitted' ? 'Expected proceeds' : 'Settled proceeds');
+      }
+    }
+  });
+
+
+  test('unfunded Equals failures are not transfers in progress', () {
+    final transfer = BoomFiTransfer.fromJson({
+      'id': 130, 'status': 'failed', 'transferDirection': 'equals_to_interlace',
+      'sourceTransferId': null, 'boomFiOrderId': null,
+    });
+    expect(transfer.showInProgress, isFalse);
+    expect(transfer.progressStage, 0);
+    expect(transfer.progressStatusLabel, 'Not sent');
+  });
+
+  test('submitted and uncertain funding outcomes remain visible', () {
+    for (final extra in <Map<String, dynamic>>[
+      {'sourceTransferId': 'payment-1'},
+      {'SourceTransferId': 'payment-1'},
+      {'boomFiOrderId': 'exchange-1'},
+      {'fiatSettledAt': '2026-10-26T19:21:25Z'},
+      {'status': 'source_transfer_review_required'},
+      {'status': 'source_transfer_submitting'},
+      {'status': 'waiting_deposit', 'sourceTransferId': 'payment-1'},
+      {'transferDirection': 'interlace_to_equals'},
+    ]) {
+      final transfer = BoomFiTransfer.fromJson({
+        'status': 'failed', 'transferDirection': 'equals_to_interlace', ...extra,
+      });
+      expect(transfer.showInProgress, isTrue, reason: '$extra');
+    }
+  });
+
   test('bank exchange displays settled conversion and pending withdrawal', () {
     final transfer = BoomFiTransfer.fromJson({
       'id': 2, 'status': 'exchange_submitted', 'transferDirection': 'exchange_to_bank',

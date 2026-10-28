@@ -17,22 +17,32 @@ LedgerTransaction row(String id, String type,
     });
 
 void main() {
-  test('BoomFi legs group by explicit IDs while separate deposits remain separate', () {
+  test(
+      'BoomFi legs group by explicit IDs while separate deposits remain separate',
+      () {
     final deposit = row('501', 'crypto_deposit', {
       'transactionGroupId': 'boomfi:payment:pay_parent',
-      'amount': 12.582916, 'currency': 'USDC',
+      'amount': 12.582916,
+      'currency': 'USDC',
       'metadata': {'provider': 'BoomFi', 'externalTransactionId': 'pay_parent'},
     });
     final payout = row('502', 'withdrawal', {
       'transactionGroupId': 'boomfi:payment:pay_parent',
-      'parentTransactionId': 501, 'isPrimary': false,
-      'amount': -12.582916, 'currency': 'USDC', 'status': 'requires_action',
+      'parentTransactionId': 501,
+      'isPrimary': false,
+      'amount': -12.582916,
+      'currency': 'USDC',
+      'status': 'requires_action',
       'metadata': {'provider': 'BoomFi', 'externalTransactionId': 'pay_child'},
     });
     final separate = row('503', 'crypto_deposit', {
       'transactionGroupId': 'boomfi:payment:pay_separate',
-      'amount': 12.582916, 'currency': 'USDC',
-      'metadata': {'provider': 'BoomFi', 'externalTransactionId': 'pay_separate'},
+      'amount': 12.582916,
+      'currency': 'USDC',
+      'metadata': {
+        'provider': 'BoomFi',
+        'externalTransactionId': 'pay_separate'
+      },
     });
     final groups = groupActivityTransactions([deposit, payout, separate]);
     expect(groups.length, 2);
@@ -190,7 +200,8 @@ void main() {
     expect(walletOnly.outgoing, 12);
   });
 
-  test('legacy top-up keeps credited amount with its fee available underneath',
+  test(
+      'legacy top-up preserves card credit and displays total source deduction',
       () {
     final rows = [
       row('topup', 'card_topup', {
@@ -209,7 +220,13 @@ void main() {
     final group = groupActivityTransactions(rows).single;
     expect(group.primary.id, 'topup');
     expect(group.entries, rows);
-    expect(cardListAmount(group.primary).decimalAmount, 11.82);
+    expect(group.primary.amount.decimalAmount, 11.82);
+    expect(group.primary.cardFees.single.id, 'fee');
+    expect(activityListAmount(group.primary).decimalAmount, -12);
+    expect(
+        activityListAmount(group.primary, sourceAmounts: false).decimalAmount,
+        11.82);
+    expect(group.activityEntries, [rows.first]);
     final totals = activityFlowTotals(rows, currency: 'USD', rates: {});
     expect(totals.outgoing, .18);
     expect(totals.incoming, 0);
@@ -348,5 +365,58 @@ void main() {
     ];
     expect(
         groupActivityTransactions(duplicateRows).single.entries, duplicateRows);
+  });
+
+  test('explicit fee link attaches to non-primary parent and keeps raw amounts',
+      () {
+    final parent = row('payment', 'payout', {'amount': 12, 'isPrimary': false});
+    final fee =
+        row('fee', 'fees', {'amount': .25, 'parentTransactionId': 'payment'});
+    final group = groupActivityTransactions([fee, parent]).single;
+    expect(group.primary.id, 'payment');
+    expect(activityListAmount(group.primary).decimalAmount, -12.25);
+    expect(parent.amount.decimalAmount, -12);
+    expect(parent.cardFees, isEmpty);
+    expect(group.activityEntries, [parent]);
+  });
+
+  test('FX total uses sell currency and never mixes buy-currency units', () {
+    final trade = row('fx', 'fx_trade', {
+      'amount': 12.72,
+      'currency': 'GBP',
+      'metadata': {'sellAmount': 15, 'sellCurrency': 'EUR'},
+    });
+    final fee = row('fee', 'fees', {
+      'amount': .01,
+      'currency': 'EUR',
+      'parentTransactionId': 'fx',
+    });
+    final group = groupActivityTransactions([trade, fee]).single;
+    expect(activityListAmount(group.primary).currency, 'EUR');
+    expect(activityListAmount(group.primary).decimalAmount, -15.01);
+    expect(group.primary.amount.currency, 'GBP');
+    expect(group.primary.amount.decimalAmount, 12.72);
+    final totals = activityFlowTotals([trade, fee], currency: 'EUR', rates: {});
+    expect(totals.outgoing, .01);
+    expect(totals.incoming, 0);
+  });
+
+  test('declined purchase shows only charged fee, once', () {
+    final purchase =
+        row('decline', 'card_payment', {'amount': 50, 'status': 'declined'});
+    final fee = row('fee', 'card_decline_fee', {
+      'amount': 0,
+      'feeAmount': .5,
+      'feeCurrency': 'USD',
+      'relatedCardTransactionId': 'decline',
+    });
+    final group = groupActivityTransactions([fee, purchase]).single;
+    expect(activityListAmount(group.primary).decimalAmount, -.5);
+    expect(group.primary.cardFees, hasLength(1));
+    expect(group.activityEntries, [purchase]);
+    expect(
+        activityFlowTotals([fee, purchase], currency: 'USD', rates: {})
+            .outgoing,
+        .5);
   });
 }

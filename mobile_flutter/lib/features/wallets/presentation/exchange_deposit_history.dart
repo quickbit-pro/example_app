@@ -1,3 +1,4 @@
+import '../domain/exchange_history_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,21 +8,26 @@ import '../../platform/application/platform_providers.dart';
 import 'exchange_support.dart';
 
 class ExchangeDepositHistory extends StatelessWidget {
-  const ExchangeDepositHistory({super.key, required this.deposits});
+  const ExchangeDepositHistory({super.key, required this.deposits, this.transfers = const []});
+  final List<BoomFiTransfer> transfers;
   final List<BoomFiDeposit> deposits;
   @override
-  Widget build(BuildContext context) => Column(
+  Widget build(BuildContext context) {
+    final visible = deposits.where((deposit) => deposit.status != 'completed' ||
+        transferForDeposit(deposit, transfers) == null).toList();
+    if (deposits.isNotEmpty && visible.isEmpty) return const SizedBox.shrink();
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text('Deposit history',
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          if (deposits.isEmpty)
+          if (visible.isEmpty)
             const Text(
                 'Incoming Exchange deposits will appear here when the provider reports them.'),
-          for (final deposit in deposits.take(5))
+          for (final deposit in visible.take(5))
             ExchangeDepositCard(deposit: deposit),
-          if (deposits.length > 5)
+          if (visible.length > 5)
             TextButton(
                 onPressed: () => showDialog<void>(
                     context: context,
@@ -30,7 +36,7 @@ class ExchangeDepositHistory extends StatelessWidget {
                             content: SizedBox(
                                 width: 560,
                                 child: ListView(shrinkWrap: true, children: [
-                                  for (final deposit in deposits)
+                                  for (final deposit in visible)
                                     ExchangeDepositCard(deposit: deposit)
                                 ])),
                             actions: [
@@ -41,6 +47,7 @@ class ExchangeDepositHistory extends StatelessWidget {
                 child: const Text('Show all deposits')),
         ],
       );
+  }
 }
 
 class ExchangeDepositCard extends StatefulWidget {

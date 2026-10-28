@@ -256,16 +256,9 @@ void main() {
     final api = FakeExchangeApi();
     await host(tester, api);
     await quote(tester, api, expired: true);
-    await tester.ensureVisible(find.byType(CheckboxListTile));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byType(CheckboxListTile));
-    await tester.pump();
-    expect(
-        tester
-            .widget<FilledButton>(
-                find.widgetWithText(FilledButton, 'Confirm exchange'))
-            .onPressed,
-        isNull);
+    expect(find.byType(CheckboxListTile), findsNothing);
+    expect(find.text('Confirm exchange'), findsNothing);
+    expect(find.textContaining('expired quote'), findsOneWidget);
     expect(api.accepts, 0);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();

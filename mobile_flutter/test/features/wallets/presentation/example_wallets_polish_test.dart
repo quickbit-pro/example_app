@@ -112,7 +112,7 @@ const _exchangeOverview = BoomFiExchangeOverview(
     ),
     BoomFiExchangeBalance(
       accountId: 991,
-      currency: 'USD',
+      currency: 'EUR',
       amount: 812.19,
       pendingAmount: 0,
       chainId: 0,
@@ -122,7 +122,7 @@ const _exchangeOverview = BoomFiExchangeOverview(
   ],
   settlementAccounts: [],
   subAccounts: [],
-  fiatFundingCurrencies: ['USD'],
+  fiatFundingCurrencies: ['EUR'],
 );
 
 /// How the addresses provider is behaving for a given case. The route header
@@ -148,6 +148,7 @@ List<Override> _overrides({
       dashboardProvider
           .overrideWith((ref) => Completer<DashboardSnapshot>().future),
       hoppaWalletAssetsProvider.overrideWith((ref) async => _assets),
+      exchangeCardDepositAddressesProvider.overrideWith((ref) async => _assets),
       hoppaWalletAddressesProvider.overrideWith((ref) {
         switch (addresses) {
           case _Addresses.data:
@@ -469,8 +470,8 @@ void main() {
 
             await tester.tap(find.text('More'));
             await tester.pumpAndSettle();
-            expect(find.text('Fiat account to crypto wallet'), findsOneWidget);
-            await tester.tap(find.text('Fiat account to crypto wallet'));
+            expect(find.text('Fiat account to Crypto card'), findsOneWidget);
+            await tester.tap(find.text('Fiat account to Crypto card'));
             await tester.pumpAndSettle();
 
             expect(
@@ -487,7 +488,7 @@ void main() {
       }
     }
 
-    testWidgets('a white-label tenant keeps its arrow title', (tester) async {
+    testWidgets('a white-label tenant keeps the readable transfer title', (tester) async {
       await _pumpAt(
         tester,
         _exchangePanelHost(
@@ -500,10 +501,10 @@ void main() {
 
       await tester.tap(find.text('More'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Fiat account to crypto wallet'));
+      await tester.tap(find.text('Fiat account to Crypto card'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Fiat account → Crypto card'), findsOneWidget);
+      expect(find.text('Fiat account to Crypto card'), findsOneWidget);
       expect(find.byType(ExampleGlassButton), findsNothing);
     });
   });
@@ -524,7 +525,7 @@ void main() {
 
         await tester.tap(find.text('More'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Crypto wallet to fiat account'));
+        await tester.tap(find.text('Crypto card to Fiat account'));
         await tester.pumpAndSettle();
         expect(find.text('Crypto card to Fiat account'), findsOneWidget);
 
@@ -563,7 +564,7 @@ void main() {
 
       await tester.tap(find.text('More'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Crypto wallet to fiat account'));
+      await tester.tap(find.text('Crypto card to Fiat account'));
       await tester.pumpAndSettle();
 
       await tester.enterText(

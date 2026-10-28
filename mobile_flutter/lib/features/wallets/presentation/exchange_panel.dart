@@ -19,6 +19,9 @@ import '../../platform/presentation/platform_widgets.dart';
 import '../../rewards/domain/rewards_models.dart';
 import '../domain/exchange_models.dart';
 import '../domain/wallet_models.dart';
+import '../domain/exchange_transfer_routes.dart';
+import '../data/wallet_providers.dart';
+import '../../crypto/presentation/crypto_trade_screen.dart';
 
 Color _hairline(BuildContext context, double alpha) =>
     ExampleTheme.isLight(context)
@@ -31,6 +34,7 @@ class ExchangePanel extends ConsumerWidget {
     required this.budgets,
     required this.wallets,
     required this.transferSection,
+    this.onConvertToEur,
     super.key,
   });
 
@@ -38,6 +42,7 @@ class ExchangePanel extends ConsumerWidget {
   final List<PlatformResource> budgets;
   final List<HoppaWalletAsset> wallets;
   final Widget transferSection;
+  final Future<void> Function(PlatformResource budget)? onConvertToEur;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -70,6 +75,7 @@ class ExchangePanel extends ConsumerWidget {
           budgets: budgets,
           wallets: wallets,
           transferSection: transferSection,
+          onConvertToEur: onConvertToEur,
         );
       },
     );
@@ -135,6 +141,133 @@ class _ExampleExchangeUnavailable extends ConsumerWidget {
       );
 }
 
+
+/// Open the same funding flow from an individual Fiat account's Move menu.
+Future<void> showFiatAccountToCryptoCardTransfer(
+  BuildContext context,
+  WidgetRef ref, {
+  required PlatformResource sourceBudget,
+  required List<PlatformResource> budgets,
+  Future<void> Function(PlatformResource budget)? onConvertToEur,
+}) async {
+  try {
+    final config = await ref.read(mobileTenantConfigProvider.future);
+    if (!context.mounted) return;
+    if (!config.boomFiExchangeEnabled || !config.equalsMoneyEnabled ||
+        !config.walletOutflowsEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Transfers are currently unavailable for this account.')));
+      return;
+    }
+    final overview = await ref.read(exchangeOverviewProvider.future);
+    if (!context.mounted) return;
+    if (!overview.isReady) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Complete Exchange setup before transferring.')));
+      return;
+    }
+    final wallets = await ref.read(hoppaWalletAssetsProvider.future);
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => ExchangeFlowDialog(
+        flow: ExchangeFlow.fund,
+        overview: overview,
+        outflowsEnabled: config.walletOutflowsEnabled,
+        budgets: [sourceBudget, ...budgets.where((b) => b.id != sourceBudget.id)],
+        wallets: wallets,
+        onConvertToEur: onConvertToEur,
+      ),
+    );
+  } catch (error) {
+    if (context.mounted) _showError(context, error);
+  }
+}
+
+/// Transfer shortcuts shared by the Money, Crypto and Exchange tab row.
+class ExchangeAccountTransferActions extends ConsumerWidget {
+  const ExchangeAccountTransferActions({this.config, this.budgets, this.wallets, this.onConvertToEur, super.key});
+  final MobileTenantConfig? config;
+  final List<PlatformResource>? budgets;
+  final List<HoppaWalletAsset>? wallets;
+  final Future<void> Function(PlatformResource budget)? onConvertToEur;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tenant = config ?? ref.watch(mobileTenantConfigProvider).valueOrNull;
+    final overview = ref.watch(exchangeOverviewProvider).valueOrNull;
+    if (tenant == null || overview == null || !overview.isReady) { return const SizedBox.shrink(); }
+    final budgets = this.budgets ?? ref.watch(budgetsProvider).valueOrNull ?? <PlatformResource>[];
+    final wallets = this.wallets ?? ref.watch(hoppaWalletAssetsProvider).valueOrNull ?? <HoppaWalletAsset>[];
+    final outflowsEnabled = tenant.walletOutflowsEnabled;
+    void open(ExchangeFlow flow) => showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => ExchangeFlowDialog(
+            flow: flow,
+            overview: overview,
+            outflowsEnabled: outflowsEnabled,
+            onConvertToEur: onConvertToEur,
+            budgets: budgets,
+            wallets: wallets));
+    final addresses = budgets.isEmpty
+        ? const AsyncData<List<HoppaWalletAsset>>([])
+        : ref.watch(exchangeCardDepositAddressesProvider);
+    final eligibleWallets = exchangeTransferRoutes(addresses.valueOrNull ?? wallets, wallets)
+        .where((w) => overview.canTrade(w.symbol) && overview.balances.any((b) =>
+            b.currency == w.symbol && b.chainId == exchangeChainId(w.network))).toList();
+    final euroBudgets = budgets;
+    final fundingWallets = eligibleWallets.where((w) => overview.canTrade(w.symbol) &&
+        overview.balances.any((b) => b.currency == w.symbol && b.chainId == exchangeChainId(w.network))).toList();
+    String? unavailable({required bool funding}) {
+      if (!outflowsEnabled) { return 'Transfers are currently unavailable for this account.'; }
+      if (euroBudgets.isEmpty) { return 'An active Fiat account is needed.'; }
+      if (eligibleWallets.isEmpty) {
+        if (addresses.isLoading) { return 'Loading your Crypto card transfer networks…'; }
+        if (addresses.hasError) { return 'Could not load your Crypto card transfer networks. Please retry.'; }
+        return 'No Crypto card transfer network matches an available BoomFi crypto account yet.';
+      }
+      if (funding && !overview.fiatFundingCurrencies.contains('EUR')) { return 'BoomFi has not provided EUR bank funding details for this account yet.'; }
+      if (funding && fundingWallets.isEmpty) { return 'No matching crypto receiving network is available in BoomFi yet.'; }
+      return null;
+    }
+    final fundReason = unavailable(funding: true);
+    final sellReason = unavailable(funding: false);
+    void sell() => _showCryptoToEqualsDialog(context, ref, overview, euroBudgets, eligibleWallets, wallets);
+
+    Widget button(String label, String? reason, VoidCallback pressed) => Tooltip(
+      message: reason ?? label,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12)),
+        onPressed: reason == null ? pressed : null,
+        child: Text(context.tr(label), textAlign: TextAlign.center),
+      ),
+    );
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      LayoutBuilder(builder: (context, constraints) {
+        final funding = button('Fiat account to Crypto card', fundReason, () => open(ExchangeFlow.fund));
+        final selling = button('Crypto card to Fiat account', sellReason, sell);
+        if (constraints.maxWidth >= 600 * MediaQuery.textScalerOf(context).scale(1)) {
+          return Row(children: [Expanded(child: funding), const SizedBox(width: 12), Expanded(child: selling)]);
+        }
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          funding, const SizedBox(height: 8), selling,
+        ]);
+      }),
+      if (fundReason != null || sellReason != null) ...[
+        const SizedBox(height: 8),
+        for (final reason in {if (fundReason != null) fundReason, if (sellReason != null) sellReason})
+          Text(context.tr(reason), style: Theme.of(context).textTheme.bodySmall),
+        if (addresses.hasError)
+          TextButton(onPressed: () { ref.invalidate(depositAddressesProvider); ref.invalidate(exchangeCardDepositAddressesProvider); },
+              child: const Text('Retry transfer networks')),
+      ],
+    ]);
+  }
+}
+
 class _ReadyExchangePanel extends ConsumerWidget {
   const _ReadyExchangePanel({
     required this.overview,
@@ -142,6 +275,7 @@ class _ReadyExchangePanel extends ConsumerWidget {
     required this.budgets,
     required this.wallets,
     required this.transferSection,
+    this.onConvertToEur,
   });
 
   final BoomFiExchangeOverview overview;
@@ -149,6 +283,7 @@ class _ReadyExchangePanel extends ConsumerWidget {
   final List<PlatformResource> budgets;
   final List<HoppaWalletAsset> wallets;
   final Widget transferSection;
+  final Future<void> Function(PlatformResource budget)? onConvertToEur;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -159,6 +294,7 @@ class _ReadyExchangePanel extends ConsumerWidget {
             flow: flow,
             overview: overview,
             outflowsEnabled: outflowsEnabled,
+            onConvertToEur: onConvertToEur,
             budgets: budgets,
             wallets: wallets));
     final example = context.isExampleTheme;
@@ -179,12 +315,30 @@ class _ReadyExchangePanel extends ConsumerWidget {
                     onPressed: onPressed, child: Text(context.tr(label)))
                 : OutlinedButton(
                     onPressed: onPressed, child: Text(context.tr(label)));
-    final eligibleWallets = wallets
-        .where((w) =>
-            w.walletId.isNotEmpty &&
-            ['USDC', 'USDT'].contains(w.symbol.toUpperCase()) &&
-            exchangeChainId(w.network) != 0)
-        .toList();
+    final addresses = budgets.isEmpty
+        ? const AsyncData<List<HoppaWalletAsset>>([])
+        : ref.watch(exchangeCardDepositAddressesProvider);
+    final eligibleWallets = exchangeTransferRoutes(addresses.valueOrNull ?? wallets, wallets)
+        .where((w) => overview.canTrade(w.symbol) && overview.balances.any((b) =>
+            b.currency == w.symbol && b.chainId == exchangeChainId(w.network))).toList();
+    final euroBudgets = budgets;
+    final fundingWallets = eligibleWallets.where((w) => overview.canTrade(w.symbol) &&
+        overview.balances.any((b) => b.currency == w.symbol && b.chainId == exchangeChainId(w.network))).toList();
+    String? unavailable({required bool funding}) {
+      if (!outflowsEnabled) { return 'Transfers are currently unavailable for this account.'; }
+      if (euroBudgets.isEmpty) { return 'An active Fiat account is needed.'; }
+      if (eligibleWallets.isEmpty) {
+        if (addresses.isLoading) { return 'Loading your Crypto card transfer networks…'; }
+        if (addresses.hasError) { return 'Could not load your Crypto card transfer networks. Please retry.'; }
+        return 'No Crypto card transfer network matches an available BoomFi crypto account yet.';
+      }
+      if (funding && !overview.fiatFundingCurrencies.contains('EUR')) { return 'BoomFi has not provided EUR bank funding details for this account yet.'; }
+      if (funding && fundingWallets.isEmpty) { return 'No matching crypto receiving network is available in BoomFi yet.'; }
+      return null;
+    }
+    final fundReason = unavailable(funding: true);
+    final sellReason = unavailable(funding: false);
+    void sell() => _showCryptoToEqualsDialog(context, ref, overview, euroBudgets, eligibleWallets, wallets);
     final hasFunds = overview.balances.any((b) => b.amount > 0);
     final canConvert = overview.balances.any((from) =>
         from.amount > 0 &&
@@ -217,6 +371,8 @@ class _ReadyExchangePanel extends ConsumerWidget {
               ref.invalidate(exchangeVerificationProvider);
               ref.invalidate(exchangeOverviewProvider);
               ref.invalidate(exchangeTransfersProvider);
+              ref.invalidate(exchangeCardDepositAddressesProvider);
+              ref.invalidate(depositAddressesProvider);
             },
             icon: const Icon(Icons.refresh)),
       ]),
@@ -240,8 +396,7 @@ class _ReadyExchangePanel extends ConsumerWidget {
             if (value == 'destinations') details(destinations: true);
             if (value == 'fund') open(ExchangeFlow.fund);
             if (value == 'sell') {
-              _showCryptoToEqualsDialog(
-                  context, ref, overview, budgets, eligibleWallets);
+              sell();
             }
           },
           itemBuilder: (_) => [
@@ -249,16 +404,12 @@ class _ReadyExchangePanel extends ConsumerWidget {
                 value: 'destinations', child: Text('Saved destinations')),
             PopupMenuItem(
                 value: 'fund',
-                enabled: outflowsEnabled &&
-                    budgets.isNotEmpty &&
-                    eligibleWallets.isNotEmpty,
-                child: const Text('Fiat account to crypto wallet')),
+                enabled: fundReason == null,
+                child: const Text('Fiat account to Crypto card')),
             PopupMenuItem(
                 value: 'sell',
-                enabled: outflowsEnabled &&
-                    budgets.isNotEmpty &&
-                    eligibleWallets.isNotEmpty,
-                child: const Text('Crypto wallet to fiat account')),
+                enabled: sellReason == null,
+                child: const Text('Crypto card to Fiat account')),
           ],
           child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -317,7 +468,8 @@ class _ReadyExchangePanel extends ConsumerWidget {
         ]);
       }),
       const SizedBox(height: 28),
-      ExchangeDepositHistory(deposits: overview.deposits),
+      ExchangeDepositHistory(deposits: overview.deposits,
+          transfers: ref.watch(exchangeTransfersProvider).valueOrNull ?? const []),
       const SizedBox(height: 24),
       transferSection,
     ]);
@@ -346,7 +498,7 @@ class _QuoteReview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fees = _map(_value(quote, 'fees', 'Fees'));
-    if (context.isExampleTheme) return _example(context, fees);
+    if (context.isExampleTheme) { return _example(context, fees); }
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -493,7 +645,7 @@ class _TransferDialogLede extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (context.isExampleTheme) return PlatformLede(text: text);
+    if (context.isExampleTheme) { return PlatformLede(text: text); }
     return Text(
       text,
       style: large ? Theme.of(context).textTheme.bodyLarge : null,
@@ -507,11 +659,20 @@ Future<void> _showCryptoToEqualsDialog(
   BoomFiExchangeOverview overview,
   List<PlatformResource> budgets,
   List<HoppaWalletAsset> wallets,
+  List<HoppaWalletAsset> balances,
 ) async {
-  var wallet = wallets.first;
+  final currencyWallets = exchangeTransferCurrencyRoutes(
+      wallets, canTrade: overview.canTrade);
+  if (currencyWallets.isEmpty) return;
+  var wallet = currencyWallets.first;
   var budget = budgets.first;
   var cryptoAmount = '';
-  var fiatCurrency = _resourceCurrency(budget);
+  const fiatCurrency = 'EUR';
+  var currentBalances = balances;
+  var refreshing = false;
+  String? balanceError;
+  double available() => currentBalances.where((b) => b.symbol.toUpperCase() == wallet.symbol).firstOrNull?.amount ?? 0;
+  double quantumAvailable() => currentBalances.where((b) => b.symbol.toUpperCase() == 'USD').firstOrNull?.amount ?? 0;
   Map<String, dynamic>? quote;
   String verificationToken = '';
   var otp = '';
@@ -522,7 +683,7 @@ Future<void> _showCryptoToEqualsDialog(
   Map<String, Object?> request() => {
         'boomFiAccountId': overview.accountId.toString(),
         'reference': reference,
-        'chainId': _chainId(wallet.network),
+        'chainId': exchangeChainId(wallet.network),
         'currency': wallet.symbol.toUpperCase(),
         'cryptoAmount': cryptoAmount.replaceAll(',', '.'),
         'fiatCurrency': fiatCurrency,
@@ -535,7 +696,7 @@ Future<void> _showCryptoToEqualsDialog(
       builder: (context, setState) => _FullScreenExchangeDialog(
         title: const _TransferDialogTitle(
           example: 'Crypto card to Fiat account',
-          whiteLabel: 'Crypto card → Fiat account',
+          whiteLabel: 'Crypto card to Fiat account',
         ),
         canClose: !busy,
         primaryLabel: quote == null
@@ -544,10 +705,11 @@ Future<void> _showCryptoToEqualsDialog(
                 ? 'Send verification code'
                 : 'Confirm transfer',
         onPrimary: quote == null
-            ? (busy ||
+            ? (busy || refreshing || balanceError != null ||
                     (double.tryParse(cryptoAmount.replaceAll(',', '.')) ?? 0) <=
                         0 ||
-                    _chainId(wallet.network) == 0
+                    exchangeChainId(wallet.network) == 0 ||
+                    (double.tryParse(cryptoAmount.replaceAll(',', '.')) ?? 0) > available()
                 ? null
                 : () async {
                     setState(() => busy = true);
@@ -626,24 +788,24 @@ Future<void> _showCryptoToEqualsDialog(
               ),
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(
-                initialValue: wallet.walletId,
+                initialValue: wallet.symbol,
                 isExpanded: true,
                 decoration: InputDecoration(
-                    labelText: context.tr('Source crypto wallet')),
+                    labelText: context.tr('Crypto currency')),
                 items: [
-                  for (final item in wallets)
+                  for (final item in currencyWallets)
                     DropdownMenuItem(
-                      value: item.walletId,
+                      value: item.symbol,
                       child: _DropdownLabel(
-                        '${item.symbol} · ${_amount(item.amount)}',
+                        item.symbol,
                       ),
                     ),
                 ],
                 onChanged: busy || verificationToken.isNotEmpty
                     ? null
                     : (value) => setState(() {
-                          wallet = wallets
-                              .firstWhere((item) => item.walletId == value);
+                          wallet = currencyWallets.firstWhere(
+                              (item) => item.symbol == value);
                           quote = null;
                           termsAccepted = false;
                         }),
@@ -653,7 +815,7 @@ Future<void> _showCryptoToEqualsDialog(
                 initialValue: budget.id,
                 isExpanded: true,
                 decoration: InputDecoration(
-                    labelText: context.tr('Equals destination')),
+                    labelText: context.tr('Fiat account destination')),
                 items: [
                   for (final item in budgets)
                     DropdownMenuItem(
@@ -666,11 +828,40 @@ Future<void> _showCryptoToEqualsDialog(
                     : (value) => setState(() {
                           budget =
                               budgets.firstWhere((item) => item.id == value);
-                          fiatCurrency = _resourceCurrency(budget);
                           quote = null;
                           termsAccepted = false;
                         }),
               ),
+              const SizedBox(height: 12),
+              Text('Available across networks: ${_amount(available())} ${wallet.symbol}'),
+              const Text('You receive EUR in your Fiat account.'),
+              if ((double.tryParse(cryptoAmount.replaceAll(',', '.')) ?? 0) > available() || available() <= 0) ...[
+                const SizedBox(height: 8),
+                const Text('Your crypto balance is insufficient. Convert Quantum USD first, then continue with this transfer.'),
+                if (quantumAvailable() > 0)
+                  TextButton(
+                    onPressed: busy || refreshing || verificationToken.isNotEmpty ? null : () async {
+                      setState(() { refreshing = true; quote = null; termsAccepted = false; balanceError = null; });
+                      try {
+                        await showCryptoExchangeSheet(context, initialAsset: wallet.symbol);
+                        ref.invalidate(userAssetsProvider);
+                        ref.invalidate(userWalletsProvider);
+                        ref.invalidate(hoppaWalletAssetsProvider);
+                        final updated = await ref.read(hoppaWalletAssetsProvider.future);
+                        if (context.mounted) setState(() => currentBalances = updated);
+                      } catch (_) {
+                        if (context.mounted) setState(() => balanceError = 'Could not refresh your crypto balance. Close and reopen this transfer before continuing.');
+                      } finally {
+                        if (context.mounted) setState(() => refreshing = false);
+                      }
+                    },
+                    child: Text('Convert Quantum USD to ${wallet.symbol}'),
+                  )
+                else
+                  const Text('Add crypto or fund your Quantum USD balance to continue.'),
+              ],
+              if (refreshing) const Text('Refreshing your available balance…'),
+              if (balanceError != null) Text(balanceError!),
               const SizedBox(height: 12),
               TextField(
                 enabled: !busy && verificationToken.isEmpty,
@@ -901,32 +1092,8 @@ class _FullScreenExchangeDialog extends StatelessWidget {
   }
 }
 
-String _resourceCurrency(PlatformResource resource) {
-  for (final key in const [
-    'currency',
-    'Currency',
-    'currencyCode',
-    'CurrencyCode',
-  ]) {
-    final value = resource.metadata[key]?.toString().trim().toUpperCase();
-    if (value != null && value.length == 3) return value;
-  }
-  return 'EUR';
-}
-
-int _chainId(String network) {
-  final value = network.trim().toLowerCase();
-  if (value.contains('tron') || value.contains('trx')) return -200;
-  if (value.contains('polygon') || value.contains('matic')) return 137;
-  if (value.contains('arbitrum') || value.contains('arb')) return 42161;
-  if (value.contains('optimism')) return 10;
-  if (value.contains('avalanche') || value.contains('avax')) return 43114;
-  if (value.contains('ethereum') || value.contains('eth')) return 1;
-  return 0;
-}
-
 Map<String, dynamic> _map(Object? value) {
-  if (value is Map<String, dynamic>) return value;
+  if (value is Map<String, dynamic>) { return value; }
   if (value is Map) {
     return value.map((key, item) => MapEntry(key.toString(), item));
   }

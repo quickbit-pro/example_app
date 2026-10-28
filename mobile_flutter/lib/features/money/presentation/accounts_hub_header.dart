@@ -30,11 +30,13 @@ class AccountsHubHeader extends StatelessWidget {
     required this.showCrypto,
     required this.showExchange,
     this.showMoney = true,
+    this.transferActions,
     super.key,
   });
 
   final AccountsHubSection selected;
   final bool showMoney;
+  final Widget? transferActions;
   final bool showCrypto;
   final bool showExchange;
 
@@ -44,6 +46,17 @@ class AccountsHubHeader extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final desktop = constraints.maxWidth >= (kIsWeb ? 500 : 760);
+        Widget withTransfers(Widget tabs) {
+          if (transferActions == null) return tabs;
+          if (constraints.maxWidth >= 1220 * MediaQuery.textScalerOf(context).scale(1)) {
+            return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              tabs, const SizedBox(width: 24), Expanded(child: transferActions!),
+            ]);
+          }
+          return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            tabs, const SizedBox(height: 12), transferActions!,
+          ]);
+        }
         if (isExample) {
           final control = ExampleSegmentedControl<AccountsHubSection>(
             height: desktop ? 40 : 44,
@@ -68,13 +81,13 @@ class AccountsHubHeader extends StatelessWidget {
                 context.go(AppRoutes.walletExchange),
             },
           );
-          return Align(
+          return withTransfers(Align(
             alignment: Alignment.centerLeft,
             child: SizedBox(
               width: desktop ? 420 : double.infinity,
               child: control,
             ),
-          );
+          ));
         }
         final selector = SizedBox(
           width: desktop ? 520 : double.infinity,
@@ -159,7 +172,7 @@ class AccountsHubHeader extends StatelessWidget {
             },
           ),
         );
-        return Align(alignment: Alignment.centerLeft, child: selector);
+        return withTransfers(Align(alignment: Alignment.centerLeft, child: selector));
       },
     );
   }

@@ -496,8 +496,8 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('More'));
       await tester.pumpAndSettle();
-      expect(find.text('Fiat account to crypto wallet'), findsOneWidget);
-      expect(find.text('Crypto wallet to fiat account'), findsOneWidget);
+      expect(find.widgetWithText(PopupMenuItem<String>, 'Fiat account to Crypto card'), findsOneWidget);
+      expect(find.widgetWithText(PopupMenuItem<String>, 'Crypto card to Fiat account'), findsOneWidget);
       // U+2192 is not in the bundled Geist subsets and need not be in a
       // tenant's configured font either; on this route it renders as tofu.
       expect(find.textContaining('→'), findsNothing);
@@ -538,8 +538,8 @@ void main() {
       expect(find.byType(ExampleListGroup), findsNothing);
       await tester.tap(find.text('More'));
       await tester.pumpAndSettle();
-      expect(find.text('Fiat account to crypto wallet'), findsOneWidget);
-      expect(find.text('Crypto wallet to fiat account'), findsOneWidget);
+      expect(find.widgetWithText(PopupMenuItem<String>, 'Fiat account to Crypto card'), findsOneWidget);
+      expect(find.widgetWithText(PopupMenuItem<String>, 'Crypto card to Fiat account'), findsOneWidget);
     });
   });
 

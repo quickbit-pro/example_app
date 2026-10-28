@@ -135,6 +135,13 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       widget.budgetId.trim().isEmpty &&
       _scopeId.isNotEmpty;
 
+  bool get _sourceAmounts =>
+      _scopeId.isEmpty &&
+      _accountScope == null &&
+      widget.accountId.trim().isEmpty &&
+      widget.budgetId.trim().isEmpty &&
+      widget.currency.trim().isEmpty;
+
   Widget? _scopeSelector(List<LedgerTransaction> transactions) {
     final type = _typeFilter;
     if (type != TransactionActivityType.card && _scopeId.isEmpty) {
@@ -180,7 +187,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   bool _matchesBaseFilters(LedgerTransaction item) {
     if (!_assetFilter.matches(item)) return false;
     if (_filter != TransactionActivityFilter.all &&
-        !_matchesFilter(item, _filter)) {
+        !_matchesFilter(item, _filter, sourceAmounts: _sourceAmounts)) {
       return false;
     }
     if (_dateRange case final range?) {
@@ -351,20 +358,22 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   }
 
   List<LedgerTransaction> _visible(List<LedgerTransaction> scoped) {
-    return scoped.where((item) {
-      if (!_matchesBaseFilters(item)) return false;
-      if (!(_accountScope?.matches(item) ?? true)) return false;
-      if (_scopeId.isNotEmpty && !_cardApiScoped && item.cardId != _scopeId) {
-        return false;
-      }
-      final type = _typeFilter;
-      if (type != null &&
-          !(type == TransactionActivityType.card && _cardApiScoped) &&
-          !type.matches(item)) {
-        return false;
-      }
-      return true;
-    }).toList();
+    // Apply account/card boundaries before grouping, then filter operations
+    // as a whole so an In/Out, type, date or search filter cannot detach fees.
+    final inScope = scoped
+        .where((item) =>
+            (_accountScope?.matches(item) ?? true) &&
+            (_scopeId.isEmpty || _cardApiScoped || item.cardId == _scopeId))
+        .toList();
+    return [
+      for (final group in groupActivityTransactions(inScope))
+        if (_matchesBaseFilters(group.primary) &&
+            (_typeFilter == null ||
+                (_typeFilter == TransactionActivityType.card &&
+                    _cardApiScoped) ||
+                _typeFilter!.matches(group.primary)))
+          ...group.entries,
+    ];
   }
 
   List<String> _exportFilters() => [
@@ -471,6 +480,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                     data: (items) {
                       final scoped = _scoped(items);
                       return _TransactionsContent(
+                        sourceAmounts: _sourceAmounts,
                         showMoney: showMoney,
                         transactions: _visible(scoped),
                         hasAnyTransactions: scoped.isNotEmpty,
@@ -581,6 +591,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 data: (items) {
                   final scoped = _scoped(items);
                   return _ExampleTransactionsContent(
+                    sourceAmounts: _sourceAmounts,
                     includeRelated: widget.accountId.trim().isNotEmpty ||
                         widget.budgetId.trim().isNotEmpty ||
                         _scopeId.isNotEmpty,
@@ -1114,6 +1125,7 @@ class _ActivityNetFlowSummary extends ConsumerWidget {
 
 class _ExampleTransactionsContent extends StatelessWidget {
   const _ExampleTransactionsContent({
+    required this.sourceAmounts,
     required this.transactions,
     required this.includeRelated,
     required this.hasAnyTransactions,
@@ -1124,6 +1136,7 @@ class _ExampleTransactionsContent extends StatelessWidget {
 
   final List<LedgerTransaction> transactions;
   final bool includeRelated;
+  final bool sourceAmounts;
   final bool hasAnyTransactions;
   final bool filtered;
   final VoidCallback onClearFilters;
@@ -1332,7 +1345,8 @@ class _ExampleTransactionsContent extends StatelessWidget {
     final tone = _transactionStatusTone(transaction);
     final attention =
         tone == FinanceStatusTone.warning || tone == FinanceStatusTone.danger;
-    final amount = cardListAmount(transaction);
+    final amount =
+        activityListAmount(transaction, sourceAmounts: sourceAmounts);
     // A row carrying a status pill always drops the kind: the pill sits on
     // the same line, and the kind is the token worth losing there — the pill
     // is why the reader stopped on this row, and the time is what tells them
@@ -1350,7 +1364,6 @@ class _ExampleTransactionsContent extends StatelessWidget {
       final identityLine = [
         if (!transaction.hasBookedAt) 'Time unavailable',
         if (identity != null && identity.isNotEmpty) identity,
-        if (cardFeeCaption(transaction) case final caption?) caption,
       ].join(' · ');
       return _LedgerRow(
         key: ValueKey<String>(transaction.id),
@@ -2329,6 +2342,7 @@ String _categoryOf(LedgerTransaction transaction) {
 
 class _TransactionsContent extends StatelessWidget {
   const _TransactionsContent({
+    required this.sourceAmounts,
     required this.transactions,
     required this.hasAnyTransactions,
     required this.selectedFilter,
@@ -2350,6 +2364,7 @@ class _TransactionsContent extends StatelessWidget {
 
   final List<LedgerTransaction> transactions;
   final bool hasAnyTransactions;
+  final bool sourceAmounts;
   final TransactionActivityFilter selectedFilter;
   final ValueChanged<TransactionActivityFilter> onFilterChanged;
   final TransactionAssetFilter assetFilter;
@@ -2524,6 +2539,7 @@ class _TransactionsContent extends StatelessWidget {
           )
         : isExample
             ? _ExampleTransactionList(
+                sourceAmounts: sourceAmounts,
                 transactions: transactions,
                 grouped: MediaQuery.sizeOf(context).width >=
                     ExampleBreakpoints.desktop,
@@ -2536,6 +2552,7 @@ class _TransactionsContent extends StatelessWidget {
                       key: ValueKey('activity-group-${group.primary.id}'),
                       group: group,
                       rowBuilder: (row) => _TransactionRow(
+                        sourceAmounts: sourceAmounts,
                         transaction: row,
                         onTap: () => onTransactionTap(row),
                       ),
@@ -2891,15 +2908,20 @@ String _transactionTypeLabel(TransactionType type) => switch (type) {
 const _allTypes = Object();
 
 class _TransactionRow extends StatelessWidget {
-  const _TransactionRow({required this.transaction, required this.onTap});
+  const _TransactionRow(
+      {required this.transaction,
+      required this.onTap,
+      required this.sourceAmounts});
+  final bool sourceAmounts;
 
   final LedgerTransaction transaction;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final displayAmount = cardListAmount(transaction);
-    final positive = transaction.amount.decimalAmount > 0;
+    final displayAmount =
+        activityListAmount(transaction, sourceAmounts: sourceAmounts);
+    final positive = displayAmount.decimalAmount > 0;
     final provider = _transactionProvider(transaction);
     if (context.isExampleTheme) {
       final status = transactionDisplayStatus(
@@ -2996,10 +3018,7 @@ class _TransactionRow extends StatelessWidget {
       currency: displayAmount.currency,
       fallbackIcon: _iconFor(transaction),
       title: transactionDisplayTitle(transaction.title),
-      subtitle: [
-        _transactionSubtitle(transaction),
-        if (cardFeeCaption(transaction) case final fee?) fee
-      ].join(' · '),
+      subtitle: _transactionSubtitle(transaction),
       amount: displayAmount.formatted,
       amountColor: positive
           ? ExamplePalette.of(context).design.color(
@@ -3021,6 +3040,7 @@ class _TransactionRow extends StatelessWidget {
 
 class _ExampleTransactionList extends StatelessWidget {
   const _ExampleTransactionList({
+    required this.sourceAmounts,
     required this.transactions,
     required this.grouped,
     required this.onTransactionTap,
@@ -3028,6 +3048,7 @@ class _ExampleTransactionList extends StatelessWidget {
 
   final List<LedgerTransaction> transactions;
   final bool grouped;
+  final bool sourceAmounts;
   final ValueChanged<LedgerTransaction> onTransactionTap;
 
   @override
@@ -3060,6 +3081,7 @@ class _ExampleTransactionList extends StatelessWidget {
       }
       children.add(
         _TransactionRow(
+          sourceAmounts: sourceAmounts,
           transaction: transaction,
           onTap: () => onTransactionTap(transaction),
         ),
@@ -3165,12 +3187,19 @@ class _SummaryMetric extends StatelessWidget {
 
 bool _matchesFilter(
   LedgerTransaction transaction,
-  TransactionActivityFilter filter,
-) {
+  TransactionActivityFilter filter, {
+  bool sourceAmounts = true,
+}) {
   return switch (filter) {
     TransactionActivityFilter.all => true,
-    TransactionActivityFilter.incoming => transaction.amount.decimalAmount > 0,
-    TransactionActivityFilter.outgoing => transaction.amount.decimalAmount < 0,
+    TransactionActivityFilter.incoming =>
+      activityListAmount(transaction, sourceAmounts: sourceAmounts)
+              .decimalAmount >
+          0,
+    TransactionActivityFilter.outgoing =>
+      activityListAmount(transaction, sourceAmounts: sourceAmounts)
+              .decimalAmount <
+          0,
   };
 }
 

@@ -27,10 +27,11 @@ class _ActivityTransactionGroupTileState
   @override
   Widget build(BuildContext context) {
     final group = widget.group;
-    if (group.entries.length < 2) return widget.rowBuilder(group.primary);
+    final visible = group.activityEntries;
+    if (visible.length < 2) return widget.rowBuilder(group.primary);
     final related = group.primary.isBoomFi
-        ? group.entries.where((row) => row.id != group.primary.id).toList()
-        : group.entries;
+        ? visible.where((row) => row.id != group.primary.id).toList()
+        : visible;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

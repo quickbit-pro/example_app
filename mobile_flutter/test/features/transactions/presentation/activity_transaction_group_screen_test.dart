@@ -111,6 +111,53 @@ void main() {
     await icons.load();
   });
   for (final size in [const Size(375, 1000), const Size(1200, 1000)]) {
+    testWidgets(
+        'Hoppa top-up fee stays in details after search at ${size.width}',
+        (tester) async {
+      final ledger = [
+        LedgerTransaction.fromJson({
+          'id': 'topup',
+          'title': 'Card top-up',
+          'type': 'card_topup',
+          'amount': 15.67,
+          'currency': 'USD',
+          'status': 'completed',
+          'transactionDate': _today.toIso8601String(),
+          'metadata': {'fee': .24, 'grossAmount': 15.91},
+        }),
+        LedgerTransaction.fromJson({
+          'id': 'fee',
+          'type': 'fees',
+          'description': 'fees: card_topup_fee',
+          'amount': -.24,
+          'currency': 'USD',
+          'status': 'completed',
+          'transactionDate': _today.toIso8601String(),
+        }),
+      ];
+      await _pumpAt(tester, const TransactionsScreen(), size,
+          light: true, hoppa: true, ledger: ledger);
+      expect(find.byType(ExampleTransactionRow), findsOneWidget);
+      expect(
+          tester
+              .widget<ExampleTransactionRow>(find.byType(ExampleTransactionRow))
+              .amount,
+          -15.91);
+      expect(find.text('Show 2 entries'), findsNothing);
+      expect(find.textContaining('card_topup_fee'), findsNothing);
+      await tester.enterText(find.byType(TextField).first, 'top-up');
+      await tester.pumpAndSettle();
+      expect(find.byType(ExampleTransactionRow), findsOneWidget);
+      expect(
+          tester
+              .widget<ExampleTransactionRow>(find.byType(ExampleTransactionRow))
+              .amount,
+          -15.91);
+      expect(tester.takeException(), isNull);
+      await _writeActivityScreenshot(
+          tester, 'hoppa-fees-${size.width.toInt()}.png');
+    });
+
     testWidgets('Hoppa operation groups expand at ${size.width}',
         (tester) async {
       final ledger = [

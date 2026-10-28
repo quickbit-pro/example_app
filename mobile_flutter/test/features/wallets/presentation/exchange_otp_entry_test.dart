@@ -241,7 +241,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await _tap(tester, 'More');
-      await _tap(tester, 'Crypto wallet to fiat account');
+      await _tap(tester, 'Crypto card to Fiat account');
       expect(tester.takeException(), isNull);
       await tester.enterText(
         find.widgetWithText(TextField, 'Amount (USDC)'),

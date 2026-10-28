@@ -60,6 +60,7 @@ String cardFeeLabel(LedgerTransaction row) {
   }
   // "Fee: Service fee" → "Service fee"; a bare "fee" → "Fee".
   final title = row.title.replaceFirst(_feeTitlePrefix, '').trim();
+  if (_key(title) == 'cardtopupfee') return 'Top-up fee';
   if (title.isEmpty || _key(title) == 'fee' || _key(title) == 'fees') {
     return 'Fee';
   }
