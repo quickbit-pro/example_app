@@ -91,7 +91,10 @@ class _EqualsReagreementGateState extends ConsumerState<EqualsReagreementGate>
       Offstage(offstage: blocked, child: widget.child),
       if (blocked)
         Positioned.fill(
-            child: Scaffold(
+            // MaterialApp.builder places this gate above the app navigator.
+            // Give the blocking surface its own navigator for document dialogs.
+            child: HeroControllerScope.none(child: Navigator(
+              pages: [MaterialPage<void>(child: Scaffold(
                 body: SafeArea(
                     child: Center(
           child: SingleChildScrollView(
@@ -138,7 +141,9 @@ class _EqualsReagreementGateState extends ConsumerState<EqualsReagreementGate>
               ]),
             ),
           ),
-        )))),
+        ))))],
+              onDidRemovePage: (_) {},
+            ))),
     ]);
   }
 }

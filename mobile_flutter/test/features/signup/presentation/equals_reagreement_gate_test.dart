@@ -128,6 +128,37 @@ void main() {
     expect(button().onPressed, isNotNull);
   });
 
+
+  testWidgets('document dialog opens from the app builder agreement gate',
+      (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        authControllerProvider.overrideWith(SignedInAuth.new),
+        equalsAgreementStatusProvider.overrideWith((ref) async => documents),
+        equalsDocumentProvider.overrideWith((ref, kind) async => EqualsDocument(
+          url: kind == 'terms' ? documents.termsUrl : documents.privacyUrl,
+          type: 'text/html',
+          bytes: Uint8List.fromList(utf8.encode('<main><p>${'Legal text. ' * 20}</p></main>')),
+        )),
+      ],
+      child: MaterialApp(
+        builder: (context, child) => EqualsReagreementGate(child: child!),
+        home: const Scaffold(body: Text('Account contents')),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Account contents'), findsNothing);
+    await tester.tap(find.text('I accept the Equals Money Terms and Conditions'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(EqualsDocumentDialog), findsOneWidget);
+    await tester.tap(find.byKey(const Key('equals-document-confirm')));
+    await tester.pumpAndSettle();
+    expect(find.byType(EqualsDocumentDialog), findsNothing);
+    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed, isNull);
+    expect(find.text('Account contents'), findsNothing);
+  });
+
   testWidgets('missing documents never offer acceptance', (tester) async {
     await tester.pumpWidget(const ProviderScope(
         child: MaterialApp(
