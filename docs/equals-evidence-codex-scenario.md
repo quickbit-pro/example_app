@@ -1,3 +1,5 @@
+> Brand profile: `scripts/evidence/example.json`. Set the staging host and confirm scope before recording; placeholders are not deployment targets.
+
 # Repeatable Equals evidence capture
 
 Use this scenario for each Flutter brand and release. The source is the supplied **Third-party Programme Manager Guidance, September 2026 v12**. Its fifteen Evidence boxes are indexed in `scripts/evidence/requirements.json`, with PDF page numbers, required paths and media. This workflow collects evidence; it does not certify the implementation or substitute a mocked screen for a real provider event.
@@ -24,7 +26,7 @@ Use a supported installed `playwright-cli`, or set `EVIDENCE_PLAYWRIGHT_CLI` to 
 
 ```bash
 python3 scripts/evidence/evidence.py init \
-  --run output/playwright/equals-evidence/hoppa-staging-release \
+  --run output/playwright/equals-evidence/example-staging-release \
   --profile scripts/evidence/example.json \
   --guidance '/path/to/Third Party Programme Manager Guidance.pdf' \
   --build '<actual-release-commit>'
@@ -33,32 +35,32 @@ python3 scripts/evidence/evidence.py init \
 `manifest.json` records a unique browser session name. Open the staging URL using that exact session and take a snapshot. For example, the run above uses:
 
 ```bash
-playwright-cli -s=evidence-hoppa-staging-release open https://hoppa.roks.dev --headed
-playwright-cli -s=evidence-hoppa-staging-release snapshot
+playwright-cli -s=evidence-example-staging-release open https://YOUR-STAGING-HOST --headed
+playwright-cli -s=evidence-example-staging-release snapshot
 python3 scripts/evidence/evidence.py video-start \
-  --run output/playwright/equals-evidence/hoppa-staging-release \
-  --requirement 1.1 --case signup-happy --url https://hoppa.roks.dev
+  --run output/playwright/equals-evidence/example-staging-release \
+  --requirement 1.1 --case signup-happy --url https://YOUR-STAGING-HOST
 # Perform the complete observed signup journey, using fresh snapshot references.
 python3 scripts/evidence/evidence.py video-stop \
-  --run output/playwright/equals-evidence/hoppa-staging-release
+  --run output/playwright/equals-evidence/example-staging-release
 ```
 
 Start recording before entering the flow and stop after the success or blocked outcome is visible. External terms tabs or system dialogs may require a second recording or whole-desktop capture; verify they appear in the final video. Do not use a prompt-only screenshot for a requirement demanding an actual completed factor or video.
 
 ```bash
 python3 scripts/evidence/evidence.py screenshot \
-  --run output/playwright/equals-evidence/hoppa-staging-release \
+  --run output/playwright/equals-evidence/example-staging-release \
   --requirement 1.4 --case app-complaints-route \
-  --url https://hoppa.roks.dev --note 'Equals complaints route visible in app'
+  --url https://YOUR-STAGING-HOST --note 'Equals complaints route visible in app'
 
 python3 scripts/evidence/evidence.py add \
-  --run output/playwright/equals-evidence/hoppa-staging-release \
+  --run output/playwright/equals-evidence/example-staging-release \
   --requirement 3.3 --case approval-happy --kind video \
   --file /path/to/enrolled-test-device-recording.mp4 \
   --note 'Actual enrolled staging device; biometric confirmation and result shown'
 
 python3 scripts/evidence/evidence.py report \
-  --run output/playwright/equals-evidence/hoppa-staging-release
+  --run output/playwright/equals-evidence/example-staging-release
 ```
 
 Use the requirement/case names from the catalogue. Add multiple files for a case when it spans messages, device and web surfaces. Each marketing footer needs its own screenshot and URL, even though grouped under one case. Cases ending in `if-supported` or similar require an explicit scope explanation when omitted. The inventory counts captures, not successful assertions, and every imported file starts with review pending.
