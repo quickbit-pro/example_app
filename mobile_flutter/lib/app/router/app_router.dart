@@ -1,3 +1,5 @@
+import '../../features/support/presentation/complaints_screen.dart';
+import '../../features/onboarding/presentation/personal_onboarding_gate.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +19,7 @@ import '../../features/dashboard/dashboard.dart';
 import '../../features/dashboard/presentation/home_refresh_on_navigation.dart';
 import '../../features/kyc/presentation/kyc_screen.dart';
 import '../../features/money/presentation/money_screen.dart';
+import '../../features/money/domain/bank_payee_draft.dart';
 import '../../features/platform/presentation/banking_services_screen.dart';
 import '../../features/platform/application/platform_providers.dart';
 import '../../features/platform/presentation/onboarding_banking_screen.dart';
@@ -123,8 +126,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: AppRoutes.payees,
-            builder: (context, state) =>
-                const MoneyScreen(initialTab: MoneyTab.payees),
+            builder: (context, state) => MoneyScreen(
+                initialTab: MoneyTab.payees,
+                initialPayee: state.extra is BankPayeeDraft
+                    ? state.extra as BankPayeeDraft
+                    : null),
           ),
           GoRoute(
             path: AppRoutes.cards,
@@ -154,12 +160,17 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const TransactionsScreen(),
           ),
           GoRoute(
+              path: '/complaints',
+              builder: (context, state) => const ComplaintsScreen()),
+          GoRoute(
             path: '/support',
             builder: (context, state) => const SupportTicketsScreen(),
             routes: [
               GoRoute(
                   path: 'new',
-                  builder: (context, state) => const NewSupportTicketScreen()),
+                  builder: (context, state) => NewSupportTicketScreen(
+                      complaint:
+                          state.uri.queryParameters['complaint'] == 'true')),
               GoRoute(
                   path: ':ticketId',
                   builder: (context, state) => SupportTicketScreen(
@@ -174,7 +185,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: AppRoutes.kyc,
-            builder: (context, state) => const KycScreen(),
+            builder: (context, state) =>
+                const PersonalOnboardingGate(child: KycScreen()),
           ),
           GoRoute(
             path: AppRoutes.kycStatus,
@@ -186,7 +198,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: AppRoutes.bankingOnboarding,
-            builder: (context, state) => const OnboardingBankingScreen(),
+            builder: (context, state) => const PersonalOnboardingGate(
+                banking: true, child: OnboardingBankingScreen()),
           ),
           GoRoute(
             path: AppRoutes.bankingServices,

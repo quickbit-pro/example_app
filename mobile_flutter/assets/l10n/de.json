@@ -211,7 +211,7 @@
   "Biometrics are locked. Unlock your device and try again.": "Biometrie ist gesperrt. Entsperren Sie Ihr Gerät und versuchen Sie es erneut.",
   "Biometrics are locked. Unlock your device, or confirm with your password.": "Biometrie ist gesperrt. Entsperren Sie Ihr Gerät oder bestätigen Sie es mit Ihrem Passwort.",
   "Booked": "Gebucht",
-  "BoomFi Exchange is ready. Fiat transfers become available after an active budget and a USDC or USDT wallet are linked to this account.": "BoomFi Exchange ist bereit. Fiat-Überweisungen werden verfügbar, sobald ein aktives Budget und eine USDC- oder USDT-Wallet mit diesem Konto verknüpft sind.",
+  "BoomFi Exchange is ready. Fiat transfers become available after an active budget and a USDC or USDT wallet are linked to this account.": "ZBX Exchange ist bereit. Fiat-Überweisungen werden verfügbar, sobald ein aktives Budget und eine USDC- oder USDT-Wallet mit diesem Konto verknüpft sind.",
   "Bright surfaces and dark text.": "Helle Flächen und dunkler Text.",
   "Budget": "Budget",
   "Budget details": "Budgetdetails",
@@ -2350,5 +2350,8 @@
   "EqualsMoney needs an additional check before the account can be approved.": "EqualsMoney benötigt eine zusätzliche Prüfung, bevor das Konto genehmigt werden kann.",
   "EqualsMoney needs a liveness check before the account can be approved.": "EqualsMoney benötigt eine Lebendigkeitsprüfung, bevor das Konto genehmigt werden kann.",
   "Upload the requested documents here, then continue the secure EqualsMoney check.": "Laden Sie hier die angeforderten Dokumente hoch und setzen Sie anschließend die sichere EqualsMoney-Prüfung fort.",
-  "Upload each requested document so EqualsMoney can continue the review.": "Laden Sie alle angeforderten Dokumente hoch, damit EqualsMoney die Prüfung fortsetzen kann."
+  "Upload each requested document so EqualsMoney can continue the review.": "Laden Sie alle angeforderten Dokumente hoch, damit EqualsMoney die Prüfung fortsetzen kann.",
+  "This transaction belongs to the ZBX Exchange service.": "Diese Transaktion gehört zum ZBX Exchange-Dienst, der über ZBX betrieben wird.",
+  "Fund my payment card wallet": "Guthaben auf mein Zahlungskarten-Wallet laden",
+  "USDT is not enabled for EU residents. Please choose USDC.": "USDT ist für EU-Einwohner nicht verfügbar. Bitte wählen Sie USDC."
 }

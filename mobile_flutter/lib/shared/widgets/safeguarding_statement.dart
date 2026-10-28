@@ -7,6 +7,10 @@ import '../../brands/example/example_ui.dart';
 import '../../features/platform/application/platform_providers.dart';
 import '../theme/app_theme_extensions.dart';
 import 'legal_disclosure.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+const equalsFundsNotice =
+    'These funds are held and safeguarded with Equals Money PLC under the terms found here.';
 
 /// Regulatory safeguarding text shown wherever fiat balances appear. Uses the
 /// tenant-configured EU/UK wording when present, else the default statement.
@@ -24,6 +28,7 @@ final safeguardingStatementProvider = Provider<String>((ref) {
 Future<void> showSafeguardingStatement(
   BuildContext context, {
   required String statement,
+  String? termsUrl,
 }) {
   final isExample = context.isExampleTheme;
   // Per brightness: every dark branch below is the Twilight value this sheet
@@ -90,7 +95,10 @@ Future<void> showSafeguardingStatement(
                 Flexible(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.only(right: 8),
-                    child: Text(statement, style: bodyStyle),
+                    child: _SafeguardingContent(
+                        statement: statement,
+                        termsUrl: termsUrl,
+                        style: bodyStyle),
                   ),
                 ),
               ],
@@ -129,7 +137,8 @@ Future<void> showSafeguardingStatement(
                   : null,
             ),
             const SizedBox(height: 16),
-            Text(statement, style: bodyStyle),
+            _SafeguardingContent(
+                statement: statement, termsUrl: termsUrl, style: bodyStyle),
           ],
         ),
       ),
@@ -162,7 +171,11 @@ class SafeguardingStatementButton extends ConsumerWidget {
     if (expanded) {
       return TextButton(
         onPressed: () => showSafeguardingStatement(context,
-            statement: ref.read(safeguardingStatementProvider)),
+            statement: ref.read(safeguardingStatementProvider),
+            termsUrl: ref
+                .read(mobileTenantConfigProvider)
+                .valueOrNull
+                ?.equalsGeneralTermsUrl),
         style: TextButton.styleFrom(
           foregroundColor: color,
           minimumSize: const Size(double.infinity, 56),
@@ -192,6 +205,10 @@ class SafeguardingStatementButton extends ConsumerWidget {
         onPressed: () => showSafeguardingStatement(
           context,
           statement: ref.read(safeguardingStatementProvider),
+          termsUrl: ref
+              .read(mobileTenantConfigProvider)
+              .valueOrNull
+              ?.equalsGeneralTermsUrl,
         ),
         icon: const Icon(Icons.shield_outlined, size: 14),
         label: Text(
@@ -201,5 +218,39 @@ class SafeguardingStatementButton extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+class _SafeguardingContent extends StatelessWidget {
+  const _SafeguardingContent(
+      {required this.statement, required this.termsUrl, required this.style});
+  final String statement;
+  final String? termsUrl;
+  final TextStyle style;
+  @override
+  Widget build(BuildContext context) {
+    final url = Uri.tryParse(termsUrl ?? '');
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(equalsFundsNotice, style: style),
+          if (url != null && url.scheme == 'https' && url.host.isNotEmpty)
+            TextButton(
+                onPressed: () async {
+                  final opened = await launchUrl(url,
+                      mode: LaunchMode.externalApplication);
+                  if (!opened && context.mounted)
+                    ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(
+                        content: Text(
+                            'Could not open Equals Money terms. Please try again.')));
+                },
+                child: const Text('Equals Money Terms and Conditions'))
+          else
+            const Text(
+                'The terms link is temporarily unavailable. Please contact support.'),
+          const SizedBox(height: 16),
+          Text(statement, style: style),
+        ]);
   }
 }

@@ -1,4 +1,8 @@
 import 'package:dio/dio.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mobile_flutter/app/routes.dart';
+import 'package:mobile_flutter/features/money/domain/bank_payee_draft.dart';
+import 'package:mobile_flutter/features/rewards/domain/rewards_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -115,6 +119,47 @@ Future<void> _expectQr(WidgetTester tester, String key, String address) async {
 }
 
 void main() {
+  testWidgets('Add to Equals payees opens a draft with exact bank details', (tester) async {
+    tester.view.physicalSize = const Size(1000, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    BankPayeeDraft? draft;
+    final router = GoRouter(routes: [
+      GoRoute(path: '/', builder: (context, _) => Scaffold(body: TextButton(
+        onPressed: () => showDialog<void>(context: context, builder: (_) => const ExchangeAccountDetails()),
+        child: const Text('Open deposit')))),
+      GoRoute(path: AppRoutes.payees, builder: (_, state) {
+        draft = state.extra as BankPayeeDraft;
+        return const Scaffold(body: Text('Review payee'));
+      }),
+    ]);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(ProviderScope(overrides: [
+      mobileTenantConfigProvider.overrideWith((ref) async => MobileTenantConfig.fromJson({'features': {'equalsMoneyEnabled': true}})),
+      mobilePlatformApiProvider.overrideWithValue(_DepositApi([{
+        'chainId': 0, 'currencies': ['EUR'], 'ready': true,
+        'address': 'MT84MALT011000012345MTLCAST001S',
+        'paymentReference': 'deposit-reference', 'reference': 'internal-id',
+        'bank': {'accountHolderName': 'ANA NOVAK', 'bic': 'MALTMTMT',
+          'country': 'MT', 'name': 'Receiving Bank', 'address': 'Malta bank address'},
+      }])),
+    ], child: MaterialApp.router(routerConfig: router)));
+    await tester.tap(find.text('Open deposit'));
+    await tester.pumpAndSettle();
+    final add = find.text('Add to Equals payees');
+    await tester.ensureVisible(add);
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+    expect(find.text('Review payee'), findsOneWidget);
+    expect(draft?.iban, 'MT84MALT011000012345MTLCAST001S');
+    expect(draft?.accountHolder, 'ANA NOVAK');
+    expect(draft?.bankCountry, 'MT');
+    expect(draft?.bankAddress, 'Malta bank address');
+    expect(draft?.paymentReference, 'deposit-reference');
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   for (final width in [375.0, 1200.0]) {
     testWidgets('EUR bank QR, copy details and placeholder filtering at $width', (tester) async {
       tester.view.physicalSize = Size(width, 1200);
@@ -143,7 +188,7 @@ void main() {
       if (width >= 1000) {
         expect(holderRect.right, lessThan(qrRect.left), reason: 'Desktop keeps bank details beside the QR.');
       } else {
-        expect(holderRect.top, greaterThan(qrRect.bottom), reason: 'Phones stack bank details below the QR.');
+        expect(holderRect.bottom, lessThan(qrRect.top), reason: 'Phones prioritize copyable bank details above the optional QR.');
       }
       final qr = tester.widget<QrImageView>(find.byType(QrImageView));
       final painter = tester.widget<CustomPaint>(find.descendant(
@@ -162,6 +207,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(clipboard.single, contains('Account holder: ROK KOGOVŠEK'));
       expect(clipboard.single, isNot(contains('internal-account-id')));
+      final copyBic = find.byTooltip('Copy BIC / SWIFT');
+      await tester.ensureVisible(copyBic);
+      await tester.tap(copyBic);
+      await tester.pumpAndSettle();
+      expect(clipboard.last, 'COBADEFFXXX');
       expect(tester.takeException(), isNull);
       await _close(tester);
     });

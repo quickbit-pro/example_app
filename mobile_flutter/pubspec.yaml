@@ -29,6 +29,7 @@ dependencies:
   local_auth_darwin: ^1.4.2
   mobile_scanner: ^7.4.0
   pdf: ^3.13.0
+  flutter_country_selector: ^1.0.19
   phone_form_field: ^10.0.18
   pointer_interceptor: ^0.10.1+2
   qr_flutter: ^4.1.0
@@ -38,6 +39,13 @@ dependencies:
   url_launcher: ^6.3.2
   web: ^1.0.0
   webview_flutter: ^4.13.1
+  pdfrx: ^2.4.8
+  flutter_widget_from_html_core: ^0.17.4
+  html: ^0.15.7
+  # Web 8.2 uses the 14.0 interface; 14.2 adds an enum case its parser cannot compile.
+  flutter_stripe: 14.0.0
+  flutter_stripe_web: 8.2.0
+  stripe_platform_interface: 14.0.0
 
 dev_dependencies:
   url_launcher_platform_interface: ^2.3.2

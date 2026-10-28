@@ -12,6 +12,10 @@ public sealed class CompanyOptions
 
     public BrandingOptions Branding { get; init; } = new();
 
+    public string? DashboardBrandingUrl { get; init; }
+    public string? DashboardBrandingDomain { get; init; }
+    public int? DashboardCompanyId { get; init; }
+
     public CompanyFeatureOptions Features { get; init; } = new();
 }
 

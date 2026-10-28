@@ -1,0 +1,23 @@
+{
+  "app": "example",
+  "platform": "flutter-web",
+  "environment": "staging",
+  "baseUrl": "",
+  "marketingUrls": [],
+  "scope": {
+    "multiple_providers": true,
+    "equals_cards": false,
+    "equals_online_cards": false,
+    "in_app_approval": false,
+    "gbp_single": null,
+    "sepa_single": null,
+    "sepa_batch": null,
+    "corporate": null,
+    "derived_balances": null
+  },
+  "scopeNotes": {
+    "equals_cards": "User excludes Equals cards for this release; Interlace crypto cards remain in product scope.",
+    "equals_online_cards": "Equals cards are not available yet.",
+    "in_app_approval": "User retains email OTP; this does not fulfill guidance section 3.1 MFA. Record that gap separately."
+  }
+}

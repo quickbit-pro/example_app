@@ -12,6 +12,7 @@ class MobileTenantConfig {
     required this.walletOutflowsEnabled,
     required this.equalsMoneyEnabled,
     this.businessOnboardingEnabled = true,
+    this.unifiedCddOnboardingEnabled = false,
     this.supportEmail,
     this.termsUrl,
     this.privacyUrl,
@@ -24,6 +25,8 @@ class MobileTenantConfig {
     this.generalTermsUsUrl,
     this.additionalAcknowledgementsUrl,
     this.equalsGeneralTermsUrl,
+    this.equalsTermsVersion,
+    this.legalDocumentsFromDashboard = false,
   });
 
   factory MobileTenantConfig.fromJson(Map<String, dynamic> json) {
@@ -41,6 +44,8 @@ class MobileTenantConfig {
       existingAccountClaimEnabled:
           _bool(features['existingAccountClaimEnabled']),
       boomFiExchangeEnabled: _bool(features['boomFiExchangeEnabled']),
+      unifiedCddOnboardingEnabled:
+          _bool(features['unifiedCddOnboardingEnabled']),
       walletOutflowsEnabled: _bool(features['walletOutflowsEnabled']),
       equalsMoneyEnabled: _bool(features['equalsMoneyEnabled'], fallback: true),
       businessOnboardingEnabled:
@@ -63,6 +68,9 @@ class MobileTenantConfig {
       additionalAcknowledgementsUrl:
           _text(company['additionalAcknowledgementsUrl']),
       equalsGeneralTermsUrl: _text(company['equalsGeneralTermsUrl']),
+      equalsTermsVersion: _text(company['equalsTermsVersion']),
+      legalDocumentsFromDashboard:
+          _bool(company['legalDocumentsFromDashboard']),
     );
   }
 
@@ -73,6 +81,7 @@ class MobileTenantConfig {
   final bool vouchersEnabled;
   final bool existingAccountClaimEnabled;
   final bool boomFiExchangeEnabled;
+  final bool unifiedCddOnboardingEnabled;
   final bool walletOutflowsEnabled;
   final bool equalsMoneyEnabled;
 
@@ -94,6 +103,8 @@ class MobileTenantConfig {
   final String? generalTermsUsUrl;
   final String? additionalAcknowledgementsUrl;
   final String? equalsGeneralTermsUrl;
+  final String? equalsTermsVersion;
+  final bool legalDocumentsFromDashboard;
 
   bool get referralRequired =>
       referralsEnabled && referralRegistrationMode == 'required';
@@ -276,7 +287,9 @@ class ReferralOffer {
 
   factory ReferralOffer.fromJson(Map<String, dynamic> json) {
     return ReferralOffer(
-      promoCodePolicyEnabled: _bool(json['promoCodePolicyEnabled'] ?? json['PromoCodePolicyEnabled'], fallback: false),
+      promoCodePolicyEnabled: _bool(
+          json['promoCodePolicyEnabled'] ?? json['PromoCodePolicyEnabled'],
+          fallback: false),
       welcomeAmount: _num(json, 'welcomeAmount') ?? 0,
       welcomeCurrency: _field(json, 'welcomeCurrency') ?? 'USD',
       qualificationCalculationType:
@@ -736,7 +749,8 @@ class ReferralSummary {
     final offer = _map(json['offer'] ?? json['Offer']);
     final terms = _map(json['terms'] ?? json['Terms']);
     final levelsRaw = json['levels'] ?? json['Levels'];
-    final participation = _map(json['participationEligibility'] ?? json['ParticipationEligibility']);
+    final participation = _map(
+        json['participationEligibility'] ?? json['ParticipationEligibility']);
     return ReferralSummary(
       enabled: enabledRaw == null ? true : _bool(enabledRaw),
       provider: _field(json, 'provider') ?? '',
@@ -808,10 +822,10 @@ class ReferralSummary {
       participationReason == 'GEO_RESIDENCE_EXCLUDED' ||
       participationReason == 'GEO_COUNTRY_UNVERIFIED';
 
-  String get residenceRestrictionMessage =>
-      participationReason == 'GEO_RESIDENCE_EXCLUDED'
-          ? 'The referral programme is not available in your verified country of residence. Your previously paid rewards remain unchanged.'
-          : 'Verify your country of residence before inviting friends or earning referral rewards.';
+  String get residenceRestrictionMessage => participationReason ==
+          'GEO_RESIDENCE_EXCLUDED'
+      ? 'The referral programme is not available in your verified country of residence. Your previously paid rewards remain unchanged.'
+      : 'Verify your country of residence before inviting friends or earning referral rewards.';
 
   /// Rewards are delivered as vouchers the member redeems.
   bool get usesVouchers => referralVoucherDeliveryModes.contains(deliveryMode);

@@ -35,7 +35,7 @@ public sealed class AdminSupportTicketsController(NeoBankingDbContext db, PushNo
         if (!TryGetCompanyInstallationId(out var companyId)) return Unauthorized();
         var ticket = await db.SupportTickets.AsNoTracking().Include(x => x.User).Include(x => x.Messages)
             .SingleOrDefaultAsync(x => x.Id == id && x.CompanyInstallationId == companyId, cancellationToken);
-        return ticket is null ? NotFound() : Ok(SupportTicketResponses.Detail(ticket, true));
+        return ticket is null ? NotFound() : Ok(await EqualsComplaintForwarding.Detail(db, ticket, true, cancellationToken));
     }
 
     [HttpPost("{id:guid}/replies")]
@@ -68,7 +68,7 @@ public sealed class AdminSupportTicketsController(NeoBankingDbContext db, PushNo
         var ticket = await Find(id, companyId, cancellationToken);
         if (ticket is null) return NotFound();
         if (ticket.Revision != request.Revision) return TicketChanged();
-        if (ticket.Status == request.Status) return Ok(SupportTicketResponses.Detail(ticket, true));
+        if (ticket.Status == request.Status) return Ok(await EqualsComplaintForwarding.Detail(db, ticket, true, cancellationToken));
         ticket.Status = request.Status;
         ticket.Revision = Guid.NewGuid();
         await Notify(ticket, $"support-status:{ticket.Revision}", "support.status", "Support ticket updated",
@@ -92,7 +92,7 @@ public sealed class AdminSupportTicketsController(NeoBankingDbContext db, PushNo
         // The reply, status, and notification commit together.
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { return TicketChanged(); }
-        return Ok(SupportTicketResponses.Detail(ticket, true));
+        return Ok(await EqualsComplaintForwarding.Detail(db, ticket, true, ct));
     }
 
     private ConflictObjectResult TicketChanged() => Conflict(new { message = "This ticket has changed. Refresh it before submitting. Your draft has been kept." });

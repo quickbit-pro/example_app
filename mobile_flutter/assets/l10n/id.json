@@ -210,7 +210,7 @@
   "Biometrics are locked. Unlock your device and try again.": "Biometrik terkunci. Buka kunci perangkat Anda dan coba lagi.",
   "Biometrics are locked. Unlock your device, or confirm with your password.": "Biometrik terkunci. Buka kunci perangkat Anda, atau konfirmasikan dengan kata sandi Anda.",
   "Booked": "Dipesan",
-  "BoomFi Exchange is ready. Fiat transfers become available after an active budget and a USDC or USDT wallet are linked to this account.": "Pertukaran BoomFi siap. Transfer Fiat tersedia setelah anggaran aktif dan dompet USDC atau USDT ditautkan ke akun ini.",
+  "BoomFi Exchange is ready. Fiat transfers become available after an active budget and a USDC or USDT wallet are linked to this account.": "ZBX Exchange siap digunakan. Transfer fiat tersedia setelah anggaran aktif dan dompet USDC atau USDT ditautkan ke akun ini.",
   "Bright surfaces and dark text.": "Permukaan terang dan teks gelap.",
   "Budget": "Anggaran",
   "Budget details": "Rincian anggaran",
@@ -2337,5 +2337,8 @@
   "Cards included": "Termasuk kartu",
   "KYC level": "Level KYC",
   "Accept & order card": "Terima & pesan kartu",
-  "To add this card to Apple Pay or Google Wallet, its balance must be greater than 0.": "Untuk menambahkan kartu ini ke Apple Pay atau Google Wallet, saldonya harus lebih dari 0."
+  "To add this card to Apple Pay or Google Wallet, its balance must be greater than 0.": "Untuk menambahkan kartu ini ke Apple Pay atau Google Wallet, saldonya harus lebih dari 0.",
+  "This transaction belongs to the ZBX Exchange service.": "Transaksi ini menggunakan layanan ZBX Exchange yang didukung oleh ZBX.",
+  "Fund my payment card wallet": "Isi saldo dompet kartu pembayaran saya",
+  "USDT is not enabled for EU residents. Please choose USDC.": "USDT tidak tersedia bagi penduduk UE. Silakan pilih USDC."
 }

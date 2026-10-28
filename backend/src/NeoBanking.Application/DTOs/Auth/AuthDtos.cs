@@ -34,6 +34,9 @@ public sealed class AuthSessionDto
 
 public sealed class SignupRequestDto
 {
+    public bool OnboardingExchange { get; init; }
+    public bool OnboardingBanking { get; init; }
+
     public string? Email { get; init; }
 
     public string? Password { get; init; }

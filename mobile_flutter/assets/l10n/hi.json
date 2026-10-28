@@ -210,7 +210,7 @@
   "Biometrics are locked. Unlock your device and try again.": "बायोमेट्रिक्स लॉक हैं। अपने डिवाइस को अनलॉक करें और पुनः प्रयास करें।",
   "Biometrics are locked. Unlock your device, or confirm with your password.": "बायोमेट्रिक्स लॉक हो गए हैं। अपने डिवाइस को अनलॉक करें, या अपने पासवर्ड से पुष्टि करें।",
   "Booked": "बुक किया गया",
-  "BoomFi Exchange is ready. Fiat transfers become available after an active budget and a USDC or USDT wallet are linked to this account.": "बूमफाई एक्सचेंज तैयार है। सक्रिय बजट और यूएसडीसी या यूएसडीटी वॉलेट इस खाते से जुड़े होने के बाद फिएट ट्रांसफर उपलब्ध हो जाते हैं।",
+  "BoomFi Exchange is ready. Fiat transfers become available after an active budget and a USDC or USDT wallet are linked to this account.": "ZBX Exchange तैयार है। इस खाते से सक्रिय बजट और USDC या USDT वॉलेट जुड़ने के बाद फ़िएट मुद्रा में ट्रांसफ़र उपलब्ध होंगे।",
   "Bright surfaces and dark text.": "चमकदार सतहें और गहरा पाठ।",
   "Budget": "बजट",
   "Budget details": "बजट विवरण",
@@ -2337,5 +2337,8 @@
   "Cards included": "कार्ड शामिल हैं",
   "KYC level": "KYC स्तर",
   "Accept & order card": "शर्तें स्वीकार करें और कार्ड का ऑर्डर दें",
-  "To add this card to Apple Pay or Google Wallet, its balance must be greater than 0.": "इस कार्ड को Apple Pay या Google Wallet में जोड़ने के लिए इसका बैलेंस 0 से अधिक होना चाहिए।"
+  "To add this card to Apple Pay or Google Wallet, its balance must be greater than 0.": "इस कार्ड को Apple Pay या Google Wallet में जोड़ने के लिए इसका बैलेंस 0 से अधिक होना चाहिए।",
+  "This transaction belongs to the ZBX Exchange service.": "यह लेन-देन ZBX के माध्यम से संचालित ZBX Exchange सेवा का है।",
+  "Fund my payment card wallet": "मेरे भुगतान कार्ड वॉलेट में पैसे जोड़ें",
+  "USDT is not enabled for EU residents. Please choose USDC.": "यूरोपीय संघ के निवासियों के लिए USDT उपलब्ध नहीं है। कृपया USDC चुनें।"
 }

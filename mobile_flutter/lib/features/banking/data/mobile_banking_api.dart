@@ -571,11 +571,13 @@ class MobileBankingApi {
 
   Future<void> confirmPayeeCreation({
     required String verificationToken,
+    bool verificationAcknowledged = false,
   }) async {
     await _dio.post<void>(
       '/api/v1/mobile/banking/payees/confirm',
       data: {
         'verificationToken': verificationToken,
+        'verificationAcknowledged': verificationAcknowledged,
       },
     );
   }
@@ -691,6 +693,7 @@ class MobileBankingApi {
     required double amount,
     required String currency,
     String? balanceId,
+    String? fromCurrency,
     String? quoteRequestId,
   }) async {
     final response = await _dio.post<Map<String, dynamic>>(
@@ -702,6 +705,7 @@ class MobileBankingApi {
         'PayeeId': int.tryParse(payeeId) ?? payeeId,
         'Amount': amount.toStringAsFixed(2),
         'Currency': currency,
+        if (fromCurrency != null) 'FromCurrency': fromCurrency,
         if (balanceId != null && balanceId.trim().isNotEmpty)
           'BalanceId': balanceId.trim(),
       },
@@ -744,6 +748,7 @@ class MobileBankingApi {
     required double amount,
     required String currency,
     String? balanceId,
+    String? fromCurrency,
     required String verificationToken,
     String? quoteRequestId,
   }) async {
@@ -757,6 +762,7 @@ class MobileBankingApi {
         'PayeeId': int.tryParse(payeeId) ?? payeeId,
         'Amount': amount.toStringAsFixed(2),
         'Currency': currency,
+        if (fromCurrency != null) 'FromCurrency': fromCurrency,
         if (balanceId != null && balanceId.trim().isNotEmpty)
           'BalanceId': balanceId.trim(),
       },

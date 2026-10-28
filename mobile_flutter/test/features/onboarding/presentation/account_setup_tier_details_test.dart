@@ -37,27 +37,31 @@ final _lite = PlatformResource.fromJson(const {
 });
 
 class _Api extends MobilePlatformApi {
-  _Api() : super(Dio());
+  _Api({this.persistSelection = false}) : super(Dio());
+  final bool persistSelection;
 
   final selected = <int>[];
 
   @override
   Future<ActionResult> selectTier(
-      {required int tierId, String? tierCycle}) async {
+      {required int tierId, String? tierCycle, bool onboarding = false}) async {
+    expect(onboarding, isTrue);
     selected.add(tierId);
     return const ActionResult(message: 'Tier changed');
   }
 
   @override
   Future<PlatformResource> getCurrentTier() async =>
-      PlatformResource.fromJson(const {});
+      persistSelection && selected.isNotEmpty
+          ? _lite
+          : PlatformResource.fromJson(const {});
 }
 
-Future<_Api> _pump(WidgetTester tester) async {
+Future<_Api> _pump(WidgetTester tester, {bool persistSelection = false}) async {
   tester.view.physicalSize = const Size(430, 1000);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final api = _Api();
+  final api = _Api(persistSelection: persistSelection);
   await tester.pumpWidget(ProviderScope(
     overrides: [
       appConfigProvider.overrideWithValue(const AppConfig(
@@ -77,7 +81,8 @@ Future<_Api> _pump(WidgetTester tester) async {
             transactions: const [],
             onboarding: const [],
           )),
-      currentTierProvider.overrideWith((ref) async => null),
+      if (!persistSelection)
+        currentTierProvider.overrideWith((ref) async => null),
       tiersProvider.overrideWith((ref) async => [_lite]),
       cardTierProvider('1')
           .overrideWith((ref) async => PlatformResource.fromJson(const {})),
@@ -95,6 +100,30 @@ Future<_Api> _pump(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('confirmed choice stays visible with its name and details',
+      (tester) async {
+    final api = await _pump(tester, persistSelection: true);
+    await tester.ensureVisible(find.text("What's included"));
+    await tester.tap(find.text("What's included"));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Choose this plan'));
+    await tester.tap(find.text('Choose this plan'));
+    await tester.pumpAndSettle();
+    expect(api.selected, [1]);
+    final summary = find.byKey(const Key('selected-tier-summary'));
+    expect(summary, findsOneWidget);
+    expect(find.descendant(of: summary, matching: find.text('Lite')),
+        findsOneWidget);
+    expect(find.descendant(of: summary, matching: find.text('Selected tier')),
+        findsOneWidget);
+    expect(
+        find.descendant(of: summary, matching: find.byIcon(Icons.check_circle)),
+        findsOneWidget);
+    expect(find.descendant(of: summary, matching: find.text("What's included")),
+        findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('reading what a tier includes never picks it', (tester) async {
     final api = await _pump(tester);
 

@@ -11,6 +11,8 @@ import 'package:mobile_flutter/features/banking/application/banking_providers.da
 import 'package:mobile_flutter/features/banking/data/mobile_banking_api.dart';
 import 'package:mobile_flutter/features/dashboard/domain/dashboard_models.dart';
 import 'package:mobile_flutter/features/money/presentation/money_screen.dart';
+import 'package:mobile_flutter/features/money/domain/bank_payee_draft.dart';
+import 'package:mobile_flutter/features/money/presentation/payee_country_field.dart';
 import 'package:mobile_flutter/features/platform/application/platform_providers.dart';
 import 'package:mobile_flutter/features/rewards/domain/rewards_models.dart';
 import 'package:mobile_flutter/features/wallets/data/wallet_providers.dart';
@@ -171,6 +173,8 @@ class _FakeBankingApi extends MobileBankingApi {
     required String currency,
     String? balanceId,
     String? quoteRequestId,
+
+    String? fromCurrency,
   }) async =>
       const PayoutOtpInitiation(
         success: true,
@@ -199,6 +203,8 @@ class _FakeBankingApi extends MobileBankingApi {
     String? balanceId,
     required String verificationToken,
     String? quoteRequestId,
+
+    String? fromCurrency,
   }) async {
     payoutsConfirmed++;
   }
@@ -241,6 +247,8 @@ class _FakeBankingApi extends MobileBankingApi {
   @override
   Future<void> confirmPayeeCreation({
     required String verificationToken,
+
+    bool verificationAcknowledged = false,
   }) async {
     payeesConfirmed++;
   }
@@ -258,12 +266,13 @@ Widget _host({
   required MoneyTab tab,
   required AppBranding branding,
   required Brightness brightness,
+  BankPayeeDraft? draft,
 }) {
   final themes = buildAppThemes(branding);
   final router = GoRouter(
     initialLocation: '/money',
     routes: [
-      GoRoute(path: '/money', builder: (_, __) => MoneyScreen(initialTab: tab)),
+      GoRoute(path: '/money', builder: (_, __) => MoneyScreen(initialTab: tab, initialPayee: draft)),
       GoRoute(path: '/profile', builder: (_, __) => const Text('Profile')),
     ],
   );
@@ -351,6 +360,41 @@ Future<void> _commitWith(
 }
 
 void main() {
+  testWidgets('ZBX draft keeps recipient country independent and detects a saved IBAN', (tester) async {
+    tester.view.physicalSize = const Size(375, _tall);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final api = _FakeBankingApi();
+    await tester.pumpWidget(_host(api: api, tab: MoneyTab.payees,
+      branding: _exampleBranding, brightness: Brightness.light,
+      draft: const BankPayeeDraft(iban: 'si56 0201 0001 2345 678',
+        accountHolder: 'Ana Novak', bankCountry: 'MT', bic: 'CFTEMTM1',
+        bankName: 'OpenPayd', bankAddress: 'Bank address in Malta')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextFormField>(find.widgetWithText(TextFormField, 'Account holder name')).controller!.text, 'Ana Novak');
+    PayeeCountryField country(String label) => tester.widget<PayeeCountryField>(
+      find.byWidgetPredicate((w) => w is PayeeCountryField && w.label == label));
+    expect(country('Bank country').value, 'MT');
+    expect(country('Payee country').value, '');
+    await _enter(tester, 'First name', 'Ana');
+    await _enter(tester, 'Last name', 'Novak');
+    final recipient = find.byWidgetPredicate((w) => w is PayeeCountryField && w.label == 'Payee country');
+    await tester.ensureVisible(recipient);
+    await tester.tap(recipient);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Search countries'), 'Portugal');
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Portugal'));
+    await tester.pumpAndSettle();
+    expect(country('Bank country').value, 'MT');
+    expect(country('Payee country').value, 'PT');
+    await _tap(tester, 'Send OTP code');
+    expect(find.textContaining('This account is already in your payees.'), findsOneWidget);
+    expect(api.verifiedCodes, isEmpty);
+    expect(api.payeesConfirmed, 0);
+    expect(tester.takeException(), isNull);
+  });
+
   const variants = <(String, AppBranding, Brightness)>[
     ('Example twilight', _exampleBranding, Brightness.dark),
     ('Example daylight', _exampleBranding, Brightness.light),
@@ -411,7 +455,17 @@ void main() {
         await _enter(tester, 'First name', 'Ana');
         await _enter(tester, 'Last name', 'Novak');
         await _enter(tester, 'Account holder name', 'Ana Novak');
-        await _enter(tester, 'IBAN or account number', 'SI56020100012345678');
+        await _enter(tester, 'IBAN or account number', 'DE89370400440532013000');
+        for (final label in ['Account country', 'Bank country', 'Payee country']) {
+          final field = find.byWidgetPredicate((w) => w is PayeeCountryField && w.label == label);
+          await tester.ensureVisible(field);
+          await tester.tap(field);
+          await tester.pumpAndSettle();
+          await tester.enterText(find.widgetWithText(TextField, 'Search countries'), 'Portugal');
+          await tester.pumpAndSettle();
+          await tester.tap(find.widgetWithText(ListTile, 'Portugal'));
+          await tester.pumpAndSettle();
+        }
         await _tap(tester, 'Send OTP code');
 
         expect(find.byType(ExampleOtpField), findsOneWidget);

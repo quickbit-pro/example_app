@@ -37,7 +37,7 @@ public sealed class MobileSupportTicketsController(NeoBankingDbContext db) : Api
         if (!Identity(out var companyId, out var userId)) return Unauthorized();
         var ticket = await db.SupportTickets.AsNoTracking().Include(x => x.Messages)
             .SingleOrDefaultAsync(x => x.Id == id && x.CompanyInstallationId == companyId && x.UserId == userId, cancellationToken);
-        return ticket is null ? NotFound() : Ok(SupportTicketResponses.Detail(ticket));
+        return ticket is null ? NotFound() : Ok(await EqualsComplaintForwarding.Detail(db, ticket, false, cancellationToken));
     }
 
     [HttpPost]
@@ -71,12 +71,25 @@ public sealed class MobileSupportTicketsController(NeoBankingDbContext db) : Api
         if (request.Revision != ticket.Revision) return TicketChanged();
         var message = new SupportTicketMessage { TicketId = ticket.Id, AuthorUserId = userId, Body = request.Body.Trim() };
         db.SupportTicketMessages.Add(message);
+        var forwarding = await db.EmailMessages.AsNoTracking().SingleOrDefaultAsync(x =>
+            x.Id == ticket.Id && x.CompanyInstallationId == companyId && x.TemplateKey == EqualsComplaintForwarding.Template, cancellationToken);
+        if (forwarding != null) {
+            var text = forwarding.TextBody + $"\n\nCustomer follow-up ({DateTimeOffset.UtcNow:O}):\n{request.Body.Trim()}";
+            db.EmailMessages.Add(new EmailMessage {
+                Id = message.Id, CompanyInstallationId = companyId, UserId = userId,
+                TemplateKey = forwarding.TemplateKey, ToEmail = forwarding.ToEmail, ToName = forwarding.ToName,
+                Subject = forwarding.Subject + " - customer follow-up", TextBody = text,
+                HtmlBody = $"<pre style=\"white-space:pre-wrap\">{System.Net.WebUtility.HtmlEncode(text)}</pre>",
+                Status = forwarding.Status == "staging_preview" ? "staging_preview" : "pending",
+                NextAttemptAt = DateTimeOffset.UtcNow, MetadataJson = forwarding.MetadataJson
+            });
+        }
         // A reply on a resolved ticket reopens it for support.
         ticket.Status = SupportTicketStatuses.AwaitingSupport;
         ticket.Revision = Guid.NewGuid();
         try { await db.SaveChangesAsync(cancellationToken); }
         catch (DbUpdateConcurrencyException) { return TicketChanged(); }
-        return Ok(SupportTicketResponses.Detail(ticket));
+        return Ok(await EqualsComplaintForwarding.Detail(db, ticket, false, cancellationToken));
     }
 
     private ConflictObjectResult TicketChanged() => Conflict(new { message = "This ticket has changed. Refresh it before submitting your reply. Your draft has been kept." });

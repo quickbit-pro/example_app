@@ -52,6 +52,16 @@ async function open(id: string) {
   } catch (caught) { if (request === detailRequest) error.value = message(caught); }
   finally { if (request === detailRequest) opening.value = false; }
 }
+async function forwardComplaint() {
+  if (!detail.value || busy.value) return;
+  busy.value = true;
+  error.value = '';
+  try {
+    detail.value = await supportApi.forwardComplaint(detail.value.ticket.id, detail.value.ticket.revision);
+    success.value = 'Forwarding status updated. Check the delivery status below.';
+  } catch (caught) { error.value = message(caught); }
+  finally { busy.value = false; }
+}
 async function update(action: 'reply' | 'resolved' | 'awaiting_support') {
   if (!detail.value || busy.value || opening.value) return;
   const ticket = detail.value.ticket;
@@ -136,6 +146,12 @@ onMounted(() => {
               {{ detail.ticket.status === 'resolved' ? 'Reopen ticket' : 'Mark resolved' }}
             </button>
           </div>
+          <section class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm" aria-label="Complaint forwarding">
+            <h3 class="font-semibold">Equals Money complaints</h3>
+            <p class="mt-2">Forward complaints about Equals services the same business day, including cases where the provider is unclear. Do not screen complaints for merit or resolve them on Equals’ behalf.</p>
+            <p v-if="detail.complaintForwarding" class="mt-2 font-semibold">Forwarding: {{ detail.complaintForwarding.status === 'staging_preview' ? 'Staging preview — not sent' : detail.complaintForwarding.status }}<span v-if="detail.complaintForwarding.sentAt"> · {{ formatDateTime(detail.complaintForwarding.sentAt) }}</span></p>
+            <button v-if="!detail.complaintForwarding || ['failed', 'held'].includes(detail.complaintForwarding.status)" class="secondary-button mt-3" :disabled="busy || opening" @click="forwardComplaint">{{ detail.complaintForwarding ? 'Retry forwarding to Equals' : 'Forward complaint to Equals' }}</button>
+          </section>
           <ol class="mt-6 space-y-4">
             <li v-for="entry in detail.messages" :key="entry.id" class="rounded-xl border border-slate-200 p-4" :class="entry.isAdmin ? 'bg-slate-50' : 'bg-white'">
               <div class="flex flex-wrap justify-between gap-2 text-xs text-slate-500">

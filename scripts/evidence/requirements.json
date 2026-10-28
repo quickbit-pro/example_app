@@ -1,0 +1,240 @@
+{
+  "source": {
+    "title": "Third-party Programme Manager Guidance",
+    "version": "September 2026 v12",
+    "filename": "Third Party Programme Manager Guidance.pdf"
+  },
+  "requirements": [
+    {
+      "id": "1.1",
+      "page": 4,
+      "title": "Terms and privacy at signup",
+      "appliesWhen": "all",
+      "cases": [
+        "signup-happy",
+        "signup-no-terms",
+        "signup-no-privacy",
+        "signup-terms-not-opened"
+      ],
+      "media": [
+        "video"
+      ],
+      "checks": "Show fresh unchecked choices; access current Equals terms, independent privacy agreement, actual signup success and separately retained consent. Block each missing prerequisite. Electronic signing also needs a signed sample."
+    },
+    {
+      "id": "1.2",
+      "page": 5,
+      "title": "Provider disclosure and safeguarding",
+      "appliesWhen": "multiple_providers",
+      "cases": [
+        "all-balance-pages"
+      ],
+      "media": [
+        "video"
+      ],
+      "checks": "Show each provider, separate Equals balance, the current approved safeguarding wording beside it, and the working Equals terms link."
+    },
+    {
+      "id": "1.3",
+      "page": 6,
+      "title": "Marketing disclosures",
+      "appliesWhen": "all",
+      "cases": [
+        "every-marketing-footer",
+        "marketing-review-record"
+      ],
+      "media": [
+        "screenshot",
+        "document"
+      ],
+      "checks": "Capture each relevant marketing page footer with its exact URL. Attach confirmation of review against the current Financial Promotions Guidance."
+    },
+    {
+      "id": "1.4",
+      "page": 6,
+      "title": "Complaints routes",
+      "appliesWhen": "all",
+      "cases": [
+        "app-complaints-route",
+        "homepage-complaints-link"
+      ],
+      "media": [
+        "screenshot"
+      ],
+      "checks": "Show both app and marketing homepage routes, correct UK/EU Equals complaints page and which services Equals provides."
+    },
+    {
+      "id": "2.1",
+      "page": 7,
+      "title": "Fees before commitment",
+      "appliesWhen": "all",
+      "cases": [
+        "signup-fees",
+        "corporate-fee-document-if-applicable"
+      ],
+      "media": [
+        "screenshot_or_video",
+        "document_if_corporate"
+      ],
+      "checks": "Show fees/annex or linked fee page before signup. Corporate scope additionally needs the customer-held written schedule."
+    },
+    {
+      "id": "2.2",
+      "page": 8,
+      "title": "Fees and FX before authorization",
+      "appliesWhen": "all",
+      "cases": [
+        "fee-event-and-result",
+        "fx-quote-and-result-if-supported"
+      ],
+      "media": [
+        "video"
+      ],
+      "checks": "Show beneficiary amount, fee, total debit and an actual resulting staging transaction; show FX rate before authorization where offered."
+    },
+    {
+      "id": "2.3",
+      "page": 8,
+      "title": "Real-time balances",
+      "appliesWhen": "all",
+      "cases": [
+        "provider-balance-change",
+        "reconciliation-if-derived"
+      ],
+      "media": [
+        "video",
+        "document_if_derived"
+      ],
+      "checks": "Record a real Equals staging balance change and app refresh. If derived, document reconciliation frequency, tolerance, alerts and remediation."
+    },
+    {
+      "id": "3.1",
+      "page": 9,
+      "title": "MFA protected events",
+      "appliesWhen": "all",
+      "cases": [
+        "login-happy-and-blocked",
+        "recipient-add-happy-and-blocked",
+        "recipient-edit-happy-and-blocked",
+        "factor-phone-limits-device-changes-if-supported",
+        "maker-checker-if-supported"
+      ],
+      "media": [
+        "video"
+      ],
+      "checks": "Show the factor actually entered/completed and wrong or missing factor blocked for every protected event. Include supported changes and maker/checker creation/approval evidence."
+    },
+    {
+      "id": "3.2",
+      "page": 11,
+      "title": "MFA challenge content",
+      "appliesWhen": "all",
+      "cases": [
+        "each-supported-challenge-video",
+        "received-message-images",
+        "message-templates"
+      ],
+      "media": [
+        "video",
+        "screenshot",
+        "document"
+      ],
+      "checks": "Cover recipient-add, new-recipient payment, one-off payment and batches where supported. Record delivered messages or approval screens, not just developer templates; show required payee/amount/fee/total/trusted-payee fields."
+    },
+    {
+      "id": "3.3",
+      "page": 12,
+      "title": "In-app approval and device enrolment",
+      "appliesWhen": "in_app_approval",
+      "cases": [
+        "approval-happy",
+        "rejected-or-expired",
+        "enrolment-mfa",
+        "wrong-action-blocked",
+        "code-delivery-lock-screen-and-retrieval-if-used"
+      ],
+      "media": [
+        "video"
+      ],
+      "checks": "Use an actually enrolled device. Show details, biometric/passcode, confirmation, rejected/expired challenge blocked, device enrolment MFA and binding to one action. Code-delivery also needs lock-screen and dismissed challenge retrieval."
+    },
+    {
+      "id": "3.4",
+      "page": 13,
+      "title": "Equals online-card 3DS",
+      "appliesWhen": "equals_online_cards",
+      "cases": [
+        "3ds-happy",
+        "3ds-declined-or-abandoned"
+      ],
+      "media": [
+        "video"
+      ],
+      "checks": "Actual online Equals card challenge with merchant and amount, successful authentication and failed/abandoned decline. Equals cards currently excluded by user."
+    },
+    {
+      "id": "3.5",
+      "page": 13,
+      "title": "Equals card details reveal",
+      "appliesWhen": "equals_cards",
+      "cases": [
+        "fresh-sca-reveal",
+        "expired-session-step-up"
+      ],
+      "media": [
+        "video"
+      ],
+      "checks": "Show step-up or current-session SCA within five minutes; show step-up after five minutes. Use only sandbox card details. Equals cards currently excluded by user."
+    },
+    {
+      "id": "4.1",
+      "page": 14,
+      "title": "UK GBP Confirmation of Payee",
+      "appliesWhen": "gbp_single",
+      "cases": [
+        "match",
+        "close-match-acknowledged",
+        "close-match-blocked",
+        "no-match-acknowledged",
+        "no-match-blocked",
+        "unable-to-check"
+      ],
+      "media": [
+        "video"
+      ],
+      "checks": "Show all four results; close/no-match must block until an explicit customer choice. Keep acknowledgement evidence."
+    },
+    {
+      "id": "4.2",
+      "page": 14,
+      "title": "EUR SEPA Verification of Payee",
+      "appliesWhen": "sepa_single",
+      "cases": [
+        "match",
+        "close-match-acknowledged",
+        "close-match-blocked",
+        "no-match-acknowledged",
+        "no-match-blocked",
+        "unable-to-check"
+      ],
+      "media": [
+        "video"
+      ],
+      "checks": "Same result/acknowledgement coverage as CoP. The supplied v12 guidance defers evidence while sandbox support is unavailable; confirm current availability before a certification run."
+    },
+    {
+      "id": "4.3",
+      "page": 15,
+      "title": "EUR SEPA batch verification",
+      "appliesWhen": "sepa_batch",
+      "cases": [
+        "line-results-before-authorization",
+        "corporate-opt-out-and-reversal-if-offered"
+      ],
+      "media": [
+        "video"
+      ],
+      "checks": "Show line results and mismatch review. Corporate opt-out must be explicit, recorded and reversible; consumers cannot opt out. Supplied v12 defers sandbox evidence; batch FPS needs no CoP evidence."
+    }
+  ]
+}

@@ -376,6 +376,7 @@ class PlatformActionController extends AsyncNotifier<ActionResult?> {
   Future<void> selectTier({
     required int tierId,
     String? tierCycle,
+    bool onboarding = false,
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
@@ -383,6 +384,7 @@ class PlatformActionController extends AsyncNotifier<ActionResult?> {
       final result = await api.selectTier(
         tierId: tierId,
         tierCycle: tierCycle,
+        onboarding: onboarding,
       );
       _invalidateTierProviders();
 

@@ -213,7 +213,7 @@
   "Biometrics are locked. Unlock your device and try again.": "Biometrics are locked. Unlock your device and try again.",
   "Biometrics are locked. Unlock your device, or confirm with your password.": "Biometrics are locked. Unlock your device, or confirm with your password.",
   "Booked": "Booked",
-  "BoomFi Exchange is ready. Fiat transfers become available after an active budget and a USDC or USDT wallet are linked to this account.": "BoomFi Exchange is ready. Fiat transfers become available after an active budget and a USDC or USDT wallet are linked to this account.",
+  "BoomFi Exchange is ready. Fiat transfers become available after an active budget and a USDC or USDT wallet are linked to this account.": "ZBX Exchange is ready. Fiat transfers become available after an active budget and a USDC or USDT wallet are linked to this account.",
   "Bright surfaces and dark text.": "Bright surfaces and dark text.",
   "Budget": "Budget",
   "Budget details": "Budget details",
@@ -2350,5 +2350,8 @@
   "EqualsMoney needs an additional check before the account can be approved.": "EqualsMoney needs an additional check before the account can be approved.",
   "EqualsMoney needs a liveness check before the account can be approved.": "EqualsMoney needs a liveness check before the account can be approved.",
   "Upload the requested documents here, then continue the secure EqualsMoney check.": "Upload the requested documents here, then continue the secure EqualsMoney check.",
-  "Upload each requested document so EqualsMoney can continue the review.": "Upload each requested document so EqualsMoney can continue the review."
+  "Upload each requested document so EqualsMoney can continue the review.": "Upload each requested document so EqualsMoney can continue the review.",
+  "This transaction belongs to the ZBX Exchange service.": "This transaction belongs to the ZBX Exchange service powered through ZBX.",
+  "Fund my payment card wallet": "Fund my payment card wallet",
+  "USDT is not enabled for EU residents. Please choose USDC.": "USDT is not enabled for EU residents. Please choose USDC."
 }

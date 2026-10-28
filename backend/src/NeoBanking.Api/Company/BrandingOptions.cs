@@ -24,6 +24,8 @@ public sealed class BrandingOptions
     public string? AdditionalAcknowledgementsUrl { get; init; }
 
     public string? EqualsGeneralTermsUrl { get; init; }
+    public string? EqualsTermsVersion { get; init; }
+    public string? EqualsTermsEffectiveDate { get; init; }
 
     /// <summary>Equals Money disclosure shown to customers in the EU.</summary>
     public string? EqualsRegulatoryDisclaimerEu { get; init; }

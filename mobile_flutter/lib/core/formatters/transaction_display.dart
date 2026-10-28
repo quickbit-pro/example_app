@@ -3,7 +3,7 @@ String transactionDisplayTitle(String value) {
   if (raw.isEmpty) return 'Transaction';
   final normalized = raw.toLowerCase();
 
-  if (normalized == 'boomfi') return 'BoomFi';
+  if (normalized == 'boomfi') return 'ZBX';
 
   if (normalized.contains('uk.obie.balancetransfer')) {
     return 'Bank transfer';

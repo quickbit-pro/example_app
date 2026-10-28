@@ -210,7 +210,7 @@
   "Biometrics are locked. Unlock your device and try again.": "A biometria está bloqueada. Desbloqueie seu dispositivo e tente novamente.",
   "Biometrics are locked. Unlock your device, or confirm with your password.": "A biometria está bloqueada. Desbloqueie seu dispositivo ou confirme com sua senha.",
   "Booked": "Reservado",
-  "BoomFi Exchange is ready. Fiat transfers become available after an active budget and a USDC or USDT wallet are linked to this account.": "O BoomFi Exchange está pronto. As transferências Fiat ficam disponíveis após um orçamento ativo e uma carteira USDC ou USDT serem vinculadas a esta conta.",
+  "BoomFi Exchange is ready. Fiat transfers become available after an active budget and a USDC or USDT wallet are linked to this account.": "O ZBX Exchange está pronto. As transferências Fiat ficam disponíveis após um orçamento ativo e uma carteira USDC ou USDT serem vinculadas a esta conta.",
   "Bright surfaces and dark text.": "Superfícies brilhantes e texto escuro.",
   "Budget": "Orçamento",
   "Budget details": "Detalhes do orçamento",
@@ -2337,5 +2337,8 @@
   "Cards included": "Cartões incluídos",
   "KYC level": "Nível KYC",
   "Accept & order card": "Aceitar e solicitar cartão",
-  "To add this card to Apple Pay or Google Wallet, its balance must be greater than 0.": "Para adicionar este cartão ao Apple Pay ou ao Google Wallet, o saldo precisa ser maior que 0."
+  "To add this card to Apple Pay or Google Wallet, its balance must be greater than 0.": "Para adicionar este cartão ao Apple Pay ou ao Google Wallet, o saldo precisa ser maior que 0.",
+  "This transaction belongs to the ZBX Exchange service.": "Esta transação pertence ao serviço ZBX Exchange, operado por meio da ZBX.",
+  "Fund my payment card wallet": "Adicionar fundos à carteira do meu cartão de pagamento",
+  "USDT is not enabled for EU residents. Please choose USDC.": "USDT não está disponível para residentes da UE. Escolha USDC."
 }

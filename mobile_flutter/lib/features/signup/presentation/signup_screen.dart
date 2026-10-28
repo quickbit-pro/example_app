@@ -80,6 +80,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   String? _appliedInvitationToken;
   ReferralInvitationPreview? _invitationPreview;
   String _accountType = 'personal';
+  bool _onboardingExchange = false;
+  bool _onboardingBanking = false;
 
   String _registrationAttemptId = VisitorIdStore.newVisitorId(Random.secure());
   ReferralQuote? _referralQuote;
@@ -1321,6 +1323,19 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   Widget _legalAgreements(MobileTenantConfig? config) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (config?.unifiedCddOnboardingEnabled == true && _accountType == 'personal') ...[
+            Text(context.tr('What would you like to use?'), style: Theme.of(context).textTheme.titleMedium),
+            ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.check_circle),
+                title: Text(context.tr('Crypto card')), subtitle: Text(context.tr('Included with your account'))),
+            if (config?.boomFiExchangeEnabled == true)
+              CheckboxListTile(contentPadding: EdgeInsets.zero, title: Text(context.tr('Exchange')),
+                value: _onboardingExchange, onChanged: _signupDispatched ? null : (v) => setState(() => _onboardingExchange = v ?? false)),
+            if (config?.equalsMoneyEnabled == true)
+              CheckboxListTile(contentPadding: EdgeInsets.zero, title: Text(context.tr('Banking')),
+                value: _onboardingBanking, onChanged: _signupDispatched ? null : (v) => setState(() => _onboardingBanking = v ?? false)),
+            Text(context.tr('Adding Exchange or Banking includes proof of address in your identity check.')),
+            const SizedBox(height: 16),
+          ],
           if (_signupDispatched) ...[
             Text(context.tr(
                 'Retries keep the original signup details until the account status is known.')),
@@ -1402,6 +1417,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
           firstName: firstName,
           lastName: lastName,
           accountType: accountType,
+          onboardingExchange: config?.unifiedCddOnboardingEnabled == true && accountType == 'personal' && _onboardingExchange,
+          onboardingBanking: config?.unifiedCddOnboardingEnabled == true && accountType == 'personal' && _onboardingBanking,
           phone: phone,
           referralCode: referral.isEmpty ? null : referral,
           referralSource: referral.isEmpty ? null : source,

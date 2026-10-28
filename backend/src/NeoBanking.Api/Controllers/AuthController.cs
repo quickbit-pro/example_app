@@ -32,7 +32,8 @@ public sealed partial class AuthController(
     IOptions<EmailOptions> emailOptions,
     AuthEmailNotifier emailNotifier,
     LoginAttemptTracker loginAttempts,
-    ILogger<AuthController> logger) : ApiControllerBase
+    ILogger<AuthController> logger,
+    DashboardLegalSettings? legalSettings = null) : ApiControllerBase
 {
     // Two days: the PWA re-verifies biometrics on launch and refreshes the pair anyway.
     private const int AccessTokenSeconds = 48 * 3600;
@@ -207,6 +208,17 @@ public sealed partial class AuthController(
                 StatusCodes.Status400BadRequest)));
         }
 
+        var unifiedCdd = request.OnboardingExchange || request.OnboardingBanking;
+        if (unifiedCdd && (accountType != "personal" ||
+            (request.OnboardingExchange && !companyOptions.Value.Features.BoomFiExchangeEnabled) ||
+            (request.OnboardingBanking && !companyOptions.Value.Features.EqualsMoneyEnabled)))
+            return BadRequest(new { code = "auth.signup.products_unavailable", message = "The selected onboarding services are unavailable." });
+
+        var consentBranding = legalSettings is null ? companyOptions.Value.Branding : await legalSettings.GetAsync(cancellationToken);
+        var requiresEqualsConsent = accountType == "business" || companyOptions.Value.Features.EqualsMoneyEnabled;
+        var equalsConsentError = EqualsSignupConsent.Validate(request.LegalAgreements, requiresEqualsConsent, consentBranding);
+        if (equalsConsentError != null)
+            return BadRequest(new { code = "auth.equals_consent_required", message = equalsConsentError });
         var consentReceivedAt = DateTimeOffset.UtcNow;
         var referralCode = request.ReferralCode?.Trim();
         var referralFeatures = companyOptions.Value.Features;
@@ -309,7 +321,7 @@ public sealed partial class AuthController(
             PhoneNumber = request.Phone?.Trim(),
             Status = "active",
             Locale = "en-US",
-            MetadataJson = JsonSerializer.Serialize(new { accountType, legalAgreements = request.LegalAgreements }),
+            MetadataJson = JsonSerializer.Serialize(new { accountType, unifiedCdd = unifiedCdd ? new { exchange = request.OnboardingExchange, banking = request.OnboardingBanking } : null, legalAgreements = EqualsSignupConsent.Record(request.LegalAgreements, requiresEqualsConsent, consentBranding, consentReceivedAt) }),
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -389,6 +401,8 @@ public sealed partial class AuthController(
         });
 
         dbContext.Users.Add(user);
+        if (requiresEqualsConsent)
+            EqualsConsentService.AddEvidence(dbContext, user, consentBranding, consentReceivedAt, "mobile_signup");
         dbContext.ProviderMappings.Add(new ProviderMapping
         {
             CompanyInstallationId = company.Id,

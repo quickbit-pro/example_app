@@ -8,6 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../platform/application/platform_providers.dart';
 import 'exchange_support.dart';
 import 'exchange_bank_deposit_details.dart';
+import 'package:go_router/go_router.dart';
+import '../../../app/routes.dart';
+import '../../money/domain/bank_payee_draft.dart';
 import 'exchange_deposit_address.dart';
 import 'exchange_destination_form.dart';
 import 'exchange_disclaimer.dart';
@@ -503,7 +506,20 @@ class _ExchangeAccountDetailsState
                       icon: const Icon(Icons.delete_outline, size: 18),
                       label: const Text('Remove'))),
           ] else if (ready && bank)
-            ExchangeBankDepositDetails(account: a)
+            ExchangeBankDepositDetails(account: a,
+              onAddPayee: ref.watch(mobileTenantConfigProvider).valueOrNull?.equalsMoneyEnabled == true
+                  ? () {
+                      final details = exchangeMap(exchangeValue(a, 'bank'));
+                      final draft = BankPayeeDraft(
+                        iban: address, accountHolder: exchangeText(details, 'accountHolderName'),
+                        bankCountry: exchangeText(details, 'country').trim().toUpperCase(),
+                        bic: exchangeText(details, 'bic'), bankName: exchangeText(details, 'name'),
+                        bankAddress: exchangeText(details, 'address'),
+                        paymentReference: exchangeText(a, 'paymentReference'));
+                      final router = GoRouter.of(context);
+                      Navigator.of(context).pop();
+                      router.push(AppRoutes.payees, extra: draft);
+                    } : null)
           else if (ready) ...[
             Text(bank ? 'IBAN' : 'Deposit address',
                 style: Theme.of(context).textTheme.labelMedium),

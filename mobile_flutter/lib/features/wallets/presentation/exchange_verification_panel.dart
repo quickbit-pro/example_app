@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import '../../../core/widgets/app_states.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../platform/application/platform_providers.dart';
 import 'exchange_support.dart';
+import 'exchange_limits_dialog.dart';
 import 'exchange_reference_data.dart';
+import 'exchange_business_onboarding_dialog.dart';
 
 class ExchangeVerificationPanel extends ConsumerStatefulWidget {
   const ExchangeVerificationPanel({super.key});
@@ -35,6 +38,24 @@ class _ExchangeVerificationPanelState
     } finally {
       if (mounted) setState(() => busy = false);
     }
+  }
+
+  Future<void> startBusiness() async {
+    final result = await showDialog<Map<String, dynamic>>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const ExchangeBusinessOnboardingDialog());
+    if (result == null || !mounted) return;
+    if (result['action'] == 'support') {
+      await context.push('/support');
+      return;
+    }
+    await run(() async {
+      final link = exchangeText(result, 'verificationUrl');
+      setState(
+          () => verificationUrl = exchangeSafeUrl(link) != null ? link : null);
+      if (verificationUrl != null) await openExchangeUrl(verificationUrl!);
+    });
   }
 
   Future<void> completeApplication() async {
@@ -68,6 +89,7 @@ class _ExchangeVerificationPanelState
         barrierDismissible: false,
         builder: (_) => ExchangeApplicationDialog(
             initial: exchangeMap(draft['answers']),
+            kycLevel: draft['kycLevel'] == 'SDD' ? 'SDD' : 'CDD',
             missingFields: (draft['missingFields'] as List?)
                 ?.map((v) => v.toString())
                 .toSet()));
@@ -79,177 +101,277 @@ class _ExchangeVerificationPanelState
     return Card(
         child: Padding(
             padding: const EdgeInsets.all(20),
-            child: state.when(
-                loading: () => const LinearProgressIndicator(),
-                error: (e, st) => Column(children: [
-                      const Text('Could not check Exchange verification.'),
-                      TextButton(
-                          onPressed: () =>
-                              ref.invalidate(exchangeVerificationProvider),
-                          child: const Text('Retry'))
-                    ]),
-                data: (data) {
-                  final provider = exchangeMap(data['provider']);
-                  final status = exchangeText(data, 'status');
-                  final nextAction =
-                      exchangeText(provider, 'nextAction').split(':').first;
-                  final submitted = provider['actionSubmitted'] == true;
-                  final business = data['verificationType'] == 'business';
-                  final canStart = data['eligible'] == true &&
-                      provider.isEmpty &&
-                      ['not_started', 'in_progress', 'resubmission_required']
-                          .contains(status);
-                  final url = verificationUrl ?? exchangeActionUrl(provider);
-                  return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Exchange verification',
-                            style: Theme.of(context).textTheme.titleLarge),
-                        const SizedBox(height: 12),
-                        Text(provider.isNotEmpty
-                            ? submitted
-                                ? 'Your information has been submitted for review.'
-                                : provider['kycStatus'] == 'rejected'
-                                    ? 'Your Exchange application was not approved. Contact support.'
-                                    : provider['kycStatus'] == 'accepted'
-                                        ? 'Your account is approved. Settlement accounts are being prepared.'
-                                        : nextAction == 'tin_required'
-                                            ? 'Provide your tax identification details.'
-                                            : nextAction == 'edd_required'
-                                                ? 'Provide additional source of funds information.'
-                                                : nextAction == 'kyc_required'
-                                                    ? 'Complete the provider verification to continue.'
-                                                    : 'Your Exchange application is under review.'
-                            : data['eligible'] != true
-                                ? 'Complete your identity verification first.'
-                                : {
-                                      'not_started':
-                                          'Choose your limits and complete Exchange verification.',
-                                      'in_progress':
-                                          'Continue your saved Exchange verification.',
-                                      'resubmission_required':
-                                          'Additional verification information is required.',
-                                      'pending':
-                                          'Your verification is under review.',
-                                      'on_hold':
-                                          'Additional review is in progress.',
-                                      'approved':
-                                          'Verification approved. Activate your Exchange account.',
-                                      'rejected':
-                                          'Verification was not approved. Contact support.'
-                                    }[status] ??
-                                    'Checking verification status.'),
-                        if (exchangeText(provider, 'reason').isNotEmpty)
-                          Text(exchangeText(provider, 'reason')),
-                        if (url != null &&
-                            exchangeSafeUrl(url) != null &&
-                            !submitted)
-                          TextButton(
-                              onPressed: busy
-                                  ? null
-                                  : () => run(() => openExchangeUrl(url)),
-                              child: const Text('Continue verification')),
-                        if (canStart ||
-                            (!business &&
-                                status == 'approved' &&
-                                data['tier'] == 'sdd' &&
-                                provider.isEmpty))
-                          FilledButton(
-                              onPressed: busy
-                                  ? null
-                                  : () => run(() async {
-                                        final tier = business
-                                            ? 'kyb'
-                                            : await showDialog<String>(
-                                                context: context,
-                                                builder: (context) =>
-                                                    SimpleDialog(
-                                                        title: const Text(
-                                                            'Choose Exchange limits'),
-                                                        children: [
-                                                          if (data['tier'] !=
-                                                              'cdd')
-                                                            SimpleDialogOption(
-                                                                onPressed: () =>
-                                                                    Navigator.pop(
-                                                                        context,
-                                                                        'sdd'),
-                                                                child: const Text(
-                                                                    'Basic — \$1,000 per 3 months')),
-                                                          SimpleDialogOption(
-                                                              onPressed: () =>
-                                                                  Navigator.pop(
-                                                                      context,
-                                                                      'cdd'),
-                                                              child: const Text(
-                                                                  'Higher limits — \$25,000 per year'))
-                                                        ]));
-                                        if (tier == null) return;
-                                        final session = await ref
-                                            .read(mobilePlatformApiProvider)
-                                            .startExchangeVerification(tier);
-                                        final link = exchangeText(
-                                            session, 'verificationUrl');
-                                        if (exchangeSafeUrl(link) != null &&
-                                            mounted) {
-                                          setState(
-                                              () => verificationUrl = link);
-                                          await openExchangeUrl(link);
-                                        }
-                                      }),
-                              child: Text(status == 'approved'
-                                  ? 'Upgrade limits'
-                                  : 'Choose limits and verify')),
-                        if (status == 'approved' &&
-                            data['hasProviderAccount'] != true)
-                          FilledButton(
-                              onPressed: busy || applicationOutcomeUnknown
-                                  ? null
-                                  : () => run(completeApplication),
-                              child: const Text('Activate Exchange')),
-                        if (status == 'approved' &&
-                            data['hasProviderAccount'] != true)
-                          const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 8),
-                              child: Text(
-                                  'We’ll use your completed Sumsub answers. Only missing details will be requested.')),
-                        if (!submitted &&
-                            ['tin_required', 'edd_required']
-                                .contains(nextAction))
-                          FilledButton(
-                              onPressed: busy
-                                  ? null
-                                  : () => run(() async {
-                                        await showDialog<void>(
-                                            context: context,
-                                            barrierDismissible: false,
-                                            builder: (_) =>
-                                                ExchangeProviderActionDialog(
-                                                    tax: nextAction ==
-                                                        'tin_required'));
-                                      }),
-                              child: const Text('Provide information')),
-                        TextButton(
-                            onPressed: busy
-                                ? null
-                                : () => ref
-                                    .invalidate(exchangeVerificationProvider),
-                            child: const Text('Refresh verification status')),
-                        if (busy) const LinearProgressIndicator(),
-                        if (error != null)
-                          Text(error!,
-                              style: TextStyle(
-                                  color: Theme.of(context).colorScheme.error)),
-                      ]);
-                })));
+            child: Align(
+                heightFactor: 1,
+                alignment: AlignmentDirectional.topStart,
+                child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 760),
+                    child: state.when(
+                        loading: () => const LinearProgressIndicator(),
+                        error: (e, st) => Column(children: [
+                              const Text(
+                                  'Could not check Exchange verification.'),
+                              TextButton(
+                                  onPressed: () => ref
+                                      .invalidate(exchangeVerificationProvider),
+                                  child: const Text('Retry'))
+                            ]),
+                        data: (data) {
+                          final provider = exchangeMap(data['provider']);
+                          final status = exchangeText(data, 'status');
+                          final nextAction =
+                              exchangeText(provider, 'nextAction')
+                                  .split(':')
+                                  .first;
+                          final submitted = provider['actionSubmitted'] == true;
+                          final business =
+                              data['verificationType'] == 'business';
+                          final canStart = !business &&
+                              data['eligible'] == true &&
+                              provider.isEmpty &&
+                              [
+                                'not_started',
+                                'in_progress',
+                                'resubmission_required'
+                              ].contains(status);
+                          final url = provider.isNotEmpty
+                              ? exchangeActionUrl(provider)
+                              : verificationUrl;
+                          return Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Exchange verification',
+                                    style:
+                                        Theme.of(context).textTheme.titleLarge),
+                                const SizedBox(height: 12),
+                                Text(provider.isNotEmpty
+                                    ? submitted
+                                        ? 'Your information has been submitted for review.'
+                                        : ['rejected', 'failed']
+                                                .contains(provider['kycStatus'])
+                                            ? 'Your Exchange application was not approved. Contact support.'
+                                            : provider['kycStatus'] ==
+                                                    'accepted'
+                                                ? 'Your account is approved. Settlement accounts are being prepared.'
+                                                : nextAction == 'tin_required'
+                                                    ? 'Provide your tax identification details.'
+                                                    : nextAction ==
+                                                            'edd_required'
+                                                        ? 'Provide additional source of funds information.'
+                                                        : [
+                                                            'kyc_required',
+                                                            'kyb_required'
+                                                          ].contains(nextAction)
+                                                            ? 'Complete the provider verification to continue.'
+                                                            : 'Your Exchange application is under review.'
+                                    : business
+                                        ? 'Review your saved business details and complete the provider’s business verification.'
+                                        : data['eligible'] != true
+                                            ? 'Complete your identity verification first.'
+                                            : {
+                                                  'not_started':
+                                                      'Choose your limits and complete Exchange verification.',
+                                                  'in_progress':
+                                                      'Continue your saved Exchange verification.',
+                                                  'resubmission_required':
+                                                      'Additional verification information is required.',
+                                                  'pending':
+                                                      'Your verification is under review.',
+                                                  'on_hold':
+                                                      'Additional review is in progress.',
+                                                  'approved':
+                                                      'Verification approved. Activate your Exchange account.',
+                                                  'rejected':
+                                                      'Verification was not approved. Contact support.'
+                                                }[status] ??
+                                                'Checking verification status.'),
+                                if (exchangeText(provider, 'reason').isNotEmpty)
+                                  Text(exchangeText(provider, 'reason')),
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 16),
+                                  child: Wrap(
+                                    spacing: 12,
+                                    runSpacing: 12,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
+                                    children: [
+                                      if (!business &&
+                                          status == 'approved' &&
+                                          data['hasProviderAccount'] != true)
+                                        FilledButton(
+                                            onPressed: busy ||
+                                                    applicationOutcomeUnknown
+                                                ? null
+                                                : () =>
+                                                    run(completeApplication),
+                                            child: const Text(
+                                                'Activate Exchange')),
+                                      if (url != null &&
+                                          exchangeSafeUrl(url) != null &&
+                                          !submitted &&
+                                          !['accepted', 'rejected', 'failed']
+                                              .contains(provider['kycStatus']))
+                                        TextButton(
+                                            onPressed: busy
+                                                ? null
+                                                : () => run(
+                                                    () => openExchangeUrl(url)),
+                                            child: const Text(
+                                                'Continue verification')),
+                                      if (business &&
+                                          provider.isEmpty &&
+                                          data['hasProviderAccount'] != true)
+                                        FilledButton(
+                                            onPressed: busy ||
+                                                    data['businessOnboardingSupported'] !=
+                                                        true
+                                                ? null
+                                                : startBusiness,
+                                            child: const Text(
+                                                'Review business details')),
+                                      if (business &&
+                                          provider.isEmpty &&
+                                          data['businessOnboardingSupported'] !=
+                                              true)
+                                        const Text(
+                                            'Business Exchange setup is not available yet. Contact support.'),
+                                      if (canStart ||
+                                          (!business &&
+                                              status == 'approved' &&
+                                              ['sdd', 'cdd'].contains(data['tier']) &&
+                                              provider.isEmpty))
+                                        OutlinedButton(
+                                            onPressed: busy
+                                                ? null
+                                                : () => run(() async {
+                                                      final tier = business
+                                                          ? 'kyb'
+                                                          : await showDialog<
+                                                                  String>(
+                                                              context: context,
+                                                              builder: (context) =>
+                                                                  ExchangeLimitsDialog(
+                                                                      currentTier: exchangeText(data, 'tier')));
+                                                      if (tier == null) return;
+                                                      final session = await ref
+                                                          .read(
+                                                              mobilePlatformApiProvider)
+                                                          .startExchangeVerification(
+                                                              tier);
+                                                      if (!mounted) return;
+                                                      setState(() => verificationUrl = null);
+                                                      ref.invalidate(exchangeOverviewProvider);
+                                                      ref.invalidate(exchangeVerificationProvider);
+                                            await ref.read(exchangeVerificationProvider.future);
+                                                      if (!mounted) return;
+                                                      final link = exchangeText(
+                                                          session,
+                                                          'verificationUrl');
+                                                      if (exchangeSafeUrl(
+                                                                  link) !=
+                                                              null &&
+                                                          mounted) {
+                                                        setState(() =>
+                                                            verificationUrl =
+                                                                link);
+                                                        await openExchangeUrl(
+                                                            link);
+                                                      }
+                                                    }),
+                                            child: Text(status == 'approved'
+                                                ? 'Change limits'
+                                                : 'Choose limits and verify')),
+                                      if (!submitted &&
+                                          ['tin_required', 'edd_required']
+                                              .contains(nextAction))
+                                        FilledButton(
+                                            onPressed: busy
+                                                ? null
+                                                : () => run(() async {
+                                                      await showDialog<void>(
+                                                          context: context,
+                                                          barrierDismissible:
+                                                              false,
+                                                          builder: (_) =>
+                                                              ExchangeProviderActionDialog(
+                                                                  tax: nextAction ==
+                                                                      'tin_required'));
+                                                    }),
+                                            child: const Text(
+                                                'Provide information')),
+                                    ],
+                                  ),
+                                ),
+                                if (!business &&
+                                    status == 'approved' &&
+                                    data['hasProviderAccount'] != true)
+                                  const Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(vertical: 8),
+                                      child: Text(
+                                          'We’ll use your completed Sumsub answers. Only missing details will be requested.')),
+                                TextButton(
+                                    onPressed: busy
+                                        ? null
+                                        : () => ref.invalidate(
+                                            exchangeVerificationProvider),
+                                    child: const Text(
+                                        'Refresh verification status')),
+                                if (busy)
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 12),
+                                    child: LinearProgressIndicator(),
+                                  ),
+                                if (error != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 12),
+                                    child: Semantics(
+                                      liveRegion: true,
+                                      child: Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .errorContainer,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Icon(Icons.error_outline,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onErrorContainer),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Text(error!,
+                                                  softWrap: true,
+                                                  style: TextStyle(
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .onErrorContainer)),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ]);
+                        })))));
   }
 }
 
 class ExchangeApplicationDialog extends ConsumerStatefulWidget {
   const ExchangeApplicationDialog(
-      {super.key, required this.initial, this.missingFields});
+      {super.key, required this.initial, this.missingFields, this.kycLevel = 'CDD'});
   final Map<String, dynamic> initial;
   final Set<String>? missingFields;
+  final String kycLevel;
   @override
   ConsumerState<ExchangeApplicationDialog> createState() =>
       _ExchangeApplicationDialogState();
@@ -265,8 +387,13 @@ class _ExchangeApplicationDialogState
   String value(String key) => answers[key] ?? '';
   late final Set<String>? missingFields =
       widget.missingFields == null ? null : {...widget.missingFields!};
+  static const cddFields = {
+    'annual_income', 'expected_deposit_one_year', 'hnwi_str',
+    'source_of_funds', 'source_of_funds_of_country', 'source_of_wealth_of_country'
+  };
+  bool applicable(String key) => widget.kycLevel != 'SDD' || !cddFields.contains(key);
   bool asks(String key) =>
-      missingFields == null || missingFields!.contains(key);
+      applicable(key) && (missingFields == null || missingFields!.contains(key));
   void change(String key, String v) => setState(() {
         answers[key] = v;
         if (key == 'employment_type_or_status') {
@@ -398,7 +525,7 @@ class _ExchangeApplicationDialogState
   Future<void> submit() async {
     if (busy || outcomeUnknown) return;
     // Multi-country selectors intentionally have an empty add control; validate their selected values separately.
-    if (value('source_of_funds').split(',').contains('71')) {
+    if (applicable('source_of_funds') && value('source_of_funds').split(',').contains('71')) {
       setState(() => error = 'Third-party funding requires support review.');
       return;
     }
@@ -418,7 +545,7 @@ class _ExchangeApplicationDialogState
     if (['15', '16'].contains(value('employment_type_or_status'))) {
       required.add('employment_jurisdiction');
     }
-    if (required.any((k) => value(k).trim().isEmpty)) {
+    if (required.where(applicable).any((k) => value(k).trim().isEmpty)) {
       setState(() => error = 'Complete all application fields.');
       return;
     }
@@ -803,8 +930,7 @@ class _ExchangeProviderActionDialogState
                     'grossAnnualIncome': 'Gross annual income and currency'
                   }.entries)
                     field('salary.${entry.key}', entry.value),
-                  field('fileUrls',
-                      'Supporting document HTTPS links (one per line)'),
+                  const Text('Document uploads are not available yet. Do not publish sensitive documents or paste document links. Contact support if documents are required.'),
                 ],
                 if (error != null) Text(error!),
               ]))),
@@ -847,17 +973,6 @@ class _ExchangeProviderActionDialogState
                                   : null
                             });
                           } else {
-                            final urls = (fields['fileUrls'] ?? '')
-                                .split('\n')
-                                .map((x) => x.trim())
-                                .where((x) => x.isNotEmpty)
-                                .toSet()
-                                .toList();
-                            if (urls.length > 10 ||
-                                urls.any((x) => exchangeSafeUrl(x) == null)) {
-                              throw StateError(
-                                  'Use up to 10 valid HTTPS document links.');
-                            }
                             final salary = {
                               for (final e in fields.entries.where((e) =>
                                   e.key.startsWith('salary.') &&
@@ -874,10 +989,9 @@ class _ExchangeProviderActionDialogState
                             if (salary.isNotEmpty) {
                               request['professionalSalary'] = salary;
                             }
-                            if (urls.isNotEmpty) request['fileUrls'] = urls;
                             if (request.isEmpty) {
                               throw StateError(
-                                  'Provide source of funds details or a supporting document.');
+                                  'Provide source of funds details.');
                             }
                             await api.submitExchangeEdd(request);
                           }

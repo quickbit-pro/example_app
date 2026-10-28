@@ -36,7 +36,8 @@ const _tenant = MobileTenantConfig(
   existingAccountClaimEnabled: true,
   boomFiExchangeEnabled: true,
   walletOutflowsEnabled: true,
-  equalsMoneyEnabled: true,
+  // Phone submission is card-only; Equals review is covered by its dialog tests.
+  equalsMoneyEnabled: false,
 );
 
 /// The package's flag-and-dial-code button inside the field, and Germany's
@@ -70,6 +71,8 @@ class _FakeApi extends MobilePlatformApi {
     String? referralSource,
     String? invitationToken,
     Map<String, dynamic>? legalAgreements,
+    bool onboardingExchange = false,
+    bool onboardingBanking = false,
     bool? referralAccepted,
     int? referralTermsVersion,
     String? registrationAttemptId,

@@ -1,3 +1,5 @@
+import 'personal_onboarding_localizations.dart';
+import '../../kyc/presentation/unified_cdd_screen.dart';
 import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import '../../../core/models/upload_document.dart';
 import '../../../shared/widgets/safeguarding_statement.dart';
@@ -57,6 +59,19 @@ class OnboardingBankingScreen extends ConsumerWidget {
           ),
         ),
       );
+    }
+
+    final unified = ref.watch(unifiedCddPreferenceProvider);
+    if (unified.isLoading) {
+      return Scaffold(body: LoadingState(label: context.tr('Loading onboarding')));
+    }
+    if (unified.hasError) {
+      return Scaffold(body: ErrorState(error: unified.error!,
+          onRetry: () => ref.invalidate(unifiedCddPreferenceProvider)));
+    }
+    if (unified.valueOrNull == true &&
+        ref.watch(kycDetailedStatusProvider).valueOrNull?.isBankApproved != true) {
+      return const UnifiedCddScreen();
     }
 
     return PlatformActionListener(
@@ -1315,6 +1330,19 @@ Future<void> _showTierRequiredNotice(BuildContext context) {
 }
 
 Future<void> _showEqualsMoneyDialog(BuildContext context, WidgetRef ref) async {
+  // Other screens share this entry point: never open legacy PoA collection for CDD.
+  try {
+    if (await ref.read(unifiedCddPreferenceProvider.future)) {
+      if (context.mounted) context.go(AppRoutes.kyc);
+      return;
+    }
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(context.tr('Could not load onboarding. Please retry.'))));
+    }
+    return;
+  }
   // Refresh at the entry point as the visible status may be stale.
   try {
     final status =
@@ -1385,6 +1413,7 @@ Future<void> _showEqualsMoneyDialog(BuildContext context, WidgetRef ref) async {
                   label: context.tr('Destination countries'),
                   values: destinationCountries,
                   options: equalsCountryCodes,
+                  labelBuilder: (v) => personalOnboardingCountryLabel(context, v),
                   onChanged: (value) =>
                       setState(() => destinationCountries = value),
                 ),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../kyc/presentation/unified_cdd_screen.dart';
 import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -62,6 +63,15 @@ class _HoppaKycStatusScreenState extends ConsumerState<HoppaKycStatusScreen>
 
   @override
   Widget build(BuildContext context) {
+    final unified = ref.watch(unifiedCddPreferenceProvider);
+    if (unified.isLoading) {
+      return Scaffold(body: LoadingState(label: context.tr('Loading onboarding')));
+    }
+    if (unified.hasError) {
+      return Scaffold(body: ErrorState(error: unified.error!,
+          onRetry: () => ref.invalidate(unifiedCddPreferenceProvider)));
+    }
+    if (unified.valueOrNull == true) return const UnifiedCddScreen();
     final status = ref.watch(kycDetailedStatusProvider);
     final isBusinessAccount = ref.watch(dashboardProvider).maybeWhen(
           data: (dashboard) => dashboard.profile.isBusinessAccount,

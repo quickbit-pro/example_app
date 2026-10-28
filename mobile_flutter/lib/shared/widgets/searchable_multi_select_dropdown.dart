@@ -105,6 +105,7 @@ class SearchableSingleSelectDropdown extends StatelessWidget {
                 isEmpty: selected.isEmpty,
                 decoration: InputDecoration(
                   labelText: label,
+                  floatingLabelBehavior: FloatingLabelBehavior.always,
                   errorText: field.errorText,
                   border: const OutlineInputBorder(),
                   suffixIcon: enabled
@@ -264,26 +265,36 @@ class SearchableMultiSelectDropdown extends StatelessWidget {
         return null;
       },
       builder: (field) {
-        return InkWell(
-          borderRadius: BorderRadius.circular(4),
-          onTap: () => _openPicker(context, field),
-          child: InputDecorator(
-            isEmpty: values.isEmpty,
-            decoration: InputDecoration(
-              labelText: label,
-              errorText: field.errorText,
-              border: const OutlineInputBorder(),
-              suffixIcon: const Icon(Icons.arrow_drop_down),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(label,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    )),
+            const SizedBox(height: 6),
+            InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => _openPicker(context, field),
+              child: InputDecorator(
+                isEmpty: values.isEmpty,
+                decoration: InputDecoration(
+                  errorText: field.errorText,
+                  suffixIcon: const Icon(Icons.expand_more_rounded, size: 20),
+                ),
+                child: Text(
+                  values.isEmpty
+                      ? context.tr('Select options')
+                      : _summaryText(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: values.isEmpty
+                      ? TextStyle(color: Theme.of(context).hintColor)
+                      : null,
+                ),
+              ),
             ),
-            child: Text(
-              _summaryText(),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: values.isEmpty
-                  ? TextStyle(color: Theme.of(context).hintColor)
-                  : null,
-            ),
-          ),
+          ],
         );
       },
     );
@@ -304,7 +315,7 @@ class SearchableMultiSelectDropdown extends StatelessWidget {
       ),
     );
 
-    if (result == null) {
+    if (result == null || !field.mounted || !context.mounted) {
       return;
     }
 

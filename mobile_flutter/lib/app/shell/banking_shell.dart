@@ -179,8 +179,7 @@ class BankingShell extends ConsumerWidget {
 
     final width = MediaQuery.sizeOf(context).width;
     if (width >= ExampleBreakpoints.desktop) {
-      final exchangeEnabled =
-          !isBusinessAccount && tenantConfig?.boomFiExchangeEnabled == true;
+      final exchangeEnabled = tenantConfig?.boomFiExchangeEnabled == true;
       return _ExampleDesktopShell(
         destinations: destinations,
         selectedIndex: selected,

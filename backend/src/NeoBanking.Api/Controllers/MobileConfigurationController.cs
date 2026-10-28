@@ -7,12 +7,13 @@ namespace NeoBanking.Api.Controllers;
 
 [AllowAnonymous]
 [Route("api/v1/mobile/config")]
-public sealed class MobileConfigurationController(IOptions<CompanyOptions> options) : ApiControllerBase
+public sealed class MobileConfigurationController(IOptions<CompanyOptions> options, DashboardLegalSettings? legalSettings = null) : ApiControllerBase
 {
     [HttpGet]
-    public ActionResult<object> Get()
+    public async Task<ActionResult<object>> Get(CancellationToken ct = default)
     {
         var company = options.Value;
+        var branding = legalSettings is null ? company.Branding : await legalSettings.GetAsync(ct);
         var referralMode = NormalizeReferralMode(company.Features.ReferralRegistrationMode);
 
         return Ok(new
@@ -20,21 +21,23 @@ public sealed class MobileConfigurationController(IOptions<CompanyOptions> optio
             company = new
             {
                 name = company.Name,
+                legalDocumentsFromDashboard = !string.IsNullOrWhiteSpace(company.DashboardBrandingUrl),
                 brandName = company.BrandName,
-                company.Branding.LogoUrl,
-                company.Branding.PrimaryColor,
-                company.Branding.SupportEmail,
-                company.Branding.TermsUrl,
-                company.Branding.PrivacyUrl,
-                eSignUrl = company.Branding.ESignUrl,
-                eCommunicationNoticeUrl = company.Branding.ECommunicationNoticeUrl,
-                generalTermsUrl = company.Branding.GeneralTermsUrl,
-                generalTermsUsUrl = company.Branding.GeneralTermsUsUrl,
-                additionalAcknowledgementsUrl = company.Branding.AdditionalAcknowledgementsUrl,
-                equalsGeneralTermsUrl = company.Branding.EqualsGeneralTermsUrl,
-                company.Branding.EqualsRegulatoryDisclaimerEu,
-                company.Branding.EqualsRegulatoryDisclaimerUk,
-                company.Branding.EqualsRegulatoryRegionDefault
+                branding.LogoUrl,
+                branding.PrimaryColor,
+                branding.SupportEmail,
+                branding.TermsUrl,
+                branding.PrivacyUrl,
+                eSignUrl = branding.ESignUrl,
+                eCommunicationNoticeUrl = branding.ECommunicationNoticeUrl,
+                generalTermsUrl = branding.GeneralTermsUrl,
+                generalTermsUsUrl = branding.GeneralTermsUsUrl,
+                additionalAcknowledgementsUrl = branding.AdditionalAcknowledgementsUrl,
+                equalsGeneralTermsUrl = branding.EqualsGeneralTermsUrl,
+                branding.EqualsTermsVersion, branding.EqualsTermsEffectiveDate,
+                branding.EqualsRegulatoryDisclaimerEu,
+                branding.EqualsRegulatoryDisclaimerUk,
+                branding.EqualsRegulatoryRegionDefault
             },
             features = new
             {
@@ -43,6 +46,7 @@ public sealed class MobileConfigurationController(IOptions<CompanyOptions> optio
                 vouchersEnabled = company.Features.VouchersEnabled,
                 existingAccountClaimEnabled = company.Features.ExistingAccountClaimEnabled,
                 boomFiExchangeEnabled = company.Features.BoomFiExchangeEnabled,
+                unifiedCddOnboardingEnabled = company.Features.BoomFiExchangeEnabled || company.Features.EqualsMoneyEnabled,
                 walletOutflowsEnabled = company.Features.WalletOutflowsEnabled,
                 equalsMoneyEnabled = company.Features.EqualsMoneyEnabled,
                 businessOnboardingEnabled = company.Features.BusinessOnboardingEnabled

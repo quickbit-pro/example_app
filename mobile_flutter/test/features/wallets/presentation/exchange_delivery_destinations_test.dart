@@ -36,7 +36,7 @@ void main(){
    wallets:const [HoppaWalletAsset(symbol:'USDC',name:'USDC',network:'',amount:0,fiatValue:0,address:'',tint:Colors.blue,walletId:'balance')])))));
   await tester.pump();
   expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).onChanged,isNull);
-  expect(find.text('Loading your crypto card deposit addresses…'),findsOneWidget);
+  expect(find.text('Loading your payment card wallet addresses…'),findsOneWidget);
   loaded.complete([
    PlatformResource(id:'owned',title:'USDC',subtitle:'',metadata:{'balances':[{'currency':'USDC','available':'0'}], 'addresses':[for(final chain in ['MATIC','ETH']) {'currency':'USDC','chain':chain,'address':wallet.address}]}),
   ]);
@@ -63,7 +63,7 @@ void main(){
   await tester.pumpAndSettle();expect(find.text('Retry deposit addresses'),findsOneWidget);
   await tester.ensureVisible(find.text('Retry deposit addresses'));await tester.tap(find.text('Retry deposit addresses'));await tester.pumpAndSettle();
   expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).onChanged,isNull);
-  expect(find.textContaining('No crypto card deposit address matches'),findsOneWidget);
+  expect(find.textContaining('No payment card wallet address matches'),findsOneWidget);
   expect(tester.takeException(),isNull);await tester.pumpWidget(const SizedBox());
  });
 

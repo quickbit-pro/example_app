@@ -97,6 +97,20 @@ public sealed class MobileExchangeController : ApiControllerBase
     public Task<ActionResult<JsonElement?>> Verification(CancellationToken ct) => GetAsync("verification", ct);
     [HttpGet("verification/application")]
     public Task<ActionResult<JsonElement?>> Application(CancellationToken ct) => GetAsync("verification/application", ct);
+    [HttpGet("verification/business")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public Task<ActionResult<JsonElement?>> BusinessApplication(CancellationToken ct) => GetAsync("verification/business", ct);
+    [HttpPost("verification/business")]
+    public Task<ActionResult<JsonElement?>> StartBusiness(CancellationToken ct) =>
+        PostAsync("verification/business", JsonSerializer.SerializeToElement(new { }), false, ct);
+    [HttpPost("verification/business/authorisation/send-code")]
+    public Task<ActionResult<JsonElement?>> SendBusinessCode(CancellationToken ct) =>
+        PostAsync("verification/business/authorisation/send-code", JsonSerializer.SerializeToElement(new { }), false, ct);
+    [HttpPost("verification/business/authorisation")]
+    public Task<ActionResult<JsonElement?>> AuthoriseBusiness([FromBody] BusinessAuthorisationRequest request, CancellationToken ct) =>
+        PostAsync("verification/business/authorisation", JsonSerializer.SerializeToElement(request), false, ct);
+
+    public sealed record BusinessAuthorisationRequest(string Code);
     [HttpGet("settlement-accounts")]
     public Task<ActionResult<JsonElement?>> SettlementAccounts(CancellationToken ct) => GetAsync("verification/settlement-accounts", ct);
     [HttpPost("verification/session")]
@@ -201,17 +215,24 @@ public sealed class MobileExchangeController : ApiControllerBase
             try
             {
                 using var document = JsonDocument.Parse(error.Detail);
-                if (document.RootElement.ValueKind == JsonValueKind.Object &&
-                    document.RootElement.TryGetProperty("message", out var value) && value.ValueKind == JsonValueKind.String)
+                if (document.RootElement.ValueKind == JsonValueKind.Object)
                 {
-                    var text = value.GetString()?.Trim();
-                    if (text is { Length: > 0 and <= 220 } &&
-                        !text.Any(char.IsControl) && !text.Contains('{') && !text.Contains('[') &&
-                        !text.Contains("http", StringComparison.OrdinalIgnoreCase) &&
-                        !text.Contains("token", StringComparison.OrdinalIgnoreCase) &&
-                        !text.Contains("secret", StringComparison.OrdinalIgnoreCase) &&
-                        !text.Contains("api-key", StringComparison.OrdinalIgnoreCase))
-                        message = text;
+                    // Accept the API's error message and ProblemDetails title,
+                    // including PascalCase responses. Never expose raw detail.
+                    foreach (var key in new[] { "message", "Message", "title", "Title" })
+                    {
+                        if (!document.RootElement.TryGetProperty(key, out var value) ||
+                            value.ValueKind != JsonValueKind.String) continue;
+                        var text = value.GetString()?.Trim();
+                        if (text is not { Length: > 0 and <= 220 } ||
+                            text.Any(char.IsControl) || text.Contains('{') || text.Contains('[') ||
+                            text.Contains("http", StringComparison.OrdinalIgnoreCase) ||
+                            text.Contains("token", StringComparison.OrdinalIgnoreCase) ||
+                            text.Contains("secret", StringComparison.OrdinalIgnoreCase) ||
+                            text.Contains("api-key", StringComparison.OrdinalIgnoreCase)) continue;
+                        message = text.Replace("BoomFi", "ZBX", StringComparison.OrdinalIgnoreCase);
+                        break;
+                    }
                 }
             }
             catch (JsonException) { /* Non-JSON errors retain the safe generic title. */ }

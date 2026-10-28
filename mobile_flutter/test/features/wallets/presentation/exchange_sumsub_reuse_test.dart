@@ -22,15 +22,16 @@ const answers = {
 };
 
 class SavedAnswersApi extends MobilePlatformApi {
-  SavedAnswersApi({this.complete = true, this.timeout = false}) : super(Dio());
+  SavedAnswersApi({this.complete = true, this.timeout = false, this.kycLevel = 'CDD'}) : super(Dio());
   final bool complete, timeout;
+  final String kycLevel;
   int directCalls = 0, manualCalls = 0;
   Map<String, String>? submitted;
   @override
   Future<Map<String, dynamic>> getExchangeVerification() async => {
         'eligible': true,
         'status': 'approved',
-        'tier': 'cdd',
+        'tier': kycLevel.toLowerCase(),
         'hasProviderAccount': directCalls > 0 && !timeout,
         if (directCalls > 0 && !timeout) 'provider': {'kycStatus': 'pending'},
       };
@@ -38,8 +39,12 @@ class SavedAnswersApi extends MobilePlatformApi {
   Future<Map<String, dynamic>> getExchangeApplication() async => {
         'supported': true,
         'readyToSubmit': complete,
-        'answers': {...answers, if (!complete) 'annual_income': ''},
-        'missingFields': complete ? [] : ['annual_income'],
+        'kycLevel': kycLevel,
+        'answers': kycLevel == 'SDD'
+            ? {for (final entry in answers.entries.take(6)) entry.key: entry.value,
+                if (!complete) 'acting_capacity': ''}
+            : {...answers, if (!complete) 'annual_income': ''},
+        'missingFields': complete ? [] : [kycLevel == 'SDD' ? 'acting_capacity' : 'annual_income'],
       };
   @override
   Future<Map<String, dynamic>> submitExchangeApplicationFromSumsub() async {
@@ -108,6 +113,24 @@ void main() {
     expect(api.directCalls, 0);
     expect(api.manualCalls, 1);
     expect(api.submitted, answers);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('SDD corrections submit without CDD financial declarations', (tester) async {
+    final api = SavedAnswersApi(complete: false, kycLevel: 'SDD');
+    await host(tester, api);
+    await tester.tap(find.text('Activate Exchange'));
+    await tester.pumpAndSettle();
+    expect(find.text('Annual income (EUR)'), findsNothing);
+    expect(find.byType(CheckboxListTile), findsNothing);
+    expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Myself').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Submit application'));
+    await tester.pumpAndSettle();
+    expect(api.manualCalls, 1);
+    expect(api.submitted, {for (final entry in answers.entries.take(6)) entry.key: entry.value});
     expect(tester.takeException(), isNull);
   });
   testWidgets('uncertain direct submission blocks duplicate activation',

@@ -16,6 +16,7 @@ import '../core/theme/theme_preference_provider.dart';
 import '../features/auth/application/auth_providers.dart';
 import '../features/notifications/notifications.dart';
 import 'router/app_router.dart';
+import '../features/signup/presentation/equals_reagreement_gate.dart';
 
 class MobileApp extends ConsumerStatefulWidget {
   const MobileApp({super.key});
@@ -116,7 +117,7 @@ class _MobileAppState extends ConsumerState<MobileApp> {
           child: WebSafeAreaPadding(
             child: Stack(
               children: [
-                child ?? const SizedBox.shrink(),
+                EqualsReagreementGate(child: child ?? const SizedBox.shrink()),
                 const Positioned(
                   top: 0,
                   left: 0,

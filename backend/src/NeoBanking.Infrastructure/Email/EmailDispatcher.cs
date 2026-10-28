@@ -109,6 +109,17 @@ public sealed class EmailDispatcher(
                     message.UpdatedAt = DateTimeOffset.UtcNow;
                     continue;
                 }
+                // A log/sandbox delivery is not a forwarded complaint. Keep its
+                // content out of logs and expose an actionable held status.
+                if (message.TemplateKey == "equals_complaint_forward" &&
+                    (!options.Value.IsSendGrid || options.Value.SendGrid.SandboxMode))
+                {
+                    message.Status = "held";
+                    message.ErrorMessage = "Complaint forwarding requires live email delivery.";
+                    message.NextAttemptAt = null;
+                    message.UpdatedAt = DateTimeOffset.UtcNow;
+                    continue;
+                }
                 var result = await sender.SendAsync(
                     new EmailEnvelope(
                         message.ToEmail,
@@ -128,6 +139,18 @@ public sealed class EmailDispatcher(
                     message.Status = "sent";
                     message.SentAt = now;
                     message.ProviderMessageId = result.ProviderMessageId;
+                    if (message.TemplateKey == "equals_complaint_forward") {
+                        // Initial forwarding receipt: do not claim delivery at queue time.
+                        var ticket = await dbContext.SupportTickets.SingleOrDefaultAsync(x =>
+                            x.Id == message.Id && x.CompanyInstallationId == message.CompanyInstallationId, cancellationToken);
+                        if (ticket != null && !await dbContext.SupportTicketMessages.AnyAsync(x => x.Id == message.Id, cancellationToken)) {
+                            dbContext.SupportTicketMessages.Add(new SupportTicketMessage {
+                                Id = message.Id, TicketId = ticket.Id, AuthorUserId = Guid.Empty, IsAdmin = true,
+                                Body = "Your complaint has been passed to Equals Money, who will assess it and contact you."
+                            });
+                        }
+                    }
+
                     message.ErrorMessage = null;
                     message.NextAttemptAt = null;
                 }

@@ -1,3 +1,4 @@
+import '../../../shared/widgets/equals_fee_schedule.dart';
 import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -107,7 +108,8 @@ class ProfileScreen extends ConsumerWidget {
                     snapshot.profile,
                     supportEmail,
                   ),
-                  onEditNickname: () => showNicknameEditor(context, snapshot.profile.nickname),
+                  onEditNickname: () =>
+                      showNicknameEditor(context, snapshot.profile.nickname),
                   onSignOut: signOut,
                 )
               : _ProfileContent(
@@ -115,7 +117,8 @@ class ProfileScreen extends ConsumerWidget {
                   supportEmail: supportEmail,
                   rewardsEnabled: rewardsEnabled,
                   onEditProfile: editProfile,
-                  onEditNickname: () => showNicknameEditor(context, snapshot.profile.nickname),
+                  onEditNickname: () =>
+                      showNicknameEditor(context, snapshot.profile.nickname),
                   onSignOut: signOut,
                 );
         },
@@ -387,10 +390,6 @@ class _ExampleProfileContentState extends ConsumerState<_ExampleProfileContent> 
       ],
     );
 
-    // Support and Legal were two panels of one row each. Three single-row
-    // groups stacked down a page read as leftovers rather than as structure;
-    // one group of two rows says the same thing and gives the section a
-    // reason to be a section.
     final helpSection = _SettingsSection(
       label: context.tr('Help & legal'),
       children: [
@@ -404,6 +403,32 @@ class _ExampleProfileContentState extends ConsumerState<_ExampleProfileContent> 
           trailing: ExampleRow.chevron,
           onTap: _contactSupport,
         ),
+        if (ref
+                .watch(mobileTenantConfigProvider)
+                .valueOrNull
+                ?.equalsMoneyEnabled ==
+            true)
+          ExampleRow(
+            leading: const ExampleIconTile(
+                icon: Icons.receipt_long_outlined, color: _tile),
+            title: context.tr('Fees & billing'),
+            subtitle: context.tr('Your plan’s banking fees'),
+            trailing: ExampleRow.chevron,
+            onTap: () => showEqualsFeeSchedule(context),
+          ),
+        if (ref
+                .watch(mobileTenantConfigProvider)
+                .valueOrNull
+                ?.equalsMoneyEnabled ==
+            true)
+          ExampleRow(
+            leading: const ExampleIconTile(
+                icon: Icons.chat_bubble_outline, color: _tile),
+            title: context.tr('Complaints'),
+            subtitle: context.tr('Raise a complaint or contact Equals Money'),
+            trailing: ExampleRow.chevron,
+            onTap: () => context.push('/complaints'),
+          ),
         ExampleRow(
           leading: const ExampleIconTile(
             icon: Icons.description_outlined,
@@ -560,8 +585,8 @@ class _ExampleProfileContentState extends ConsumerState<_ExampleProfileContent> 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(context.tr('{p0} was not enabled.',
-                {'p0': biometricLabel})),
+            content: Text(
+                context.tr('{p0} was not enabled.', {'p0': biometricLabel})),
           ),
         );
       }
@@ -2137,7 +2162,8 @@ class _ProfileContent extends StatelessWidget {
                   icon: Icons.alternate_email,
                   title: context.tr('Nickname'),
                   subtitle: snapshot.profile.nickname == null
-                      ? context.tr('Set your unique nickname') : '@${snapshot.profile.nickname}',
+                      ? context.tr('Set your unique nickname')
+                      : '@${snapshot.profile.nickname}',
                   onTap: onEditNickname,
                 ),
                 NeoSettingsRow(
@@ -2397,6 +2423,29 @@ class _SettingsPanel extends ConsumerWidget {
               subtitle: context.tr('View requests and replies'),
               onTap: () => context.push('/support'),
             ),
+            if (ref
+                    .watch(mobileTenantConfigProvider)
+                    .valueOrNull
+                    ?.equalsMoneyEnabled ==
+                true)
+              NeoSettingsRow(
+                icon: Icons.receipt_long_outlined,
+                title: context.tr('Fees & billing'),
+                subtitle: context.tr('Your plan’s banking fees'),
+                onTap: () => showEqualsFeeSchedule(context),
+              ),
+            if (ref
+                    .watch(mobileTenantConfigProvider)
+                    .valueOrNull
+                    ?.equalsMoneyEnabled ==
+                true)
+              NeoSettingsRow(
+                icon: Icons.chat_bubble_outline,
+                title: context.tr('Complaints'),
+                subtitle:
+                    context.tr('Raise a complaint or contact Equals Money'),
+                onTap: () => context.push('/complaints'),
+              ),
             NeoSettingsRow(
               icon: Icons.policy_outlined,
               title: context.tr('Legal documents'),

@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../brands/example/example.dart';
 import '../../../core/branding/app_design.dart';
 import '../../rewards/domain/rewards_models.dart';
+import 'equals_document_dialog.dart';
 
 /// The agreements a customer accepts at registration. Mirrors the web
 /// registration page so both channels record the same consent set.
@@ -14,6 +15,7 @@ enum LegalAgreementKey {
   privacyAndTerms,
   additionalAcknowledgements,
   equalsTerms,
+  equalsPrivacy,
   informationAccuracy,
   noUnauthorizedSolicitation,
 }
@@ -36,6 +38,7 @@ class LegalAgreementSpec {
     this.links = const [],
     this.trail = '',
     this.translationBrand,
+    this.documentVersion,
   });
 
   final LegalAgreementKey key;
@@ -46,6 +49,7 @@ class LegalAgreementSpec {
   final List<LegalDocumentLink> links;
   final String trail;
   final String? translationBrand;
+  final String? documentVersion;
 
   /// Display translations never change the consent evidence or URLs.
   String localizedCopy(BuildContext context, String copy) {
@@ -60,6 +64,7 @@ class LegalAgreementSpec {
         LegalAgreementKey.additionalAcknowledgements =>
           'additionalAcknowledgements',
         LegalAgreementKey.equalsTerms => 'equalsTerms',
+        LegalAgreementKey.equalsPrivacy => 'equalsPrivacy',
         LegalAgreementKey.informationAccuracy => 'informationAccuracy',
         LegalAgreementKey.noUnauthorizedSolicitation =>
           'noUnauthorizedSolicitation',
@@ -67,8 +72,7 @@ class LegalAgreementSpec {
 }
 
 /// Builds the agreement list for this installation. The fiat account terms
-/// only appear when fiat banking applies and a document is configured, the
-/// same rule the web registration uses.
+/// appear whenever fiat banking applies. Missing documents must block consent.
 List<LegalAgreementSpec> legalAgreementSpecs(
   MobileTenantConfig? config, {
   required bool business,
@@ -77,13 +81,14 @@ List<LegalAgreementSpec> legalAgreementSpecs(
   final brand = config?.brandName.trim().isNotEmpty == true
       ? config!.brandName.trim()
       : appName;
-  const generalTerms = _sharedGeneralTermsUrl;
-  const generalTermsUs = _sharedGeneralTermsUsUrl;
+  final generalTerms =
+      _documentUrl(config, config?.generalTermsUrl, _sharedGeneralTermsUrl);
+  final generalTermsUs =
+      _documentUrl(config, config?.generalTermsUsUrl, _sharedGeneralTermsUsUrl);
   final equalsUrl = config?.equalsGeneralTermsUrl?.trim();
-  final requiresEqualsTerms =
-      (business || config?.equalsMoneyEnabled != false) &&
-          equalsUrl != null &&
-          equalsUrl.isNotEmpty;
+  final requiresEqualsTerms = business || config?.equalsMoneyEnabled != false;
+  final equalsPrivacyUrl =
+      equalsPrivacyPolicyUrl(config?.equalsRegulatoryRegionDefault);
   return [
     LegalAgreementSpec(
       key: LegalAgreementKey.eSignAndCommunication,
@@ -92,7 +97,8 @@ List<LegalAgreementSpec> legalAgreementSpecs(
           : 'I accept the E-Sign Agreement',
       lead: 'Review the ',
       links: [
-        const LegalDocumentLink('E-Sign Agreement', _sharedESignUrl),
+        LegalDocumentLink('E-Sign Agreement',
+            _documentUrl(config, config?.eSignUrl, _sharedESignUrl)),
         if (config?.eCommunicationNoticeUrl != null)
           LegalDocumentLink('GLBA Disclosure', config!.eCommunicationNoticeUrl),
       ],
@@ -103,20 +109,22 @@ List<LegalAgreementSpec> legalAgreementSpecs(
       title: 'I accept the Privacy Policy and Terms of Service',
       lead: 'Review the ',
       links: [
-        const LegalDocumentLink('Privacy Policy', _sharedPrivacyUrl),
+        LegalDocumentLink('Privacy Policy',
+            _documentUrl(config, config?.privacyUrl, _sharedPrivacyUrl)),
         LegalDocumentLink('$brand General Terms (Non-US)', generalTerms),
         LegalDocumentLink('$brand General Terms (US)', generalTermsUs),
       ],
       trail: '.',
     ),
-    const LegalAgreementSpec(
+    LegalAgreementSpec(
       key: LegalAgreementKey.additionalAcknowledgements,
       title: 'I accept the Additional Acknowledgements when Onboarding',
       lead: 'Review the ',
       links: [
         LegalDocumentLink(
           'Additional Acknowledgements when Onboarding',
-          _defaultAdditionalAcknowledgementsUrl,
+          _documentUrl(config, config?.additionalAcknowledgementsUrl,
+              _defaultAdditionalAcknowledgementsUrl),
         ),
       ],
       trail: ' before proceeding.',
@@ -124,12 +132,21 @@ List<LegalAgreementSpec> legalAgreementSpecs(
     if (requiresEqualsTerms)
       LegalAgreementSpec(
         key: LegalAgreementKey.equalsTerms,
-        title: 'I accept the fiat account terms and conditions',
+        documentVersion: config?.equalsTermsVersion,
+        title: 'I accept the Equals Money Terms and Conditions',
         lead: 'Review the ',
         links: [
           LegalDocumentLink('Equals Money Terms and Conditions', equalsUrl)
         ],
         trail: ' before proceeding with multi-currency account services.',
+      ),
+    if (requiresEqualsTerms)
+      LegalAgreementSpec(
+        key: LegalAgreementKey.equalsPrivacy,
+        title: 'I confirm I have read and agree to the Equals Privacy Policy',
+        lead: 'Review the ',
+        links: [LegalDocumentLink('Equals Privacy Policy', equalsPrivacyUrl)],
+        trail: '.',
       ),
     LegalAgreementSpec(
       key: LegalAgreementKey.informationAccuracy,
@@ -148,8 +165,14 @@ List<LegalAgreementSpec> legalAgreementSpecs(
   ];
 }
 
-// Shared programme documents: styling or tenant configuration must not change
-// the PDFs displayed or recorded in customer consent.
+// Preserve legacy programme defaults unless this installation explicitly uses
+// the dashboard legal settings as its source.
+String _documentUrl(
+        MobileTenantConfig? config, String? configured, String fallback) =>
+    config?.legalDocumentsFromDashboard == true &&
+            configured?.trim().isNotEmpty == true
+        ? configured!.trim()
+        : fallback;
 const _sharedESignUrl = 'https://docs.hoppa.global/01%20E-sign%20Consent.pdf';
 const _sharedPrivacyUrl =
     'https://docs.hoppa.global/Hoppacard%20Privacy%20Policy.pdf';
@@ -167,18 +190,20 @@ List<LegalAgreementSpec> cardOrderAgreementSpecs(
   final brand = config?.brandName.trim().isNotEmpty == true
       ? config!.brandName.trim()
       : appName;
-  const eSign = _sharedESignUrl;
+  final eSign = _documentUrl(config, config?.eSignUrl, _sharedESignUrl);
   final glba = config?.eCommunicationNoticeUrl ?? eSign;
-  const privacy = _sharedPrivacyUrl;
-  const generalTerms = _sharedGeneralTermsUrl;
-  const generalTermsUs = _sharedGeneralTermsUsUrl;
+  final privacy = _documentUrl(config, config?.privacyUrl, _sharedPrivacyUrl);
+  final generalTerms =
+      _documentUrl(config, config?.generalTermsUrl, _sharedGeneralTermsUrl);
+  final generalTermsUs =
+      _documentUrl(config, config?.generalTermsUsUrl, _sharedGeneralTermsUsUrl);
   return [
     LegalAgreementSpec(
       key: LegalAgreementKey.eSignAndCommunication,
       title: 'I accept the E-Sign Agreement and GLBA Disclosure',
       lead: 'Review the ',
       links: [
-        const LegalDocumentLink('E-Sign Agreement', eSign),
+        LegalDocumentLink('E-Sign Agreement', eSign),
         LegalDocumentLink('GLBA Disclosure', glba),
       ],
       trail: ' before proceeding.',
@@ -188,7 +213,7 @@ List<LegalAgreementSpec> cardOrderAgreementSpecs(
       title: 'I accept the Privacy Policy and Terms of Service',
       lead: 'Review the ',
       links: [
-        const LegalDocumentLink('Privacy Policy', privacy),
+        LegalDocumentLink('Privacy Policy', privacy),
         LegalDocumentLink('$brand General Terms (Non-US)', generalTerms),
         LegalDocumentLink('$brand General Terms (US)', generalTermsUs),
       ],
@@ -224,6 +249,9 @@ List<LegalDocumentLink> legalDocumentLibrary(
       ...cardOrderAgreementSpecs(config, appName: appName),
     ])
       ...spec.links,
+    if (config?.equalsMoneyEnabled != false)
+      LegalDocumentLink('Equals Money complaints',
+          equalsComplaintsUrl(config?.equalsRegulatoryRegionDefault)),
     LegalDocumentLink('Company terms of service', config?.termsUrl),
     LegalDocumentLink('Company privacy policy', config?.privacyUrl),
   ];
@@ -269,7 +297,11 @@ Map<String, dynamic> legalAgreementsPayload(
   }
 
   return {
+    if (config?.equalsTermsVersion != null)
+      'equalsTermsVersion': config!.equalsTermsVersion,
     'acceptedAt': DateTime.now().toUtc().toIso8601String(),
+    'equalsTermsAccessed': present.contains(LegalAgreementKey.equalsTerms) &&
+        accepted.contains(LegalAgreementKey.equalsTerms),
     for (final key in LegalAgreementKey.values)
       _specFor(key).payloadKey: value(key),
     'documents': {
@@ -283,6 +315,7 @@ Map<String, dynamic> legalAgreementsPayload(
       'additionalAcknowledgementsUrl':
           documentUrl(LegalAgreementKey.additionalAcknowledgements, 0),
       'equalsGeneralTermsUrl': documentUrl(LegalAgreementKey.equalsTerms, 0),
+      'equalsPrivacyUrl': documentUrl(LegalAgreementKey.equalsPrivacy, 0),
     },
     'channel': 'mobile',
   };
@@ -294,7 +327,7 @@ LegalAgreementSpec _specFor(LegalAgreementKey key) => LegalAgreementSpec(
       lead: '',
     );
 
-/// Checkbox list for the agreements. Links open in the system browser.
+/// Equals agreements require in-app document review; other links open externally.
 class LegalAgreementsSection extends StatelessWidget {
   const LegalAgreementsSection({
     required this.specs,
@@ -386,7 +419,7 @@ class LegalAgreementsSection extends StatelessWidget {
   }
 }
 
-class _AgreementRow extends StatelessWidget {
+class _AgreementRow extends StatefulWidget {
   const _AgreementRow({
     required this.spec,
     required this.checked,
@@ -404,6 +437,60 @@ class _AgreementRow extends StatelessWidget {
   final TextStyle bodyStyle;
   final TextStyle linkStyle;
   final ValueChanged<bool> onChanged;
+
+  @override
+  State<_AgreementRow> createState() => _AgreementRowState();
+}
+
+class _AgreementRowState extends State<_AgreementRow> {
+  String? _openedUrl;
+  bool _opening = false;
+  bool get _isEquals =>
+      spec.key == LegalAgreementKey.equalsTerms ||
+      spec.key == LegalAgreementKey.equalsPrivacy;
+  LegalAgreementSpec get spec => widget.spec;
+  bool get checked => widget.checked;
+  bool get isExample => widget.isExample;
+  TextStyle get titleStyle => widget.titleStyle;
+  TextStyle get bodyStyle => widget.bodyStyle;
+  TextStyle get linkStyle => widget.linkStyle;
+
+  @override
+  void didUpdateWidget(covariant _AgreementRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if ((spec.key == LegalAgreementKey.equalsTerms ||
+            spec.key == LegalAgreementKey.equalsPrivacy) &&
+        (oldWidget.spec.key != spec.key ||
+            oldWidget.spec.documentVersion != spec.documentVersion ||
+            oldWidget.spec.links.firstOrNull?.url !=
+                spec.links.firstOrNull?.url)) {
+      _openedUrl = null;
+      if (widget.checked) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) widget.onChanged(false);
+        });
+      }
+    }
+  }
+
+  void onChanged(bool value) {
+    if (value &&
+        _isEquals &&
+        (spec.links.isEmpty ||
+            spec.links.first.url == null ||
+            _openedUrl != spec.links.first.url)) {
+      final url = spec.links.firstOrNull?.url;
+      if (url != null && url.trim().isNotEmpty) {
+        _open(context, url);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(context.tr(
+                'This document is currently unavailable. Please contact support.'))));
+      }
+      return;
+    }
+    widget.onChanged(value);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -523,9 +610,33 @@ class _AgreementRow extends StatelessWidget {
   }
 
   Future<void> _open(BuildContext context, String url) async {
+    if (_opening) return;
+    if (_isEquals) {
+      _opening = true;
+      final version = spec.documentVersion;
+      final reviewed = await showEqualsDocumentDialog(context,
+          kind: spec.key == LegalAgreementKey.equalsTerms ? 'terms' : 'privacy',
+          title: spec.links.first.label,
+          url: url);
+      _opening = false;
+      if (mounted &&
+          reviewed &&
+          spec.links.firstOrNull?.url == url &&
+          spec.documentVersion == version) {
+        setState(() => _openedUrl = url);
+      }
+      return;
+    }
     final uri = Uri.tryParse(url);
-    final ok = uri != null &&
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+    var ok = false;
+    try {
+      ok = uri != null &&
+          uri.scheme == 'https' &&
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      ok = false;
+    }
+    if (ok && mounted) setState(() => _openedUrl = url);
     if (!ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.tr('Could not open the document.'))),
@@ -578,3 +689,13 @@ class _ExampleAgreementBox extends StatelessWidget {
     );
   }
 }
+
+String equalsPrivacyPolicyUrl(String? region) =>
+    region?.trim().toUpperCase() == 'UK'
+        ? 'https://equalsmoney.com/privacy'
+        : 'https://equalsmoney.com/en-be/privacy';
+
+String equalsComplaintsUrl(String? region) =>
+    region?.trim().toUpperCase() == 'UK'
+        ? 'https://equalsmoney.com/complaints'
+        : 'https://equalsmoney.com/en-be/complaints';

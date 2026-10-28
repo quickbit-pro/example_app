@@ -14,7 +14,11 @@ public sealed record SupportTicketSummary(
     Guid Id, string Subject, string Status, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
     Guid Revision, Guid? CustomerId, string? CustomerName, string? CustomerEmail);
 public sealed record SupportTicketPage(IReadOnlyList<SupportTicketSummary> Items, int TotalCount);
-public sealed record SupportTicketDetail(SupportTicketSummary Ticket, IReadOnlyList<SupportMessageResponse> Messages);
+public sealed record ComplaintForwardingResponse(string Status, DateTimeOffset? SentAt);
+public sealed record SupportTicketDetail(SupportTicketSummary Ticket, IReadOnlyList<SupportMessageResponse> Messages)
+{
+    public ComplaintForwardingResponse? ComplaintForwarding { get; init; }
+}
 
 public static class SupportTicketResponses
 {

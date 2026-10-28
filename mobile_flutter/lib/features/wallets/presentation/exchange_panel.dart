@@ -1,3 +1,4 @@
+import 'exchange_onboarding_panel.dart';
 import 'exchange_deposit_history.dart';
 import 'exchange_flow_dialog.dart';
 import 'exchange_disclaimer.dart';
@@ -60,7 +61,7 @@ class ExchangePanel extends ConsumerWidget {
             ),
       data: (data) {
         if (!data.isReady) {
-          return const ExchangeVerificationPanel();
+          return const ExchangeOnboardingPanel(legacy: ExchangeVerificationPanel());
         }
 
         return _ReadyExchangePanel(
@@ -268,13 +269,11 @@ class _ReadyExchangePanel extends ConsumerWidget {
               ])),
         ),
       ]),
-      if (!outflowsEnabled || !hasFunds || !canConvert) ...[
+      if (hasFunds && (!outflowsEnabled || !canConvert)) ...[
         const SizedBox(height: 20),
         ExchangeNotice(!outflowsEnabled
             ? 'Withdrawals are currently unavailable for this account.'
-            : !hasFunds
-                ? 'Deposit funds to start converting or withdrawing.'
-                : 'Conversion will be available when a compatible currency account is ready.'),
+            : 'Conversion will be available when a compatible currency account is ready.'),
       ],
       const ExchangeDisclaimer(),
       const SizedBox(height: 24),

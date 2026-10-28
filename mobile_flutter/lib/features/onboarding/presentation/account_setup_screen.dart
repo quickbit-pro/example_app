@@ -80,6 +80,7 @@ class AccountSetupScreen extends ConsumerWidget {
           final id = tierIdOf(tier);
           if (id == null) return;
           ref.read(platformActionControllerProvider.notifier).selectTier(
+                onboarding: true,
                 tierId: id,
                 tierCycle: tierCycleOf(tier),
               );
@@ -135,7 +136,10 @@ class AccountSetupScreen extends ConsumerWidget {
             IdentityStage.required => 'Required',
           },
           action: identity == IdentityStage.verified
-              ? null
+              ? OutlinedButton(
+                  onPressed: () => context.push(AppRoutes.kycStatus),
+                  child: Text(context.tr('View status')),
+                )
               : Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -188,7 +192,7 @@ class AccountSetupScreen extends ConsumerWidget {
               ? tierTitleOf(currentTier.valueOrNull!)
               : 'Not selected',
           child: tierChosen
-              ? const SizedBox.shrink()
+              ? _SelectedTierSummary(tier: currentTier.valueOrNull!)
               : tiers.when(
                   data: (items) => items.isEmpty
                       ? Text(
@@ -220,6 +224,7 @@ class AccountSetupScreen extends ConsumerWidget {
                                       .read(platformActionControllerProvider
                                           .notifier)
                                       .selectTier(
+                onboarding: true,
                                         tierId: id,
                                         tierCycle: tierCycleOf(items[index]),
                                       );
@@ -388,7 +393,10 @@ class _ExampleAccountSetup extends StatelessWidget {
             IdentityStage.required => 'Required',
           },
           action: identity == IdentityStage.verified
-              ? null
+              ? OutlinedButton(
+                  onPressed: () => context.push(AppRoutes.kycStatus),
+                  child: Text(context.tr('View status')),
+                )
               : Wrap(
                   spacing: AppSpacing.xs,
                   runSpacing: AppSpacing.xs,
@@ -440,7 +448,7 @@ class _ExampleAccountSetup extends StatelessWidget {
           statusLabel: tierChosen ? tierTitleOf(currentTier!) : 'Not selected',
           isLast: true,
           child: tierChosen
-              ? const SizedBox.shrink()
+              ? _SelectedTierSummary(tier: currentTier!)
               : tiers.when(
                   data: (items) => items.isEmpty
                       ? Text(
@@ -863,6 +871,54 @@ class _StationDisc extends StatelessWidget {
 /// / Month"). Here the panel is gone, the whole 56 pt row is the target
 /// instead of a 32 pt "Select" link inside it, and the facts are real
 /// label/value pairs that wrap as blocks, never mid-pair.
+/// Keep the confirmed plan visible after the choice list collapses.
+class _SelectedTierSummary extends StatelessWidget {
+  const _SelectedTierSummary({required this.tier});
+  final PlatformResource tier;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = tierTitleOf(tier);
+    final details = tierDetailsOf(tier).take(3).join(' · ');
+    final theme = Theme.of(context);
+    return Semantics(
+      selected: true,
+      label: context.tr('Selected tier'),
+      child: Container(
+        key: const Key('selected-tier-summary'),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primary.withValues(alpha: .08),
+          border: Border.all(color: theme.colorScheme.primary, width: 2),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(Icons.check_circle, color: theme.colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(context.tr('Selected tier'),
+                    style: theme.textTheme.labelMedium),
+                const SizedBox(height: 4),
+                Text(name, style: theme.textTheme.titleLarge),
+                if (details.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(details, style: theme.textTheme.bodySmall),
+                ],
+                const SizedBox(height: 8),
+                TierDetailsButton(
+                    tierName: name,
+                    onPressed: () => showTierDetailsSheet(context,
+                        tier: tier, isCurrent: true)),
+              ])),
+        ]),
+      ),
+    );
+  }
+}
+
 class _TierRow extends StatelessWidget {
   const _TierRow({
     required this.tier,

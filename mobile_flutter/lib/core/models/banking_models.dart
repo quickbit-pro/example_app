@@ -1271,7 +1271,7 @@ String? _boomFiTitle(
     case 'deposit':
       return '${currency.toUpperCase()} deposit';
     default:
-      return 'BoomFi';
+      return 'ZBX';
   }
 }
 
@@ -1804,10 +1804,21 @@ class PayoutOtpInitiation {
     this.verificationToken = '',
     this.message = '',
     this.expiresAt,
+    this.verificationResult,
+    this.paymentSummary,
   });
 
   factory PayoutOtpInitiation.fromJson(Map<String, dynamic> json) {
     return PayoutOtpInitiation(
+      verificationResult:
+          (json['verificationResult'] ?? json['VerificationResult']) is Map
+              ? Map<String, dynamic>.from(
+                  json['verificationResult'] ?? json['VerificationResult'])
+              : null,
+      paymentSummary: (json['paymentSummary'] ?? json['PaymentSummary']) is Map
+          ? Map<String, dynamic>.from(
+              json['paymentSummary'] ?? json['PaymentSummary'])
+          : null,
       success: (json['success'] ?? json['Success']) as bool? ?? false,
       verificationToken:
           (json['verificationToken'] ?? json['VerificationToken'])
@@ -1820,6 +1831,8 @@ class PayoutOtpInitiation {
     );
   }
 
+  final Map<String, dynamic>? verificationResult;
+  final Map<String, dynamic>? paymentSummary;
   final bool success;
   final String verificationToken;
   final String message;

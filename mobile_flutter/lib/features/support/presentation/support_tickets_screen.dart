@@ -1,3 +1,5 @@
+import 'dart:math';
+import '../../signup/data/visitor_id_store.dart';
 import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -103,7 +105,8 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
 }
 
 class NewSupportTicketScreen extends ConsumerStatefulWidget {
-  const NewSupportTicketScreen({super.key});
+  const NewSupportTicketScreen({this.complaint = false, super.key});
+  final bool complaint;
   @override
   ConsumerState<NewSupportTicketScreen> createState() =>
       _NewSupportTicketScreenState();
@@ -111,6 +114,7 @@ class NewSupportTicketScreen extends ConsumerStatefulWidget {
 
 class _NewSupportTicketScreenState
     extends ConsumerState<NewSupportTicketScreen> {
+  final _requestId = VisitorIdStore.newVisitorId(Random.secure());
   final _form = GlobalKey<FormState>();
   final _subject = TextEditingController();
   final _body = TextEditingController();
@@ -130,15 +134,18 @@ class _NewSupportTicketScreenState
       _error = null;
     });
     try {
-      final detail = await ref
-          .read(supportTicketsApiProvider)
-          .create(_subject.text.trim(), _body.text.trim());
+      final api = ref.read(supportTicketsApiProvider);
+      final detail = widget.complaint
+          ? await api.createComplaint(
+              _requestId, _subject.text.trim(), _body.text.trim())
+          : await api.create(_subject.text.trim(), _body.text.trim());
       if (!mounted) return;
       ref.invalidate(supportTicketListProvider);
       context.replace('/support/${detail.ticket.id}');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content:
-              Text(context.tr('Ticket submitted. Our team will reply here.'))));
+          content: Text(context.tr(widget.complaint
+              ? 'Complaint recorded. You can track forwarding here.'
+              : 'Ticket submitted. Our team will reply here.'))));
     } catch (error) {
       if (mounted) setState(() => _error = error);
     } finally {
@@ -148,9 +155,12 @@ class _NewSupportTicketScreenState
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: _appBar(context, 'New support ticket'),
+        appBar: _appBar(context,
+            widget.complaint ? 'Make a complaint' : 'New support ticket'),
         body: _Page(children: [
-          const _Notice(_supportNotice),
+          _Notice(widget.complaint
+              ? 'Your complaint and contact details will be passed to Equals Money with your account reference. Equals will assess the complaint and contact you. You can follow its forwarding status here.'
+              : _supportNotice),
           const SizedBox(height: 24),
           Form(
               key: _form,
@@ -160,7 +170,7 @@ class _NewSupportTicketScreenState
                     TextFormField(
                       controller: _subject,
                       enabled: !_busy,
-                      maxLength: 160,
+                      maxLength: widget.complaint ? 140 : 160,
                       textCapitalization: TextCapitalization.sentences,
                       decoration: InputDecoration(
                           labelText: context.tr('Subject'),
@@ -175,7 +185,9 @@ class _NewSupportTicketScreenState
                     _MessageField(
                         controller: _body,
                         enabled: !_busy,
-                        label: context.tr('Describe your issue')),
+                        label: context.tr(widget.complaint
+                            ? 'Tell us what happened and how you were affected'
+                            : 'Describe your issue')),
                     const SizedBox(height: 8),
                     Text(
                         context.tr(
@@ -192,7 +204,9 @@ class _NewSupportTicketScreenState
                         onPressed: _busy ? null : _submit,
                         child: Text(_busy
                             ? context.tr('Submitting…')
-                            : context.tr('Submit ticket'))),
+                            : context.tr(widget.complaint
+                                ? 'Submit complaint'
+                                : 'Submit ticket'))),
                   ])),
         ]),
       );
@@ -279,6 +293,20 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
           _Notice(detail.ticket.status == 'resolved'
               ? 'This ticket is resolved. If you still need help, submit a reply to reopen it.'
               : 'Replies are not immediate. We’ll notify you in the app when support replies. You can also check back here.'),
+          if (detail.complaintForwarding != null) ...[
+            const SizedBox(height: 16),
+            _Notice(switch (detail.complaintForwarding!['status']) {
+              'sent' =>
+                'Your complaint has been passed to Equals Money, who will contact you.',
+              'staging_preview' =>
+                'Staging test: your complaint is recorded, but it has not been sent to Equals Money.',
+              'failed' ||
+              'held' =>
+                'Forwarding needs attention. Your complaint is saved and our team needs to follow up. You can also contact Equals Money directly from Help & legal → Complaints.',
+              _ =>
+                'Your complaint is saved and queued to be forwarded to Equals Money.',
+            }),
+          ],
           const SizedBox(height: 24),
           for (final message in detail.messages)
             Card(

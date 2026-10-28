@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:mobile_flutter/features/kyc/presentation/unified_cdd_screen.dart';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -105,6 +106,7 @@ void main() {
     }));
     Uri? opened;
     await tester.pumpWidget(ProviderScope(overrides: [
+        unifiedCddPreferenceProvider.overrideWith((ref) async => false),
       kycApiProvider.overrideWithValue(KycApi(dio)),
       verificationLinkLauncherProvider.overrideWithValue((uri) async {
         opened = uri;
@@ -153,6 +155,7 @@ void main() {
     }));
     await tester.pumpWidget(ProviderScope(
         overrides: [
+        unifiedCddPreferenceProvider.overrideWith((ref) async => false),
           kycApiProvider.overrideWithValue(KycApi(dio)),
           verificationLinkLauncherProvider
               .overrideWithValue((_) async => ++launches > 1),
@@ -219,6 +222,7 @@ void main() {
     }));
     await tester.pumpWidget(ProviderScope(
         overrides: [
+        unifiedCddPreferenceProvider.overrideWith((ref) async => false),
           kycApiProvider.overrideWithValue(KycApi(dio)),
           verificationLinkLauncherProvider.overrideWithValue((uri) async {
             opened.add(uri);
@@ -246,6 +250,7 @@ void main() {
     testWidgets('cold $action overrides stale identity approval',
         (tester) async {
       await tester.pumpWidget(ProviderScope(overrides: [
+        unifiedCddPreferenceProvider.overrideWith((ref) async => false),
         kycDetailedStatusProvider
             .overrideWith((ref) async => resetStatus(action)),
       ], child: const MaterialApp(home: KycScreen())));
@@ -265,6 +270,7 @@ void main() {
         'cold return with approved identity and $issuerStatus issuer shows status',
         (tester) async {
       await tester.pumpWidget(ProviderScope(overrides: [
+        unifiedCddPreferenceProvider.overrideWith((ref) async => false),
         kycDetailedStatusProvider
             .overrideWith((ref) async => KycDetailedStatus.fromJson({
                   'HoppaCardKycApproved': true,
@@ -304,6 +310,7 @@ void main() {
   }.entries) {
     testWidgets('cold ${payload.key} keeps the initial form', (tester) async {
       await tester.pumpWidget(ProviderScope(overrides: [
+        unifiedCddPreferenceProvider.overrideWith((ref) async => false),
         kycDetailedStatusProvider.overrideWith(
             (ref) async => KycDetailedStatus.fromJson(payload.value)),
         occupationCodesProvider.overrideWith((ref) async => []),
@@ -343,6 +350,7 @@ void main() {
     var current = resetStatus();
     var reads = 0;
     await tester.pumpWidget(ProviderScope(overrides: [
+        unifiedCddPreferenceProvider.overrideWith((ref) async => false),
       kycDetailedStatusProvider.overrideWith((ref) async {
         reads++;
         return current;

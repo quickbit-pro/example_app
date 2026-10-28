@@ -82,3 +82,45 @@ flutter test test/features/support test/features/notifications
 For a staging smoke test: create a ticket as a customer, reply as an admin,
 open the reply notification as the customer, respond again, resolve as admin,
 and confirm a further customer reply reopens the ticket.
+
+
+## Equals complaints
+
+Settings → Help & legal → Complaints provides both customer routes: submit in
+this app or open the existing regional Equals complaints procedure. The
+forwarding address is not displayed to customers. This route remains separate
+from general support and identifies the banking/payment services Equals provides.
+
+`POST /api/v1/mobile/complaints` accepts a stable `requestId`, subject and body.
+The authenticated installation/user and account reference come from the session.
+The request creates a support ticket and `equals_complaint_forward` email in one
+save. Repeating the request ID returns the existing ticket without another email.
+The initial email ID equals the ticket ID; follow-ups use the customer message ID.
+Existing tables and API contracts are reused; no migration is needed.
+
+Production queues the complete complaint to the address in guidance 1.4,
+`complaints@equalsmoney.com`, with programme, account reference and customer
+contact information. It does not screen merits. The existing dispatcher retries
+transient failures and stores provider acceptance/time. The customer sees queued,
+forwarded or needs-attention status; a forwarding receipt is only added after
+provider acceptance. That is not proof Equals has resolved or accepted the claim.
+Email delivery is at least once: a crash after provider acceptance but before the
+database save can resend the same complaint reference.
+
+Staging/development store `staging_preview` and never dispatch these complaints.
+Logging and SendGrid sandbox delivery cannot mark them forwarded. A real,
+configured sender is required in production; disabled delivery leaves work queued.
+
+The app admin support inbox shows forwarding state. For complaints received as
+ordinary tickets, `POST /api/v1/admin/support-tickets/{id}/forward-to-equals`
+forwards the full thread with the customer's mapped account reference. It requires
+current revision and tenant authorization. Pending/sent repeats do not resend;
+failed/held deliveries may be retried explicitly. Customer follow-ups on complaint
+tickets are forwarded too. Deploy the admin Vue panel to expose these controls.
+
+Operations must monitor queued/failed/held messages and forward any complaint
+received outside this route the same business day. Triage is provider routing,
+never a judgment on merit; unclear-provider cases go to Equals. The app must not
+be used to resolve a complaint on Equals' behalf. Mail delivery evidence, failure
+escalation ownership and the marketing-homepage complaints link still require
+operational sign-off. No real complaint was sent during development testing.

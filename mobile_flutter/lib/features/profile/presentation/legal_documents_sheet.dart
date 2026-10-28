@@ -83,6 +83,11 @@ class _LegalDocumentsContentState
         Text(context.tr(
             'Review the documents available during registration and card ordering.')),
         const SizedBox(height: AppSpacing.md),
+        if (tenant.valueOrNull?.equalsMoneyEnabled != false) ...[
+          Text(context.tr(
+              'Equals Money provides the accounts and payment services identified as Equals Money in this app. You can raise a complaint with us through Support or contact Equals directly using the complaints link below.')),
+          const SizedBox(height: AppSpacing.md),
+        ],
         if (_error != null) ...[
           Semantics(
               liveRegion: true,

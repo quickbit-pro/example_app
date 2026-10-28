@@ -26,6 +26,8 @@ class MobilePlatformApi {
     required String firstName,
     required String lastName,
     required String accountType,
+    bool onboardingExchange = false,
+    bool onboardingBanking = false,
     String? phone,
     String? referralCode,
     String? referralSource,
@@ -48,6 +50,8 @@ class MobilePlatformApi {
         'firstName': firstName,
         'lastName': lastName,
         'accountType': accountType,
+        if (onboardingExchange) 'onboardingExchange': true,
+        if (onboardingBanking) 'onboardingBanking': true,
         if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
         if (referralCode != null && referralCode.trim().isNotEmpty)
           'referralCode': referralCode.trim(),
@@ -410,6 +414,14 @@ class MobilePlatformApi {
       _getMap('/api/v1/mobile/exchange/verification');
   Future<Map<String, dynamic>> getExchangeApplication() =>
       _getMap('/api/v1/mobile/exchange/verification/application');
+  Future<Map<String, dynamic>> getExchangeBusinessApplication() =>
+      _getMap('/api/v1/mobile/exchange/verification/business');
+  Future<Map<String, dynamic>> startExchangeBusiness() =>
+      _postMap('/api/v1/mobile/exchange/verification/business', {});
+  Future<Map<String, dynamic>> sendExchangeBusinessCode() =>
+      _postMap('/api/v1/mobile/exchange/verification/business/authorisation/send-code', {});
+  Future<Map<String, dynamic>> authoriseExchangeBusiness(String code) =>
+      _postMap('/api/v1/mobile/exchange/verification/business/authorisation', {'code': code});
   Future<Map<String, dynamic>> startExchangeVerification(String tier) =>
       _postMap('/api/v1/mobile/exchange/verification/session', {'tier': tier});
   Future<Map<String, dynamic>> submitExchangeApplication(
@@ -899,11 +911,12 @@ class MobilePlatformApi {
   Future<ActionResult> selectTier({
     required int tierId,
     String? tierCycle,
+    bool onboarding = false,
   }) async {
     final cycle = tierCycle?.trim();
     try {
       final response = await _dio.post<dynamic>(
-        '/api/v1/mobile/tiers/current',
+        onboarding ? '/api/v1/mobile/onboarding/tier' : '/api/v1/mobile/tiers/current',
         data: {
           'tierId': tierId,
           'tierCycle': cycle == null || cycle.isEmpty ? 'monthly' : cycle,

@@ -50,6 +50,11 @@ final dioProvider = Provider<Dio>((ref) {
           handler.next(error);
           return;
         }
+        if (status == 428 &&
+            error.response?.data is Map &&
+            error.response?.data['code'] == 'equals.consent_required') {
+          ref.read(equalsConsentRevisionProvider.notifier).state++;
+        }
         // A suspended PWA or a radio handover may fail its first read. Retry
         // once after a short delay; never replay payments, uploads or refresh
         // token rotation, and never retry across a logout/new login boundary.

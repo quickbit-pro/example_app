@@ -13,12 +13,16 @@ export interface SupportTicket {
   customerEmail: string | null;
 }
 export interface TicketDetail {
+  complaintForwarding?: { status: string; sentAt: string | null } | null;
   ticket: SupportTicket;
   messages: { id: string; isAdmin: boolean; body: string; createdAt: string }[];
 }
 export interface TicketPage { items: SupportTicket[]; totalCount: number }
 const path = '/api/v1/admin/support-tickets';
 export const supportApi = {
+  async forwardComplaint(id: string, revision: string): Promise<TicketDetail> {
+    return (await apiClient.post<TicketDetail>(`${path}/${encodeURIComponent(id)}/forward-to-equals`, { revision })).data;
+  },
   async list(status: string, offset: number): Promise<TicketPage> {
     return (await apiClient.get<TicketPage>(path, { params: { status: status || undefined, offset, limit: 30 } })).data;
   },

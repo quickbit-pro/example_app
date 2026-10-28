@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'exchange_support.dart';
 import 'sepa_deposit_qr.dart';
+import '../../../core/l10n/app_localizations.dart';
 
 class ExchangeBankDepositDetails extends StatelessWidget {
-  const ExchangeBankDepositDetails({super.key, required this.account});
+  const ExchangeBankDepositDetails({super.key, required this.account, this.onAddPayee});
   final Map<String, dynamic> account;
+  final VoidCallback? onAddPayee;
 
   @override
   Widget build(BuildContext context) {
@@ -48,12 +50,18 @@ class ExchangeBankDepositDetails extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 14),
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(field.key, style: Theme.of(context).textTheme.labelMedium),
+              Text(context.tr(field.key), style: Theme.of(context).textTheme.labelMedium),
               const SizedBox(height: 4),
-              SelectableText(field.value,
-                  style: Theme.of(context).textTheme.bodyMedium),
+              Row(children: [
+                Expanded(child: SelectableText(field.value, style: Theme.of(context).textTheme.bodyMedium)),
+                IconButton(tooltip: context.tr('Copy {p0}', {'p0': context.tr(field.key)}),
+                  onPressed: () => copy(field.value), icon: const Icon(Icons.copy_outlined, size: 18)),
+              ]),
             ])),
       Wrap(spacing: 8, runSpacing: 8, children: [
+        if (onAddPayee != null && qr != null)
+          FilledButton.icon(onPressed: onAddPayee,
+            icon: const Icon(Icons.person_add_alt), label: Text(context.tr('Add to Equals payees'))),
         OutlinedButton.icon(
             onPressed: () => copy(iban),
             icon: const Icon(Icons.copy_outlined, size: 18),
@@ -109,7 +117,7 @@ class ExchangeBankDepositDetails extends StatelessWidget {
       }
       return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [Center(child: code), const SizedBox(height: 24), details]);
+          children: [details, const SizedBox(height: 24), Center(child: code)]);
     });
   }
 }

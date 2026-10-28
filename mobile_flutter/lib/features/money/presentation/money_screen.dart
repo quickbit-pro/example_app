@@ -1,3 +1,4 @@
+import '../../../shared/widgets/payee_name_check.dart';
 import '../../../shared/widgets/refresh_action.dart';
 import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'dart:async';
@@ -25,6 +26,8 @@ import '../../wallets/domain/wallet_models.dart';
 import '../../wallets/presentation/wallets_screen.dart';
 import '../domain/payment_balance_options.dart';
 import 'accounts_hub_header.dart';
+import '../domain/bank_payee_draft.dart';
+import 'payee_country_field.dart';
 import '../domain/balance_value_order.dart';
 
 enum MoneyTab { accounts, pay, payees }
@@ -34,9 +37,11 @@ class MoneyScreen extends ConsumerStatefulWidget {
     this.initialTab = MoneyTab.accounts,
     this.initialBudgetId = '',
     this.initialCurrency = '',
+    this.initialPayee,
     super.key,
   });
 
+  final BankPayeeDraft? initialPayee;
   final MoneyTab initialTab;
   final String initialBudgetId;
   final String initialCurrency;
@@ -129,7 +134,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen>
             selected: AccountsHubSection.money,
             showMoney: tenantConfig.valueOrNull?.equalsMoneyEnabled ?? true,
             showCrypto: personal,
-            showExchange: personal &&
+            showExchange:
                 tenantConfig.valueOrNull?.boomFiExchangeEnabled == true,
           );
           if (detailedStatus.requiresEqualsMoneyAction) {
@@ -149,9 +154,8 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen>
               }
 
               final isBusinessAccount = snapshot.profile.isBusinessAccount;
-              final exchangeEnabled = isBusinessAccount
-                  ? snapshot.canUseBanking
-                  : tenantConfig.valueOrNull?.boomFiExchangeEnabled == true;
+              final exchangeEnabled =
+                  tenantConfig.valueOrNull?.boomFiExchangeEnabled == true;
               final isExample = context.isExampleTheme;
               final width = MediaQuery.sizeOf(context).width;
               final desktop = isExample && width >= (kIsWeb ? 600 : 760);
@@ -292,7 +296,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen>
                                 _PaymentForm(
                                   initialAccountId: widget.initialBudgetId,
                                 ),
-                                const _PayeesView(),
+                                _PayeesView(initialDraft: widget.initialPayee),
                               ],
                             ),
                     ),
@@ -1667,6 +1671,7 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
   String _verificationToken = '';
   String _errorMessage = '';
   bool _loading = false;
+  Map<String, dynamic>? _paymentSummary;
   bool _otpSent = false;
   Timer? _quoteRefreshTimer;
 
@@ -1919,6 +1924,7 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
                         quote: _quote!,
                         check: _check,
                         otpSent: _otpSent,
+                        paymentSummary: _paymentSummary,
                       ),
                       const SizedBox(height: 12),
                     ],
@@ -2056,12 +2062,15 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
         return;
       }
 
+      _quoteRefreshTimer?.cancel();
       final otp = await api.initiatePayoutOtp(
         checkId: check.id,
         quoteRequestId: quote.quoteRequestId,
         payeeId: selectedPayee.id,
         amount: amount,
         currency: _currency!,
+        balanceId: selectedAccount.id,
+        fromCurrency: quote.sourceCurrency,
       );
 
       if (!otp.success || otp.verificationToken.isEmpty) {
@@ -2071,12 +2080,14 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
       }
 
       setState(() {
+        _quote = quote;
+        _paymentSummary = otp.paymentSummary;
         _check = check;
         _verificationToken = otp.verificationToken;
         _otpSent = true;
         _otpController.clear();
       });
-      _startQuoteRefresh(selectedPayee, selectedAccount);
+      _quoteRefreshTimer?.cancel();
     } catch (error) {
       setState(() => _errorMessage = friendlyErrorMessage(error));
     } finally {
@@ -2118,11 +2129,8 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
       });
 
       final api = ref.read(mobileBankingApiProvider);
-      final latestQuote = await _refreshQuote(
-        selectedPayee,
-        selectedAccount,
-        showErrors: true,
-      );
+      final latestQuote = _quote;
+      if (latestQuote == null) throw StateError('Request a new payment code.');
       final verification = await api.verifyPayoutOtp(
         verificationToken: _verificationToken,
         otpCode: otpCode,
@@ -2145,6 +2153,8 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
         payeeId: selectedPayee.id,
         amount: _amountValue(),
         currency: _currency!,
+        balanceId: selectedAccount.id,
+        fromCurrency: latestQuote.sourceCurrency,
       );
 
       _quoteRefreshTimer?.cancel();
@@ -2217,7 +2227,7 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
           lastQuoteId: _quote?.id,
         );
 
-    if (mounted) {
+    if (mounted && !_otpSent) {
       setState(() {
         _quote = quote;
         if (showErrors) {
@@ -2258,6 +2268,7 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
   void _resetPayoutState() {
     _quoteRefreshTimer?.cancel();
     _quote = null;
+    _paymentSummary = null;
     _check = null;
     _verificationToken = '';
     _errorMessage = '';
@@ -2301,7 +2312,8 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
 }
 
 class _PayeesView extends ConsumerStatefulWidget {
-  const _PayeesView();
+  const _PayeesView({this.initialDraft});
+  final BankPayeeDraft? initialDraft;
 
   @override
   ConsumerState<_PayeesView> createState() => _PayeesViewState();
@@ -2414,10 +2426,17 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
   String _paymentType = 'INDIVIDUAL';
   String _paymentMethod = 'SEPA.CREDITTRANSFER';
   String _currency = 'EUR';
-  String _countryCode = 'SI';
-  String _bankCountryCode = 'SI';
-  String _payeeCountryCode = 'SI';
+  String _countryCode = '';
+  String _bankCountryCode = '';
+  String _payeeCountryCode = '';
   String _routingCodeType = 'BIC';
+  Map<String, dynamic>? _payeeNameCheck;
+  bool _payeeCheckAcknowledged = false;
+  bool get _payeeCheckAllowsConfirm =>
+      _payeeNameCheck == null ||
+      (_payeeNameCheck!['canProceed'] != false &&
+          (!PayeeNameCheck.needsAcknowledgement(_payeeNameCheck!) ||
+              _payeeCheckAcknowledged));
   String _payeeVerificationToken = '';
   String _payeeErrorMessage = '';
   String _payeeStatusMessage = '';
@@ -2429,6 +2448,20 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
   @override
   void initState() {
     super.initState();
+    final draft = widget.initialDraft;
+    if (draft != null) {
+      _showPayeeForm = true;
+      _displayNameController.text = 'My ZBX account';
+      _accountHolderController.text = draft.accountHolder;
+      _accountController.text = draft.iban;
+      _routingCodeController.text = draft.bic;
+      _bankNameController.text = draft.bankName;
+      _bankAddressController.text = draft.bankAddress;
+      _countryCode = draft.bankCountry;
+      _bankCountryCode = draft.bankCountry;
+      // The recipient may live in a different country from the receiving bank.
+      _payeeCountryCode = '';
+    }
     for (final controller in [
       _displayNameController,
       _firstNameController,
@@ -2515,6 +2548,15 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
                   ),
                 ),
             const Divider(height: 32),
+            if (widget.initialDraft != null && _showPayeeForm) ...[
+              Text(context.tr(
+                  'Review the bank details and complete the recipient information before saving. Payment routes are validated when you submit.')),
+              if (widget.initialDraft!.paymentReference.isNotEmpty)
+                SelectableText(context.tr(
+                    'Use payment reference {p0} when transferring funds.',
+                    {'p0': widget.initialDraft!.paymentReference})),
+              const SizedBox(height: 16),
+            ],
             if (!_showPayeeForm)
               Row(
                 children: [
@@ -2628,23 +2670,11 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _SelectField(
-                      label: context.tr('Country'),
+                    child: PayeeCountryField(
+                      label: context.tr('Account country'),
                       value: _countryCode,
-                      options: const [
-                        'SI',
-                        'GB',
-                        'DE',
-                        'FR',
-                        'NL',
-                        'ES',
-                        'IT',
-                        'US'
-                      ],
                       onChanged: (value) => setState(() {
                         _countryCode = value;
-                        _bankCountryCode = value;
-                        _payeeCountryCode = value;
                         _resetPayeeVerification();
                       }),
                     ),
@@ -2720,10 +2750,9 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
               Text(context.tr('Bank address'),
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 12),
-              _SelectField(
+              PayeeCountryField(
                 label: context.tr('Bank country'),
                 value: _bankCountryCode,
-                options: const ['SI', 'GB', 'DE', 'FR', 'NL', 'ES', 'IT', 'US'],
                 onChanged: (value) => setState(() {
                   _bankCountryCode = value;
                   _resetPayeeVerification();
@@ -2771,10 +2800,9 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
               Text(context.tr('Payee address'),
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 12),
-              _SelectField(
+              PayeeCountryField(
                 label: context.tr('Payee country'),
                 value: _payeeCountryCode,
-                options: const ['SI', 'GB', 'DE', 'FR', 'NL', 'ES', 'IT', 'US'],
                 onChanged: (value) => setState(() {
                   _payeeCountryCode = value;
                   _resetPayeeVerification();
@@ -2849,6 +2877,12 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
                   ),
                 ),
               ],
+              if (_payeeOtpSent && _payeeNameCheck != null)
+                PayeeNameCheck(
+                    result: _payeeNameCheck!,
+                    acknowledged: _payeeCheckAcknowledged,
+                    onChanged: (value) =>
+                        setState(() => _payeeCheckAcknowledged = value)),
               if (_payeeOtpSent) ...[
                 const SizedBox(height: 12),
                 Text(
@@ -2884,13 +2918,15 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
                       ? Icons.verified_user
                       : Icons.person_add_alt,
                   loading: _payeeLoading,
-                  onPressed: _payeeLoading
+                  onPressed: _payeeLoading ||
+                          (_payeeOtpSent && !_payeeCheckAllowsConfirm)
                       ? null
                       : (_payeeOtpSent ? _confirmPayee : _startPayeeOtp),
                 )
               else
                 FilledButton.icon(
-                  onPressed: _payeeLoading
+                  onPressed: _payeeLoading ||
+                          (_payeeOtpSent && !_payeeCheckAllowsConfirm)
                       ? null
                       : (_payeeOtpSent ? _confirmPayee : _startPayeeOtp),
                   icon: Icon(_payeeOtpSent
@@ -2921,6 +2957,16 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
       return;
     }
 
+    final candidate = BankPayeeDraft(
+        iban: _accountController.text,
+        accountHolder: _accountHolderController.text,
+        bankCountry: _bankCountryCode);
+    if (_currency == 'EUR' &&
+        (ref.read(payeesProvider).valueOrNull ?? []).any(candidate.matches)) {
+      setState(() => _payeeErrorMessage = context.tr(
+          'This account is already in your payees. Use the saved recipient or complete its pending approval.'));
+      return;
+    }
     try {
       setState(() {
         _payeeLoading = true;
@@ -2961,6 +3007,11 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
         );
       }
       setState(() {
+        _payeeNameCheck = result.verificationResult?.map((key, value) =>
+            MapEntry(
+                key.isEmpty ? key : key[0].toLowerCase() + key.substring(1),
+                value));
+        _payeeCheckAcknowledged = false;
         _payeeVerificationToken = result.verificationToken;
         _payeeStatusMessage = result.message.isEmpty
             ? 'Enter the OTP code to save this payee.'
@@ -3037,7 +3088,6 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
     }
     if (details.countryCode != null) {
       _countryCode = details.countryCode!;
-      _payeeCountryCode = details.countryCode!;
       _bankCountryCode = details.countryCode!;
     }
     if (details.currency != null) {
@@ -3054,6 +3104,7 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
   }
 
   Future<void> _confirmPayee() async {
+    if (!_payeeCheckAllowsConfirm) return;
     final otpCode = _payeeOtpController.text.trim();
     if (otpCode.length != 8) {
       setState(() => _payeeErrorMessage = 'Enter the full 8-digit OTP code.');
@@ -3083,6 +3134,7 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
         );
       }
       await ref.read(mobileBankingApiProvider).confirmPayeeCreation(
+            verificationAcknowledged: _payeeCheckAcknowledged,
             verificationToken: verification.verificationToken.isEmpty
                 ? _payeeVerificationToken
                 : verification.verificationToken,
@@ -3147,6 +3199,8 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
   }
 
   void _resetPayeeVerification() {
+    _payeeNameCheck = null;
+    _payeeCheckAcknowledged = false;
     _payeeVerificationToken = '';
     _payeeErrorMessage = '';
     _payeeStatusMessage = '';
@@ -3174,8 +3228,9 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
     _payeeStateController.clear();
     _payeePostalCodeController.clear();
     _commentsController.clear();
-    _bankCountryCode = _countryCode;
-    _payeeCountryCode = _countryCode;
+    _countryCode = '';
+    _bankCountryCode = '';
+    _payeeCountryCode = '';
     _clearingPayeeForm = false;
     _resetPayeeVerification();
   }
@@ -3699,8 +3754,10 @@ class _PayoutQuoteCard extends StatelessWidget {
     required this.quote,
     required this.check,
     required this.otpSent,
+    this.paymentSummary,
   });
 
+  final Map<String, dynamic>? paymentSummary;
   final PayoutQuote quote;
   final PayoutCheck? check;
   final bool otpSent;
@@ -3714,24 +3771,43 @@ class _PayoutQuoteCard extends StatelessWidget {
       children: [
         Text(
           otpSent
-              ? context.tr('Live quote for confirmation')
+              ? context.tr('Payment details for this code')
               : context.tr('Fee and quote'),
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 12),
-        _QuoteRow(
-          label: context.tr('Sending'),
-          value:
-              '${quote.sourceCurrency} ${quote.sourceAmount.toStringAsFixed(2)}',
-        ),
-        _QuoteRow(
-          label: context.tr('Recipient gets'),
-          value:
-              '${quote.targetCurrency} ${quote.targetAmount.toStringAsFixed(2)}',
-        ),
-        _QuoteRow(label: context.tr('Fee'), value: quote.feeLabel),
-        _QuoteRow(label: context.tr('Rate'), value: quote.rateLabel),
-        if (expiresAt != null)
+        if (otpSent && paymentSummary != null) ...[
+          _QuoteRow(
+              label: 'Recipient gets',
+              value:
+                  '${paymentSummary!['recipientAmount']} ${paymentSummary!['recipientCurrency']}'),
+          _QuoteRow(
+              label: 'Debit before fees',
+              value:
+                  '${paymentSummary!['debitAmount']} ${paymentSummary!['debitCurrency']}'),
+          _QuoteRow(
+              label: 'Fee',
+              value:
+                  '${paymentSummary!['fee']} ${paymentSummary!['debitCurrency']}'),
+          _QuoteRow(
+              label: 'Total debit',
+              value:
+                  '${paymentSummary!['totalDebit']} ${paymentSummary!['debitCurrency']}'),
+        ] else ...[
+          _QuoteRow(
+            label: context.tr('Sending'),
+            value:
+                '${quote.sourceCurrency} ${quote.sourceAmount.toStringAsFixed(2)}',
+          ),
+          _QuoteRow(
+            label: context.tr('Recipient gets'),
+            value:
+                '${quote.targetCurrency} ${quote.targetAmount.toStringAsFixed(2)}',
+          ),
+          _QuoteRow(label: context.tr('Fee'), value: quote.feeLabel),
+          _QuoteRow(label: context.tr('Rate'), value: quote.rateLabel),
+        ],
+        if (expiresAt != null && !(otpSent && paymentSummary != null))
           _QuoteRow(
             label: context.tr('Expires'),
             value: TimeOfDay.fromDateTime(expiresAt.toLocal()).format(context),

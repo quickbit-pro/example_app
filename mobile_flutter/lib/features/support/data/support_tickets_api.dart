@@ -48,11 +48,15 @@ class SupportMessage {
 
 class SupportTicketDetail {
   SupportTicketDetail.fromJson(Map<String, dynamic> json)
-      : ticket = SupportTicket.fromJson(json['ticket'] as Map<String, dynamic>),
+      : complaintForwarding = json['complaintForwarding'] is Map
+            ? Map<String, dynamic>.from(json['complaintForwarding'])
+            : null,
+        ticket = SupportTicket.fromJson(json['ticket'] as Map<String, dynamic>),
         messages = (json['messages'] as List)
             .map(
                 (item) => SupportMessage.fromJson(item as Map<String, dynamic>))
             .toList();
+  final Map<String, dynamic>? complaintForwarding;
   final SupportTicket ticket;
   final List<SupportMessage> messages;
 }
@@ -86,6 +90,14 @@ class SupportTicketsApi {
       SupportTicketDetail.fromJson((await _dio.post<Map<String, dynamic>>(
         _path,
         data: {'subject': subject, 'body': body},
+        options: Options(extra: {'sensitiveRequest': true}),
+      ))
+          .data!);
+  Future<SupportTicketDetail> createComplaint(
+          String requestId, String subject, String body) async =>
+      SupportTicketDetail.fromJson((await _dio.post<Map<String, dynamic>>(
+        '/api/v1/mobile/complaints',
+        data: {'requestId': requestId, 'subject': subject, 'body': body},
         options: Options(extra: {'sensitiveRequest': true}),
       ))
           .data!);

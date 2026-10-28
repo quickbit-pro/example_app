@@ -9,6 +9,7 @@
 // whole screen survives 375, 393, 834 and 1440 in both
 // themes with no overflow and no truncated string.
 import 'dart:async';
+import 'package:mobile_flutter/features/kyc/presentation/unified_cdd_screen.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -70,6 +71,7 @@ Future<void> _pump(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        unifiedCddPreferenceProvider.overrideWith((ref) async => false),
         kycDetailedStatusProvider
             .overrideWith((ref) async => KycDetailedStatus.fromJson({})),
         occupationCodesProvider.overrideWith((ref) async => _occupations),
@@ -294,6 +296,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+        unifiedCddPreferenceProvider.overrideWith((ref) async => false),
           kycDetailedStatusProvider
               .overrideWith((ref) async => KycDetailedStatus.fromJson({})),
           occupationCodesProvider.overrideWith(

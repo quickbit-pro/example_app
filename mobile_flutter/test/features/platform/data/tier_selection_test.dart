@@ -13,6 +13,16 @@ import 'package:mobile_flutter/features/platform/data/mobile_platform_api.dart';
 import 'package:mobile_flutter/features/platform/presentation/tiers_screen.dart';
 
 void main() {
+  test('initial onboarding uses gate-aware selection without purchasing a subscription', () async {
+    final dio = Dio();
+    dio.interceptors.add(InterceptorsWrapper(onRequest: (request, handler) {
+      expect(request.path, '/api/v1/mobile/onboarding/tier');
+      expect(request.data['tierId'], 228);
+      handler.resolve(Response(requestOptions: request, data: {'tierId': 228, 'nextAction': 'START_KYC1'}));
+    }));
+    await MobilePlatformApi(dio).selectTier(tierId: 228, onboarding: true);
+  });
+
   test('PlatformResource parses Hoppa tier id/name aliases', () {
     final resource = PlatformResource.fromJson({
       'TierId': 7,

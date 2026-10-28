@@ -110,6 +110,7 @@ public sealed class CreatePayeeRequestDto
 
 public sealed class CreatePayeeUpstreamRequestDto
 {
+    public bool RequireVerificationAcknowledgement => true;
     public object? UserId { get; init; }
 
     public string? Name { get; init; }

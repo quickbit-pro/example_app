@@ -11,6 +11,7 @@ namespace NeoBanking.Api.Controllers;
 
 [Authorize(Policy = AuthorizationPolicyNames.User)]
 [Route("api/v1/mobile/banking")]
+[ServiceFilter(typeof(NeoBanking.Api.Auth.EqualsConsentFilter))]
 public sealed class MobileBankingController : ApiControllerBase
 {
     private readonly IProxyHoppaRequestUseCase _proxyHoppa;

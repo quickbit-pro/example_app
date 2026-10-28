@@ -67,6 +67,22 @@ builder.Services.AddCors(options =>
     });
 });
 builder.Services.AddControllers();
+builder.Services.AddScoped<NeoBanking.Api.Auth.EqualsConsentService>();
+builder.Services.AddScoped<NeoBanking.Api.Auth.EqualsConsentFilter>();
+builder.Services.AddHttpClient("DashboardLegalSettings", client => {
+    client.Timeout = TimeSpan.FromSeconds(10);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("Hoppa-Mobile-Backend/1.0");
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false });
+builder.Services.AddScoped(provider => new NeoBanking.Api.Company.DashboardLegalSettings(
+    provider.GetRequiredService<IHttpClientFactory>().CreateClient("DashboardLegalSettings"),
+    provider.GetRequiredService<IOptions<CompanyOptions>>(),
+    provider.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
+    provider.GetRequiredService<ILogger<NeoBanking.Api.Company.DashboardLegalSettings>>()));
+builder.Services.AddHttpClient<NeoBanking.Api.Auth.EqualsDocumentReader>(client => {
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("Hoppa-Mobile-Backend/1.0");
+})
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false });
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton<LoginAttemptTracker>();
 // Credential endpoints are throttled per client IP so password spraying and

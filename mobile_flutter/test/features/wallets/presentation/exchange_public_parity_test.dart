@@ -45,7 +45,7 @@ const budget = PlatformResource(
     id: 'budget-1',
     title: 'EUR account',
     subtitle: 'EUR',
-    metadata: {'currency': 'EUR'});
+    metadata: {'currency': 'EUR', 'balances': [{'currency': 'EUR', 'amount': 500}]});
 const wallet = HoppaWalletAsset(
     symbol: 'USDC',
     name: 'USDC',

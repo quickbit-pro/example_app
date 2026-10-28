@@ -1,3 +1,4 @@
+import 'unified_cdd_screen.dart';
 import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'dart:async';
 
@@ -130,6 +131,10 @@ class _KycScreenState extends ConsumerState<KycScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final unified = ref.watch(unifiedCddPreferenceProvider);
+    if (unified.isLoading) return Scaffold(body: LoadingState(label: context.tr('Loading onboarding')));
+    if (unified.hasError) return Scaffold(body: ErrorState(error: unified.error!, onRetry: () => ref.invalidate(unifiedCddPreferenceProvider)));
+    if (unified.valueOrNull == true) return const UnifiedCddScreen();
     final detailedStatus = ref.watch(kycDetailedStatusProvider);
     final resetStatus = detailedStatus.valueOrNull;
     if (resetStatus == null) {

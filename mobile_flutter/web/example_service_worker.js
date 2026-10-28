@@ -32,6 +32,24 @@ const APP_SHELL = [
   './icons/Icon-maskable-512.png',
 ];
 
+// Only public app assets belong in the offline cache. API responses must always
+// reach the server, even when they are GETs and return 200 (invite/OTP/payment
+// status, balances and customer data must never survive here across sessions).
+function isPublicAsset(url) {
+  if (url.origin !== self.location.origin) return false;
+  const shellPaths = APP_SHELL.map((path) => new URL(path, self.location.href).pathname);
+  return shellPaths.includes(url.pathname) ||
+    url.pathname === '/app_bridges.js' ||
+    url.pathname.startsWith('/assets/') ||
+    url.pathname.startsWith('/icons/') ||
+    /^\/canvaskit(?:-[a-f0-9]+)?\//.test(url.pathname);
+}
+
+function mayCacheResponse(response) {
+  const control = response.headers.get('Cache-Control') || '';
+  return response.ok && !/\b(no-store|private)\b/i.test(control);
+}
+
 // Each release installs its HTML and JavaScript together. Navigation uses that
 // shell; the page's update check activates the next complete release.
 self.addEventListener('install', (event) => {
@@ -58,13 +76,17 @@ self.addEventListener('message', (event) => {
   const data = event.data || {};
   if (data.type !== 'precache' || !Array.isArray(data.urls)) return;
   const urls = data.urls.filter((url) => {
-    try { return new URL(url, self.location.href).origin === self.location.origin; } catch (e) { return false; }
+    try { return isPublicAsset(new URL(url, self.location.href)); } catch (e) { return false; }
   });
   if (!urls.length) return;
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
       Promise.all(urls.map((url) =>
-        cache.match(url).then((hit) => hit ? undefined : cache.add(url).catch(() => undefined)),
+        cache.match(url).then(async (hit) => {
+          if (hit) return;
+          const response = await fetch(url);
+          if (mayCacheResponse(response)) await cache.put(url, response);
+        }).catch(() => undefined),
       )),
     ),
   );
@@ -76,6 +98,7 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  if (request.headers.has('Authorization') || url.pathname === '/api' || url.pathname.startsWith('/api/')) return;
   // Legal documents are real files, including when opened from an installed
   // PWA. Let the browser fetch the PDF instead of returning the app shell.
   if (url.pathname.toLowerCase().endsWith('.pdf')) return;
@@ -94,6 +117,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  if (!isPublicAsset(url)) return;
+
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Never pick up an obsolete Flutter worker's JS or another release's
@@ -101,7 +126,7 @@ self.addEventListener('fetch', (event) => {
       const cached = await cache.match(request);
       if (cached) return cached;
       return fetch(request).then((response) => {
-        if (response.ok) {
+        if (mayCacheResponse(response)) {
           const copy = response.clone();
           event.waitUntil(cache.put(request, copy).catch(() => undefined));
         }
