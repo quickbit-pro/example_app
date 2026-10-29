@@ -130,7 +130,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
 
   /// Drives the step change.
   ///
-  /// The four steps are a corridor, not four pages, so moving between them is
+  /// The steps are a corridor, not separate pages, so moving between them is
   /// the same 200 ms arrival every other state change in the product uses —
   /// a fade and a 2 px rise on the panel only. Never a slide of the whole
   /// page: the progress rail, the app bar and the pinned action bar are the
@@ -307,7 +307,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   /// Move to [step] and play its arrival, or land it instantly when the
   /// platform asks for reduced motion.
   void _goToStep(int step) {
-    final target = step.clamp(0, 3);
+    final target = step.clamp(0, 4);
     if (target == _currentStep) return;
     setState(() => _currentStep = target);
     if (!context.isExampleTheme || ExampleMotion.reduced(context)) {
@@ -449,6 +449,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                     child: Form(
                       key: _formKey,
                       child: Stepper(
+                        key: ValueKey(_lastSignupStep(config)),
                         currentStep: _currentStep,
                         type: StepperType.vertical,
                         onStepTapped: (step) {
@@ -464,14 +465,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                 onPressed: action.isLoading
                                     ? null
                                     : () => _continue(config),
-                                child: action.isLoading && _currentStep == 3
+                                child: action.isLoading && _currentStep == _lastSignupStep(config)
                                     ? const SizedBox.square(
                                         dimension: 18,
                                         child: AppProgressIndicator(
                                             strokeWidth: 2),
                                       )
                                     : Text(
-                                        _currentStep == 3
+                                        _currentStep == _lastSignupStep(config)
                                             ? context.tr('Create account')
                                             : context.tr('Continue'),
                                       ),
@@ -703,12 +704,21 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                               ],
                             ),
                           ),
+                          if (_hasServiceSelection(config))
+                            Step(
+                              title: Text(context.tr('Choose your services')),
+                              isActive: _currentStep >= 3,
+                              state: _stepState(3),
+                              content: _serviceSelection(config),
+                            ),
                           Step(
-                            title: Text(context.tr('Review')),
+                            title: Text(context.tr(_hasServiceSelection(config)
+                                ? 'Terms and Conditions'
+                                : 'Review')),
                             subtitle: Text(context
                                 .tr('Confirm before we create the account')),
-                            isActive: _currentStep >= 3,
-                            state: _stepState(3),
+                            isActive: _currentStep >= _lastSignupStep(config),
+                            state: _stepState(_lastSignupStep(config)),
                             content: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -776,7 +786,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
             ? 'Password and invitation'
             : 'Create a strong password',
       ),
-      ('Review', 'Confirm before we create the account'),
+      if (_hasServiceSelection(config))
+        ('Choose your services', 'Select the services you want to set up'),
+      (_hasServiceSelection(config) ? 'Terms and Conditions' : 'Review',
+        'Confirm before we create the account'),
     ];
     final title = titles[_currentStep];
     final busy = action.isLoading;
@@ -834,11 +847,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
             ),
     );
     final actions = _ExampleStepActions(
-      primaryLabel: _currentStep == 3 ? 'Create account' : 'Continue',
+      primaryLabel: _currentStep == _lastSignupStep(config) ? 'Create account' : 'Continue',
       onPrimary: busy ? null : () => _continue(config),
       onBack:
           _currentStep == 0 || busy ? null : () => _goToStep(_currentStep - 1),
-      busy: busy && _currentStep == 3,
+      busy: busy && _currentStep == _lastSignupStep(config),
     );
 
     Widget form(Widget child) => Form(key: _formKey, child: child);
@@ -1043,6 +1056,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   Widget _exampleSignupStep(int step, MobileTenantConfig? config) {
     final showReferral =
         config?.referralsEnabled == true || _invitationPreview != null;
+    if (step == 3 && _hasServiceSelection(config)) {
+      return _serviceSelection(config);
+    }
     switch (step) {
       case 0:
         return Column(
@@ -1313,17 +1329,23 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
         return;
       }
     }
-    if (_currentStep < 3) {
+    if (_currentStep < _lastSignupStep(config)) {
       _goToStep(_currentStep + 1);
       return;
     }
     _submit(config);
   }
 
-  Widget _legalAgreements(MobileTenantConfig? config) => Column(
+  bool _hasServiceSelection(MobileTenantConfig? config) =>
+      config?.unifiedCddOnboardingEnabled == true && _accountType == 'personal';
+
+  int _lastSignupStep(MobileTenantConfig? config) =>
+      _hasServiceSelection(config) ? 4 : 3;
+
+  Widget _serviceSelection(MobileTenantConfig? config) => Column(
+        key: const Key('signup-service-selection'),
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (config?.unifiedCddOnboardingEnabled == true && _accountType == 'personal') ...[
             Text(context.tr('What would you like to use?'), style: Theme.of(context).textTheme.titleMedium),
             ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.check_circle),
                 title: Text(context.tr('Crypto card')), subtitle: Text(context.tr('Included with your account'))),
@@ -1335,7 +1357,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                 value: _onboardingBanking, onChanged: _signupDispatched ? null : (v) => setState(() => _onboardingBanking = v ?? false)),
             Text(context.tr('Adding Exchange or Banking includes proof of address in your identity check.')),
             const SizedBox(height: 16),
-          ],
+        ],
+      );
+
+  Widget _legalAgreements(MobileTenantConfig? config) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
           if (_signupDispatched) ...[
             Text(context.tr(
                 'Retries keep the original signup details until the account status is known.')),
@@ -2734,7 +2761,7 @@ String? _passwordValidator(String? value) {
   return 'Still needed: ${missing.join(', ')}';
 }
 
-/// Left column of the desktop signup: brand, promise, and the four steps.
+/// Left column of the desktop signup: brand, promise, and the signup steps.
 /// The desktop left column: the same room as the sign-in hero, with the four
 /// steps of this form standing in for the feature list so the user can see
 /// how far the account takes them before they start typing.
