@@ -66,6 +66,24 @@ class SavedAnswersApi extends MobilePlatformApi {
   }
 }
 
+class ResubmitApi extends SavedAnswersApi {
+  ResubmitApi({super.timeout});
+  int resubmissions = 0;
+  String? submissionId;
+  @override
+  Future<Map<String, dynamic>> getExchangeVerification() async => {
+    'eligible': true, 'status': 'approved', 'tier': 'cdd',
+    'hasProviderAccount': true, 'provider': {'kycStatus': 'failed'},
+  };
+  @override
+  Future<Map<String, dynamic>> resubmitExchangeApplication(String id, {Map<String, String>? answers}) async {
+    resubmissions++;
+    submissionId = id;
+    if (timeout) throw DioException(requestOptions: RequestOptions(path: '/resubmit'), type: DioExceptionType.receiveTimeout);
+    return {};
+  }
+}
+
 Future<void> host(WidgetTester tester, SavedAnswersApi api) async {
   tester.view.physicalSize = const Size(1000, 900);
   tester.view.devicePixelRatio = 1;
@@ -78,6 +96,27 @@ Future<void> host(WidgetTester tester, SavedAnswersApi api) async {
 }
 
 void main() {
+  testWidgets('existing failed provider application uses resubmit once', (tester) async {
+    final api = ResubmitApi();
+    await host(tester, api);
+    await tester.tap(find.text('Resubmit verification'));
+    await tester.pumpAndSettle();
+    expect(api.resubmissions, 1);
+    expect(api.submissionId, matches(RegExp(r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')));
+    expect(api.directCalls, 0);
+    expect(api.manualCalls, 0);
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Verification submitted')).onPressed, isNull);
+  });
+  testWidgets('ambiguous resubmit blocks another submission in the dialog', (tester) async {
+    final api = ResubmitApi(timeout: true);
+    await host(tester, api);
+    await tester.tap(find.text('Resubmit verification'));
+    await tester.pumpAndSettle();
+    expect(api.resubmissions, 1);
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Resubmit verification')).onPressed, isNull);
+    expect(api.directCalls, 0);
+  });
+
   testWidgets('completed Sumsub declarations submit once without another form',
       (tester) async {
     final api = SavedAnswersApi();

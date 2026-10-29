@@ -76,6 +76,22 @@ public sealed class MobileExchangeControllerTests
     }
 
     [Fact]
+    public async Task ResubmissionUsesAuthenticatedIdentityAndPreservesSubmissionId()
+    {
+        var proxy = new Recorder();
+        var id = Guid.NewGuid();
+        var request = JsonSerializer.SerializeToElement(new { userId = 999, submissionId = id, answers = new { sdd_country_select = "SI" } });
+        await Controller(proxy, true, false).ResubmitApplication(request, default);
+        Assert.Equal("/api/v2/crypto-virtual-accounts/verification/application/resubmit", proxy.Path);
+        Assert.Equal("42", proxy.Query!["userId"]);
+        Assert.Equal(42, proxy.Body.GetProperty("userId").GetInt32());
+        Assert.Equal(id, proxy.Body.GetProperty("submissionId").GetGuid());
+        Assert.True(proxy.Private);
+        var blocked = await Controller(new Recorder(), false).ResubmitApplication(request, default);
+        Assert.Equal(403, Assert.IsType<ObjectResult>(blocked.Result).StatusCode);
+    }
+
+    [Fact]
     public async Task ApplicationUsesAuthenticatedIdentityAndPreservesQuestionnaireKeys()
     {
         var proxy = new Recorder(); var controller = Controller(proxy);

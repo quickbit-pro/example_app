@@ -431,6 +431,13 @@ class MobilePlatformApi {
   Future<Map<String, dynamic>> submitExchangeApplicationFromSumsub() =>
       _postMap('/api/v1/mobile/exchange/verification/application',
           {'answers': <String, String>{}, 'useSumsubAnswers': true});
+  Future<Map<String, dynamic>> resubmitExchangeApplication(String submissionId,
+          {Map<String, String>? answers}) =>
+      _postMap('/api/v1/mobile/exchange/verification/application/resubmit', {
+        'submissionId': submissionId,
+        'answers': answers ?? <String, String>{},
+        'useSumsubAnswers': answers == null,
+      });
   Future<Map<String, dynamic>> submitExchangeTin(
           Map<String, dynamic> request) =>
       _postMap('/api/v1/mobile/exchange/verification/tin', request);

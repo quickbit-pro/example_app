@@ -119,6 +119,9 @@ public sealed class MobileExchangeController : ApiControllerBase
     [HttpPost("verification/application")]
     public Task<ActionResult<JsonElement?>> SubmitApplication([FromBody] JsonElement request, CancellationToken ct) =>
         PostAsync("verification/application", request, false, ct);
+    [HttpPost("verification/application/resubmit")]
+    public Task<ActionResult<JsonElement?>> ResubmitApplication([FromBody] JsonElement request, CancellationToken ct) =>
+        PostAsync("verification/application/resubmit", request, false, ct);
     [HttpPost("verification/tin")]
     public Task<ActionResult<JsonElement?>> SubmitTin([FromBody] JsonElement request, CancellationToken ct) =>
         PostAsync("verification/tin", request, false, ct);

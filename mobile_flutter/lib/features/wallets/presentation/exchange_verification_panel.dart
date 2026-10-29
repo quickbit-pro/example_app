@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
@@ -9,6 +10,12 @@ import 'exchange_limits_dialog.dart';
 import 'exchange_verification_actions.dart';
 import 'exchange_reference_data.dart';
 import 'exchange_business_onboarding_dialog.dart';
+
+String newExchangeSubmissionId() {
+  final random = Random.secure();
+  final hex = List.generate(16, (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
+  return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
+}
 
 class ExchangeVerificationPanel extends ConsumerStatefulWidget {
   const ExchangeVerificationPanel({super.key});
@@ -22,6 +29,8 @@ class _ExchangeVerificationPanelState
   bool busy = false, applicationOutcomeUnknown = false;
   String? error;
   String? verificationUrl;
+  String? resubmissionId;
+  bool resubmitted = false;
   Future<void> run(Future<void> Function() action) async {
     setState(() {
       busy = true;
@@ -58,8 +67,9 @@ class _ExchangeVerificationPanelState
     });
   }
 
-  Future<void> completeApplication() async {
+  Future<void> completeApplication({bool resubmit = false}) async {
     final api = ref.read(mobilePlatformApiProvider);
+    if (resubmit) resubmissionId = newExchangeSubmissionId();
     final draft = await api.getExchangeApplication();
     if (!mounted) return;
     if (draft['supported'] != true) {
@@ -67,7 +77,12 @@ class _ExchangeVerificationPanelState
     }
     if (draft['readyToSubmit'] == true) {
       try {
-        await api.submitExchangeApplicationFromSumsub();
+        if (resubmit) {
+          await api.resubmitExchangeApplication(resubmissionId!);
+          if (mounted) setState(() => resubmitted = true);
+        } else {
+          await api.submitExchangeApplicationFromSumsub();
+        }
         ref.invalidate(exchangeOverviewProvider);
       } catch (e) {
         if (e is DioException &&
@@ -84,15 +99,37 @@ class _ExchangeVerificationPanelState
       return;
     }
     setState(() => busy = false);
-    await showDialog<void>(
+    final submitted = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (_) => ExchangeApplicationDialog(
             initial: exchangeMap(draft['answers']),
+            resubmissionId: resubmit ? resubmissionId : null,
             kycLevel: draft['kycLevel'] == 'SDD' ? 'SDD' : 'CDD',
             missingFields: (draft['missingFields'] as List?)
                 ?.map((v) => v.toString())
                 .toSet()));
+    if (mounted && resubmit && submitted == true) setState(() => resubmitted = true);
+  }
+
+  Future<void> startVerification(String tier) async {
+    late Map<String, dynamic> session;
+    try {
+      session = await ref.read(mobilePlatformApiProvider).startExchangeVerification(tier);
+    } finally {
+      if (mounted) {
+        setState(() => verificationUrl = null);
+        ref.invalidate(exchangeOverviewProvider);
+        ref.invalidate(exchangeVerificationProvider);
+        await ref.read(exchangeVerificationProvider.future);
+      }
+    }
+    if (!mounted) return;
+    final link = exchangeText(session, 'verificationUrl');
+    if (exchangeSafeUrl(link) != null) {
+      setState(() => verificationUrl = link);
+      await openExchangeUrl(link);
+    }
   }
 
   @override
@@ -117,26 +154,49 @@ class _ExchangeVerificationPanelState
                       exchangeText(provider, 'nextAction').split(':').first;
                   final submitted = provider['actionSubmitted'] == true;
                   final business = data['verificationType'] == 'business';
-                  final canStart = !business && data['eligible'] == true &&
-                      provider.isEmpty &&
+                  final requiresCdd = !business && nextAction == 'cdd_required';
+                  final cddApproved = data['tier'] == 'cdd' && status == 'approved';
+                  final canStartRequiredCdd = requiresCdd && !cddApproved &&
+                      data['eligible'] == true &&
+                      ['not_started', 'approved', 'in_progress', 'resubmission_required'].contains(status);
+                  final cddMessage = resubmitted
+                      ? 'Your CDD verification has been submitted to Exchange for review.'
+                      : data['tier'] != 'cdd'
+                          ? (['pending', 'on_hold'].contains(status)
+                              ? 'Your current verification is under review. CDD verification is required next.'
+                              : 'Complete the additional CDD checks for your Exchange account. We will reuse your existing identity details, documents and matching questionnaire answers.')
+                          : {
+                              'approved': 'Your CDD verification is approved. Submit it to your existing Exchange account.',
+                              'pending': 'Your CDD verification is under review. You do not need to submit it again.',
+                              'on_hold': 'Your CDD verification needs additional review.',
+                              'rejected': 'Your CDD verification was not approved. Contact support.',
+                              'unavailable': 'Could not check your CDD verification. Refresh the status to try again.',
+                            }[status] ?? 'Continue your CDD verification to complete the required checks.';
+                  final canStart = !requiresCdd && !business && data['eligible'] == true &&
+                      (provider.isEmpty || data['tier'] == 'cdd') &&
                       ['not_started', 'in_progress', 'resubmission_required']
                           .contains(status);
-                  final url = provider.isNotEmpty ? exchangeActionUrl(provider) : verificationUrl;
+                  final url = requiresCdd ? null : verificationUrl ?? (provider.isNotEmpty ? exchangeActionUrl(provider) : null);
                   final canActivateNow = !business &&
                       data['applicationSupported'] != false &&
                       status == 'approved' &&
                       data['hasProviderAccount'] != true && provider.isEmpty;
-                  final canChangeLimits = !business &&
-                      data['hasProviderAccount'] != true && provider.isEmpty &&
-                      status == 'approved' &&
-                      ['sdd', 'cdd'].contains(data['tier']);
+                  final canUpgrade = !business && provider['kycStatus'] == 'accepted' && data['tier'] == 'sdd';
+                  final canChangeLimits = !requiresCdd && !business && status == 'approved' &&
+                      ((data['hasProviderAccount'] != true && provider.isEmpty && ['sdd', 'cdd'].contains(data['tier'])) || canUpgrade);
+                  final canResubmit = !business && provider.isNotEmpty &&
+                      data['usesSharedStagingOrganization'] != true && status == 'approved' &&
+                      !['tin_required', 'edd_required'].contains(nextAction) &&
+                      (!requiresCdd || cddApproved);
                   return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Exchange verification',
                             style: Theme.of(context).textTheme.titleLarge),
                         const SizedBox(height: 12),
-                        Text(provider.isNotEmpty
+                        Text(requiresCdd
+                            ? cddMessage
+                            : provider.isNotEmpty
                             ? submitted
                                 ? 'Your information has been submitted for review.'
                                 : ['rejected', 'failed'].contains(provider['kycStatus'])
@@ -190,6 +250,18 @@ class _ExchangeVerificationPanelState
                               child: const Text('Review business details')),
                         if (business && provider.isEmpty && data['businessOnboardingSupported'] != true)
                           const Text('Business Exchange setup is not available yet. Contact support.'),
+                        if (canStartRequiredCdd)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: FilledButton(
+                              onPressed: busy || applicationOutcomeUnknown
+                                  ? null
+                                  : () => run(() => startVerification('cdd')),
+                              child: Text(data['tier'] == 'cdd'
+                                  ? 'Continue CDD verification'
+                                  : 'Complete CDD verification'),
+                            ),
+                          ),
                         if (canStart || canChangeLimits || canActivateNow)
                           ExchangeVerificationActions(
                             showChooseLimits: canStart || canChangeLimits,
@@ -208,28 +280,7 @@ class _ExchangeVerificationPanelState
                                                 context: context,
                                                 builder: (context) => ExchangeLimitsDialog(currentTier: exchangeText(data, 'tier')));
                                         if (tier == null) return;
-                                        late Map<String, dynamic> session;
-                                        try {
-                                          session = await ref
-                                              .read(mobilePlatformApiProvider)
-                                              .startExchangeVerification(tier);
-                                        } finally {
-                                          if (mounted) {
-                                            setState(() => verificationUrl = null);
-                                            ref.invalidate(exchangeOverviewProvider);
-                                            ref.invalidate(exchangeVerificationProvider);
-                                            await ref.read(exchangeVerificationProvider.future);
-                                          }
-                                        }
-                                        if (!mounted) return;
-                                        final link = exchangeText(
-                                            session, 'verificationUrl');
-                                        if (exchangeSafeUrl(link) != null &&
-                                            mounted) {
-                                          setState(
-                                              () => verificationUrl = link);
-                                          await openExchangeUrl(link);
-                                        }
+                                        await startVerification(tier);
                                       }),
                             onActivate: busy || applicationOutcomeUnknown
                                 ? null
@@ -241,6 +292,12 @@ class _ExchangeVerificationPanelState
                               padding: EdgeInsets.symmetric(vertical: 8),
                               child: Text(
                                   'We’ll use your completed Sumsub answers. Only missing details will be requested.')),
+                        if (canResubmit)
+                          FilledButton(
+                              onPressed: busy || applicationOutcomeUnknown || resubmitted
+                                  ? null
+                                  : () => run(() => completeApplication(resubmit: true)),
+                              child: Text(resubmitted ? 'Verification submitted' : requiresCdd ? 'Submit CDD verification' : 'Resubmit verification')),
                         if (!submitted &&
                             ['tin_required', 'edd_required']
                                 .contains(nextAction))
@@ -275,10 +332,11 @@ class _ExchangeVerificationPanelState
 
 class ExchangeApplicationDialog extends ConsumerStatefulWidget {
   const ExchangeApplicationDialog(
-      {super.key, required this.initial, this.missingFields, this.kycLevel = 'CDD'});
+      {super.key, required this.initial, this.missingFields, this.kycLevel = 'CDD', this.resubmissionId});
   final Map<String, dynamic> initial;
   final Set<String>? missingFields;
   final String kycLevel;
+  final String? resubmissionId;
   @override
   ConsumerState<ExchangeApplicationDialog> createState() =>
       _ExchangeApplicationDialogState();
@@ -468,10 +526,13 @@ class _ExchangeApplicationDialogState
       error = null;
     });
     try {
-      await ref
-          .read(mobilePlatformApiProvider)
-          .submitExchangeApplication(submitted);
-      if (mounted) Navigator.pop(context);
+      final api = ref.read(mobilePlatformApiProvider);
+      if (widget.resubmissionId != null) {
+        await api.resubmitExchangeApplication(widget.resubmissionId!, answers: submitted);
+      } else {
+        await api.submitExchangeApplication(submitted);
+      }
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
         setState(() {
