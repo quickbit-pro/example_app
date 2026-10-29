@@ -158,6 +158,31 @@ class _EqualsDocumentDialogState extends ConsumerState<EqualsDocumentDialog> {
               sourceName: data.url,
               controller: _pdf,
               params: PdfViewerParams(
+                scrollByMouseWheel: 1.0,
+                viewerOverlayBuilder: (context, size, handleLinkTap) => [
+                  PdfViewerScrollThumb(
+                    key: const Key('equals-document-pdf-scrollbar'),
+                    controller: _pdf,
+                    orientation: ScrollbarOrientation.right,
+                    thumbSize: const Size(32, 48),
+                    margin: 4,
+                    thumbBuilder: (context, size, pageNumber, controller) =>
+                        MouseRegion(
+                      cursor: SystemMouseCursors.grab,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: Theme.of(context).colorScheme.onPrimary),
+                        ),
+                        child: Icon(Icons.drag_handle,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            size: 22),
+                      ),
+                    ),
+                  ),
+                ],
                 onViewerReady: (_, __) {
                   _pdfReady = true;
                   WidgetsBinding.instance
