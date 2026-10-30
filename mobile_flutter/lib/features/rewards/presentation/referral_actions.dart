@@ -239,6 +239,7 @@ Future<ReferralInvitationRequest?> showReferralInvitationDialog(
   final submission = await showDialog<ReferralInvitationRequest>(
     context: context,
     builder: (dialogContext) => AlertDialog(
+      scrollable: true,
       title: Text(context.tr('Send referral invitation')),
       content: Form(
         key: formKey,

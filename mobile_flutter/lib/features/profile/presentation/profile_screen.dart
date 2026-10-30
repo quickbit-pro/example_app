@@ -2650,6 +2650,7 @@ Future<void> _showProfileDialog(
   final result = await showDialog<(String, String)>(
     context: context,
     builder: (context) => AlertDialog(
+      scrollable: true,
       title: Text(context.tr('Update profile')),
       content: Column(
         mainAxisSize: MainAxisSize.min,

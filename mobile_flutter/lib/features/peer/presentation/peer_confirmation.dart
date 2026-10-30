@@ -76,6 +76,7 @@ Future<String?> _askPassword(BuildContext context, {required String reason}) {
     context: context,
     builder: (dialogContext) => AlertDialog(
       backgroundColor: ExamplePalette.of(context).navigation,
+      scrollable: true,
       title: Text(context.tr('Confirm with your password')),
       content: Column(
         mainAxisSize: MainAxisSize.min,

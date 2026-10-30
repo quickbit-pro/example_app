@@ -429,6 +429,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         title: Text(context.tr('Enter your code')),
         content: Column(
           mainAxisSize: MainAxisSize.min,

@@ -783,74 +783,76 @@ Future<void> _showPaymentForm(
               16,
               bottomInset + 16 + safeBottom,
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    if (isExample)
-                      ExampleIconTile(icon: icon, color: ExampleColors.iris)
-                    else
-                      Icon(icon),
-                    SizedBox(width: isExample ? AppSpacing.sm : 8),
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: referenceController,
-                  decoration: InputDecoration(labelText: referenceLabel),
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: currency,
-                  decoration:
-                      InputDecoration(labelText: context.tr('Currency')),
-                  items: [
-                    for (final item in currencies)
-                      DropdownMenuItem(value: item, child: Text(item)),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setSheetState(() => currency = value);
-                    }
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: amountController,
-                  decoration: InputDecoration(labelText: amountLabel),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  // This sheet genuinely has one decisive action, so it takes
-                  // the glass material instead of a flat slab. `surface` is
-                  // the right ground: a modal sheet paints its own opaque
-                  // floor, and there is nothing behind it worth blurring.
-                  // Validation, wording and the popped result are untouched —
-                  // only the material the press lands on changed.
-                  child: isExample
-                      ? ExampleGlassButton(
-                          label: primaryLabel,
-                          icon: icon,
-                          onPressed: submitForm,
-                        )
-                      : FilledButton(
-                          onPressed: submitForm,
-                          child: Text(primaryLabel),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      if (isExample)
+                        ExampleIconTile(icon: icon, color: ExampleColors.iris)
+                      else
+                        Icon(icon),
+                      SizedBox(width: isExample ? AppSpacing.sm : 8),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: Theme.of(context).textTheme.titleLarge,
                         ),
-                ),
-              ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: referenceController,
+                    decoration: InputDecoration(labelText: referenceLabel),
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: currency,
+                    decoration:
+                        InputDecoration(labelText: context.tr('Currency')),
+                    items: [
+                      for (final item in currencies)
+                        DropdownMenuItem(value: item, child: Text(item)),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setSheetState(() => currency = value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: amountController,
+                    decoration: InputDecoration(labelText: amountLabel),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    // This sheet genuinely has one decisive action, so it takes
+                    // the glass material instead of a flat slab. `surface` is
+                    // the right ground: a modal sheet paints its own opaque
+                    // floor, and there is nothing behind it worth blurring.
+                    // Validation, wording and the popped result are untouched —
+                    // only the material the press lands on changed.
+                    child: isExample
+                        ? ExampleGlassButton(
+                            label: primaryLabel,
+                            icon: icon,
+                            onPressed: submitForm,
+                          )
+                        : FilledButton(
+                            onPressed: submitForm,
+                            child: Text(primaryLabel),
+                          ),
+                  ),
+                ],
+              ),
             ),
           );
         },

@@ -25,7 +25,7 @@ Future<String?> showSetCardPinSheet(BuildContext context, PaymentCard card) {
           20,
           20 + MediaQuery.viewInsetsOf(sheetContext).bottom,
         ),
-        child: _SetCardPinForm(card: card),
+        child: SingleChildScrollView(child: _SetCardPinForm(card: card)),
       ),
     ),
   );

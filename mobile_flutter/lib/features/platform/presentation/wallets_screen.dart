@@ -391,6 +391,7 @@ Future<void> _showAssetAmountDialog({
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
+      scrollable: true,
       title: Text(title),
       content: Column(
         mainAxisSize: MainAxisSize.min,

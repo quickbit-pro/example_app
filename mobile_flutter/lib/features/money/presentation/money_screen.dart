@@ -185,127 +185,154 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen>
                     ],
                   ],
                 ),
-                body: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                      child: AccountsHubHeader(
-                        selected: AccountsHubSection.money,
-                        showMoney:
-                            tenantConfig.valueOrNull?.equalsMoneyEnabled ??
-                                true,
-                        showCrypto: !isBusinessAccount,
-                        showExchange: exchangeEnabled,
-                        transferActions: exchangeEnabled && !isBusinessAccount
-                            ? ExchangeAccountTransferActions(onConvertToEur: (budget) =>
-                                showEqualsMoneyConversionDialog(context, ref, [budget], targetCurrency: 'EUR'))
-                            : null,
-                      ),
-                    ),
-                    SizedBox(height: isExample ? 14 : 18),
-                    if (isExample && widget.initialTab == MoneyTab.accounts) ...[
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: _ExampleMoneyOverview(
-                          totalBalance: snapshot.totalBalance,
-                          balances: _equalsOverviewBalances(
-                            snapshot,
-                            budgets.valueOrNull ?? const [],
-                            valuationRates,
+                body: NestedScrollView(
+                  // Let the account chrome move out of the way with the form.
+                  // A fixed Column can leave almost no input viewport when
+                  // the phone keyboard (including its accessory bar) opens.
+                  headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                    SliverToBoxAdapter(
+                      child: Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                            child: AccountsHubHeader(
+                              selected: AccountsHubSection.money,
+                              showMoney:
+                                  tenantConfig
+                                      .valueOrNull
+                                      ?.equalsMoneyEnabled ??
+                                  true,
+                              showCrypto: !isBusinessAccount,
+                              showExchange: exchangeEnabled,
+                              transferActions:
+                                  exchangeEnabled && !isBusinessAccount
+                                  ? ExchangeAccountTransferActions(
+                                      onConvertToEur: (budget) =>
+                                          showEqualsMoneyConversionDialog(
+                                            context,
+                                            ref,
+                                            [budget],
+                                            targetCurrency: 'EUR',
+                                          ),
+                                    )
+                                  : null,
+                            ),
                           ),
-                          canConvert: canConvertEqualsMoneyBudgets(
-                            budgets.valueOrNull ?? const [],
-                          ),
-                          onAddMoney: () =>
-                              showEqualsMoneyAddMoneyDialog(context),
-                          onConvert: () => showEqualsMoneyConversionDialog(
-                            context,
-                            ref,
-                            budgets.valueOrNull ?? const [],
-                          ),
-                          onCreateBudget: platformAction.isLoading
-                              ? null
-                              : () => showCreateEqualsBudgetDialog(
-                                    context,
-                                    ref,
+                          SizedBox(height: isExample ? 14 : 18),
+                          if (isExample &&
+                              widget.initialTab == MoneyTab.accounts) ...[
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
+                              child: _ExampleMoneyOverview(
+                                totalBalance: snapshot.totalBalance,
+                                balances: _equalsOverviewBalances(
+                                  snapshot,
+                                  budgets.valueOrNull ?? const [],
+                                  valuationRates,
+                                ),
+                                canConvert: canConvertEqualsMoneyBudgets(
+                                  budgets.valueOrNull ?? const [],
+                                ),
+                                onAddMoney: () =>
+                                    showEqualsMoneyAddMoneyDialog(context),
+                                onConvert: () =>
+                                    showEqualsMoneyConversionDialog(
+                                      context,
+                                      ref,
+                                      budgets.valueOrNull ?? const [],
+                                    ),
+                                onCreateBudget: platformAction.isLoading
+                                    ? null
+                                    : () => showCreateEqualsBudgetDialog(
+                                        context,
+                                        ref,
+                                      ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            // The safeguarding note shares the heading's line: it
+                            // is a footnote to the balances above, not a section.
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
+                              // Weighted so the note keeps its natural width at
+                              // 375 and only starts to ellipsise past a 1.3 text
+                              // scale, while the heading can never be pushed off
+                              // the line.
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    flex: 2,
+                                    child: _MoneySectionHeadline(
+                                      title: context.tr('My accounts'),
+                                    ),
                                   ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // The safeguarding note shares the heading's line: it
-                      // is a footnote to the balances above, not a section.
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        // Weighted so the note keeps its natural width at
-                        // 375 and only starts to ellipsise past a 1.3 text
-                        // scale, while the heading can never be pushed off
-                        // the line.
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 2,
-                              child: _MoneySectionHeadline(
-                                  title: context.tr('My accounts')),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  const Flexible(
+                                    flex: 3,
+                                    child: SafeguardingStatementButton(),
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(width: AppSpacing.sm),
-                            const Flexible(
-                              flex: 3,
-                              child: SafeguardingStatementButton(),
+                          ] else ...[
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
+                              child: _EqualsMoneyHeader(
+                                disclosure: disclosure,
+                                isCreating: platformAction.isLoading,
+                                canConvert: canConvertEqualsMoneyBudgets(
+                                  budgets.valueOrNull ?? const [],
+                                ),
+                                onConvert: () =>
+                                    showEqualsMoneyConversionDialog(
+                                      context,
+                                      ref,
+                                      budgets.valueOrNull ?? const [],
+                                    ),
+                                onCreateBudget: () =>
+                                    showCreateEqualsBudgetDialog(context, ref),
+                              ),
                             ),
+                            EqualsMoneyTabBar(controller: _tabController),
                           ],
-                        ),
+                        ],
                       ),
-                    ] else ...[
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: _EqualsMoneyHeader(
-                          disclosure: disclosure,
-                          isCreating: platformAction.isLoading,
-                          canConvert: canConvertEqualsMoneyBudgets(
-                            budgets.valueOrNull ?? const [],
-                          ),
-                          onConvert: () => showEqualsMoneyConversionDialog(
-                            context,
-                            ref,
-                            budgets.valueOrNull ?? const [],
-                          ),
-                          onCreateBudget: () =>
-                              showCreateEqualsBudgetDialog(context, ref),
-                        ),
-                      ),
-                      EqualsMoneyTabBar(controller: _tabController),
-                    ],
-                    Expanded(
-                      child: isExample && widget.initialTab == MoneyTab.accounts
-                          ? WalletsScreen(
-                              initialView: WalletView.balances,
-                              embedded: true,
-                              initialBudgetId: widget.initialBudgetId,
-                              initialCurrency: widget.initialCurrency,
-                            )
-                          : TabBarView(
-                              controller: _tabController,
-                              children: [
-                                WalletsScreen(
-                                  initialView: WalletView.balances,
-                                  embedded: true,
-                                  initialBudgetId:
-                                      widget.initialTab == MoneyTab.accounts
-                                          ? widget.initialBudgetId
-                                          : '',
-                                  initialCurrency:
-                                      widget.initialTab == MoneyTab.accounts
-                                          ? widget.initialCurrency
-                                          : '',
-                                ),
-                                _PaymentForm(
-                                  initialAccountId: widget.initialBudgetId,
-                                ),
-                                _PayeesView(initialDraft: widget.initialPayee),
-                              ],
-                            ),
                     ),
                   ],
+                  body: isExample && widget.initialTab == MoneyTab.accounts
+                      ? WalletsScreen(
+                          initialView: WalletView.balances,
+                          embedded: true,
+                          initialBudgetId: widget.initialBudgetId,
+                          initialCurrency: widget.initialCurrency,
+                        )
+                      : TabBarView(
+                          controller: _tabController,
+                          children: [
+                            WalletsScreen(
+                              initialView: WalletView.balances,
+                              embedded: true,
+                              initialBudgetId:
+                                  widget.initialTab == MoneyTab.accounts
+                                  ? widget.initialBudgetId
+                                  : '',
+                              initialCurrency:
+                                  widget.initialTab == MoneyTab.accounts
+                                  ? widget.initialCurrency
+                                  : '',
+                            ),
+                            _PaymentForm(
+                              initialAccountId: widget.initialBudgetId,
+                            ),
+                            _PayeesView(initialDraft: widget.initialPayee),
+                          ],
+                        ),
                 ),
               );
             },

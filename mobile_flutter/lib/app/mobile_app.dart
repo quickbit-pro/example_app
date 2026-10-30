@@ -1,3 +1,4 @@
+import '../core/widgets/keyboard_focus_visibility.dart';
 import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -117,7 +118,11 @@ class _MobileAppState extends ConsumerState<MobileApp> {
           child: WebSafeAreaPadding(
             child: Stack(
               children: [
-                EqualsReagreementGate(child: child ?? const SizedBox.shrink()),
+                KeyboardFocusVisibility(
+                  child: EqualsReagreementGate(
+                    child: child ?? const SizedBox.shrink(),
+                  ),
+                ),
                 const Positioned(
                   top: 0,
                   left: 0,
