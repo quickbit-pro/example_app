@@ -183,6 +183,46 @@ void main() {
       expect(series.delta, -10);
     });
 
+    test('EUR history uses reference FX in USD, EUR and GBP with no EUR balance',
+        () {
+      final rows = [
+        ledgerActivity({'type': 'deposit', 'currency': 'EUR', 'amount': 5}),
+        ledgerActivity({'type': 'withdrawal', 'currency': 'EUR', 'amount': 4.74}),
+        ledgerActivity({'type': 'fee', 'currency': 'EUR', 'amount': .25}),
+        ledgerActivity({
+          'type': 'withdrawal',
+          'currency': 'EUR',
+          'amount': 4.99,
+          'status': 'pending'
+        }),
+      ];
+      for (final entry in {'USD': 1.12, 'EUR': 1.0, 'GBP': .8}.entries) {
+        final series = ExampleBalanceSeries.fromActivities(
+          7.47 * entry.value,
+          rows,
+          currency: entry.key,
+          asOf: now,
+          valuationRates: {'EUR': entry.value},
+        );
+        expect(series.isEmpty, isFalse);
+        expect(series.description, isNull);
+        expect(series.delta, closeTo(.01 * entry.value, .000001));
+        expect(series.last, closeTo(7.47 * entry.value, .000001));
+      }
+    });
+
+    test('stablecoin reference quotes take priority over the USD peg estimate',
+        () {
+      final row = ledgerActivity({
+        'type': 'crypto_withdrawal',
+        'currency': 'USDC',
+        'amount': 8.23,
+      });
+      expect(month(10, [row], rates: {'USDC': .999497}).delta,
+          closeTo(-8.23 * .999497, .000001));
+      expect(month(10, [row]).delta, closeTo(-8.23, .000001));
+    });
+
     test('unknown dates or valuations do not manufacture monthly balances', () {
       expect(
           month(100, [

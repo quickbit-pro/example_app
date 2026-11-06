@@ -10,12 +10,17 @@ import 'package:mobile_flutter/core/branding/app_design.dart';
 import 'package:mobile_flutter/core/theme/app_theme.dart';
 import 'package:mobile_flutter/features/assistant/data/assistant_api.dart';
 import 'package:mobile_flutter/features/assistant/domain/assistant_departure.dart';
+import 'package:mobile_flutter/features/assistant/domain/hoppa_assistant_knowledge.dart';
+import 'package:mobile_flutter/features/assistant/presentation/assistant_departure_picker.dart';
+import 'package:mobile_flutter/features/assistant/presentation/assistant_quick_entry.dart';
 import 'package:mobile_flutter/features/assistant/presentation/ask_ai_screen.dart';
 import 'package:mobile_flutter/flavors.dart';
 
 class _HoppaAssistantApi extends AssistantApi {
   _HoppaAssistantApi({this.enabled = true}) : super(Dio());
   final bool enabled;
+  int chatCalls = 0;
+  AssistantDeparture? sentDeparture;
 
   AssistantUsage get allowance => AssistantUsage(
         enabled: enabled,
@@ -36,15 +41,18 @@ class _HoppaAssistantApi extends AssistantApi {
     String? locale,
     AssistantDeparture? departure,
     CancelToken? cancelToken,
-  }) async =>
-      AssistantReply(
-        reply: 'Here are a few travel options.',
-        actions: const [],
-        sources: const [],
-        webSearchUsed: false,
-        usage: allowance,
-        refused: false,
-      );
+  }) async {
+    chatCalls++;
+    sentDeparture = departure;
+    return AssistantReply(
+      reply: 'I can help you find your way around Hoppa.',
+      actions: const [],
+      sources: const [],
+      webSearchUsed: false,
+      usage: allowance,
+      refused: false,
+    );
+  }
 }
 
 void main() {
@@ -66,15 +74,17 @@ void main() {
     design: AppDesign(config['design'] as Map<String, dynamic>),
   );
 
+  late _HoppaAssistantApi api;
+
   Future<void> mount(WidgetTester tester, Brightness brightness,
-      {bool enabled = true}) async {
-    await tester.binding.setSurfaceSize(const Size(390, 844));
+      {bool enabled = true, double width = 390}) async {
+    api = _HoppaAssistantApi(enabled: enabled);
+    await tester.binding.setSurfaceSize(Size(width, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final themes = buildAppThemes(branding);
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        assistantApiProvider
-            .overrideWithValue(_HoppaAssistantApi(enabled: enabled)),
+        assistantApiProvider.overrideWithValue(api),
         appConfigProvider.overrideWithValue(AppConfig(
           flavor: AppFlavor.prod,
           apiBaseUrl: config['flutterDefines']['API_BASE_URL'] as String,
@@ -92,20 +102,20 @@ void main() {
 
   for (final brightness in Brightness.values) {
     testWidgets(
-        'Hoppa concierge preserves brand and readable bubble ($brightness)',
+        'Hoppa Ask AI preserves brand and readable bubble ($brightness)',
         (tester) async {
       await mount(tester, brightness);
-      await tester.enterText(
-          find.byType(TextField), 'Find a quiet hotel in Rome');
+      await tester.enterText(find.byType(TextField), 'Show me around Hoppa');
       await tester.pump();
       await tester.tap(find.byTooltip('Send question'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('Hoppa concierge'), findsOneWidget);
+      expect(find.text('Ask AI'), findsNWidgets(2));
+      expect(api.chatCalls, 1);
+      expect(api.sentDeparture, isNull);
       final userText = tester.widget<SelectableText>(
         find.byWidgetPredicate((widget) =>
-            widget is SelectableText &&
-            widget.data == 'Find a quiet hotel in Rome'),
+            widget is SelectableText && widget.data == 'Show me around Hoppa'),
       );
       expect(
           userText.style!.color,
@@ -116,12 +126,89 @@ void main() {
     });
   }
 
-  testWidgets('disabled Hoppa concierge labels local help with Hoppa',
+  for (final enabled in [true, false]) {
+    testWidgets('Hoppa help replaces travel UI (enabled=$enabled)',
+        (tester) async {
+      await mount(tester, Brightness.dark, enabled: enabled, width: 320);
+      expect(find.text('How can we help?'), findsOneWidget);
+      expect(find.text('Ask about the app…'), findsOneWidget);
+      expect(find.text('Your travel concierge'), findsNothing);
+      expect(find.text('Find flights'), findsNothing);
+      expect(find.text('Find a hotel'), findsNothing);
+      expect(find.text('Plan my escape'), findsNothing);
+      expect(find.text('Dinner and experiences'), findsNothing);
+      expect(find.byType(AssistantDeparturePicker), findsNothing);
+      expect(find.byType(AssistantQuickEntry), findsNothing);
+      expect(find.text('Dates'), findsNothing);
+      expect(find.text('Budget'), findsNothing);
+      await tester.ensureVisible(find.text(
+          'Help with cards, payments, transfers, verification and account security.'));
+      await tester.pump();
+      expect(
+          find.text(
+              'Prices and availability are confirmed on the booking site.'),
+          findsNothing);
+      final toolbar = find.byKey(const ValueKey('assistant-compact-toolbar'));
+      await tester
+          .tap(find.descendant(of: toolbar, matching: find.text('Help')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(ExpansionTile),
+          findsNWidgets(hoppaAssistantTopics.length));
+      final support =
+          find.widgetWithText(ExpansionTile, 'How do I contact Hoppa support?');
+      await tester.ensureVisible(support);
+      await tester.tap(support);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.widgetWithText(TextButton, 'Open Support tickets'),
+          findsOneWidget);
+      expect(api.chatCalls, 0);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Hoppa answers FAQ in chat (enabled=$enabled)', (tester) async {
+      await mount(tester, Brightness.light, enabled: enabled);
+      await tester.enterText(find.byType(TextField), 'My payment was declined');
+      await tester.pump();
+      await tester.tap(find.byTooltip('Send question'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+          find.text(hoppaAssistantTopics
+              .firstWhere((t) => t.id == 'declined')
+              .answer),
+          findsOneWidget);
+      expect(find.text('Check my card'), findsOneWidget);
+      expect(find.text('Ask AI'), findsNWidgets(2));
+      expect(api.chatCalls, 0);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('Hoppa starter opens a help answer without an AI request',
       (tester) async {
-    await mount(tester, Brightness.light, enabled: false);
-    expect(find.textContaining('answers from Hoppa help content.'),
-        findsOneWidget);
-    expect(find.textContaining('Example help content'), findsNothing);
+    await mount(tester, Brightness.dark);
+    final starter = find.text('How do I add money to my card?');
+    await tester.ensureVisible(starter);
+    await tester.tap(starter);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text(hoppaAssistantTopics.first.answer), findsOneWidget);
+    expect(find.text('Go to Cards'), findsOneWidget);
+    expect(api.chatCalls, 0);
     expect(tester.takeException(), isNull);
+  });
+
+  test('Hoppa FAQ matching uses whole words and exact prompts', () {
+    for (final topic in hoppaAssistantTopics) {
+      expect(matchHoppaAssistantTopic(topic.prompt)?.id, topic.id);
+    }
+    expect(matchHoppaAssistantTopic('my card was stolen')?.id, 'freeze');
+    expect(matchHoppaAssistantTopic('set my PIN')?.id, 'pin');
+    expect(matchHoppaAssistantTopic('shipping'), isNull);
+    expect(matchHoppaAssistantTopic('my payment is pending')?.id, 'activity');
+    expect(matchHoppaAssistantTopic('auto freeze')?.id, 'auto-freeze');
+    expect(matchHoppaAssistantTopic('find a hotel'), isNull);
   });
 }

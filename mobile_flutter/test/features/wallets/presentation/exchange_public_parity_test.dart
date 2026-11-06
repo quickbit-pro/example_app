@@ -32,8 +32,8 @@ const overview = BoomFiExchangeOverview(
           currency: 'USDC',
           amount: 500,
           pendingAmount: 0,
-          chainId: 137,
-          chainName: 'Polygon',
+          chainId: 42161,
+          chainName: 'Arbitrum',
           tokenAddress: 'token'),
     ],
     settlementAccounts: [],
@@ -49,7 +49,7 @@ const budget = PlatformResource(
 const wallet = HoppaWalletAsset(
     symbol: 'USDC',
     name: 'USDC',
-    network: 'Polygon',
+    network: 'Arbitrum',
     amount: 10,
     fiatValue: 10,
     address: '0x123',
@@ -60,6 +60,7 @@ class FakeExchangeApi extends MobilePlatformApi {
   FakeExchangeApi() : super(Dio());
   final pending = Completer<Map<String, dynamic>>();
   int accepts = 0, funds = 0, overviews = 0;
+  Map<String, dynamic>? fundingRequest;
   @override
   Future<List<Map<String, dynamic>>> getExchangeDestinations() async => [];
   @override
@@ -81,6 +82,7 @@ class FakeExchangeApi extends MobilePlatformApi {
   Future<Map<String, dynamic>> fundExchange(
       Map<String, dynamic> request) async {
     funds++;
+    fundingRequest = Map.of(request);
     return {'message': 'Submitted'};
   }
 
@@ -277,6 +279,8 @@ void main() {
     await tester.tap(find.text('Confirm and fund'));
     await tester.pumpAndSettle();
     expect(api.funds, 1);
+    expect(api.fundingRequest?['chainId'], 42161);
+    expect(api.fundingRequest?['destinationAddress'], wallet.address);
   });
   testWidgets('disabled outflows allow quotes but never confirmation',
       (tester) async {

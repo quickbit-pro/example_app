@@ -2,6 +2,8 @@ import '../../../core/models/platform_models.dart';
 import 'wallet_models.dart';
 
 const exchangeDefaultChainId = 137;
+// Equals Money funding is delivered to the Interlace Arbitrum address.
+const exchangeFundingChainId = 42161;
 
 int exchangeChainId(String network) {
   final n = network.trim().toLowerCase();
@@ -60,11 +62,13 @@ List<HoppaWalletAsset> exchangeTransferRoutes(
 List<HoppaWalletAsset> exchangeTransferCurrencyRoutes(
   List<HoppaWalletAsset> routes, {
   required bool Function(String) canTrade,
+  int? requiredChainId,
 }) {
   final choices = <HoppaWalletAsset>[];
   for (final symbol in ['USDC', 'USDT']) {
     if (!canTrade(symbol)) continue;
-    final matching = routes.where((w) => w.symbol.toUpperCase() == symbol);
+    final matching = routes.where((w) => w.symbol.toUpperCase() == symbol &&
+        (requiredChainId == null || exchangeChainId(w.network) == requiredChainId));
     final selected = matching
             .where((w) => exchangeChainId(w.network) == exchangeDefaultChainId)
             .firstOrNull ??

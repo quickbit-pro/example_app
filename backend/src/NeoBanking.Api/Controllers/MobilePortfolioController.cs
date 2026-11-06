@@ -73,6 +73,27 @@ public sealed class MobilePortfolioController(
                 statusCode: StatusCodes.Status502BadGateway);
         }
 
+        // History includes currencies that may no longer have a non-zero
+        // balance. Their rates cannot be recovered from current holdings.
+        var pricesPath = hoppaOptions.Value.ReferencePricesPath?.Trim();
+        if (!string.IsNullOrWhiteSpace(pricesPath))
+        {
+            var prices = await proxyHoppa.ExecuteAsync(
+                new ProxyHoppaRequestCommand<object?>
+                {
+                    Method = HttpMethod.Get,
+                    UpstreamPath = pricesPath,
+                    Request = null,
+                    FailureCode = "mobile.portfolio.prices.failed",
+                    FailureMessage = "We could not load reference exchange rates."
+                },
+                cancellationToken);
+            if (prices.IsSuccess)
+            {
+                estimate = HoppaPortfolioEstimateMapper.WithReferencePrices(estimate, prices.Value);
+            }
+        }
+
         return Ok(JsonSerializer.SerializeToElement(estimate, JsonSerializerOptions.Web));
     }
 }

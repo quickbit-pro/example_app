@@ -25,6 +25,42 @@ public sealed record PortfolioProviderTotalResponse(
 
 public static class HoppaPortfolioEstimateMapper
 {
+    public static PortfolioEstimateResponse WithReferencePrices(
+        PortfolioEstimateResponse estimate, JsonElement? payload)
+    {
+        if (payload is null || payload.Value.ValueKind != JsonValueKind.Array) return estimate;
+
+        var prices = new Dictionary<string, (string Base, decimal Price, bool IsStale)>(
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var row in payload.Value.EnumerateArray())
+        {
+            var symbol = ReadString(row, "assetCode", "AssetCode")?.Trim().ToUpperInvariant();
+            var priceBase = ReadString(row, "baseCurrency", "BaseCurrency")?.Trim().ToUpperInvariant();
+            var price = ReadDecimal(row, "price", "Price");
+            if (string.IsNullOrEmpty(symbol) || string.IsNullOrEmpty(priceBase) ||
+                price is null or <= 0 || ReadBoolean(row, "isAvailable", "IsAvailable") != true) continue;
+            prices.TryAdd(symbol, (priceBase, price.Value,
+                ReadBoolean(row, "isStale", "IsStale") == true));
+        }
+
+        if (!prices.TryGetValue(estimate.Currency, out var target)) return estimate;
+        var rates = estimate.ValuationRates.ToDictionary(row => row.Currency, row => row.Rate,
+            StringComparer.OrdinalIgnoreCase);
+        var isStale = estimate.IsStale;
+        foreach (var (symbol, source) in prices)
+        {
+            if (source.Base != target.Base || rates.ContainsKey(symbol)) continue;
+            rates.Add(symbol, source.Price / target.Price);
+            isStale |= source.IsStale || target.IsStale;
+        }
+
+        return estimate with
+        {
+            ValuationRates = rates.Select(pair => new PortfolioValuationRateResponse(pair.Key, pair.Value)).ToArray(),
+            IsStale = isStale
+        };
+    }
+
     public static PortfolioEstimateResponse Map(JsonElement? payload, string requestedCurrency)
     {
         var root = Unwrap(payload);

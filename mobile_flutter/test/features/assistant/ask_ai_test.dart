@@ -22,8 +22,9 @@ import 'package:mobile_flutter/features/assistant/presentation/ask_ai_screen.dar
 import 'package:mobile_flutter/flavors.dart';
 
 const _branding = AppBranding(
-    appName: 'Hoppa',
-    brandId: 'hoppa',
+    appName: 'Example',
+    // Keep the shared travel flow covered for non-Hoppa brands.
+    brandId: 'example',
     primarySeedHex: '7B6CF6',
     accentSeedHex: 'A78BFA',
     loginBackgroundHex: '',
@@ -31,7 +32,7 @@ const _branding = AppBranding(
     fontFamily: '',
     logoAsset: '',
     radiusScale: '1',
-    supportEmail: 'support@hoppa.global',
+    supportEmail: 'support@example.invalid',
     supportPhone: '',
     legalEntity: '');
 

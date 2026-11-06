@@ -101,7 +101,8 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
   String walletId(HoppaWalletAsset w) =>
       '${w.walletId}:${w.symbol}:${w.network}:${w.address}';
   List<HoppaWalletAsset> get walletChoices => widget.flow == ExchangeFlow.fund
-      ? exchangeTransferCurrencyRoutes(wallets, canTrade: widget.overview.canTrade)
+      ? exchangeTransferCurrencyRoutes(wallets,
+          canTrade: widget.overview.canTrade, requiredChainId: exchangeFundingChainId)
       : wallets;
   HoppaWalletAsset? get wallet =>
       walletChoices.where((x) => walletId(x) == walletKey).firstOrNull ??

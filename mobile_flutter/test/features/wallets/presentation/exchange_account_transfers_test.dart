@@ -19,7 +19,7 @@ import 'package:mobile_flutter/features/crypto/presentation/crypto_trade_screen.
 HoppaWalletAsset wallet(String network, {String symbol = 'USDC', double amount = 0, String address = ''}) =>
     HoppaWalletAsset(symbol: symbol, name: symbol, network: network, amount: amount,
         fiatValue: 0, address: address, tint: Colors.blue, walletId: 'same-wallet');
-final addresses = [wallet('ETH', address: '0xowned'), wallet('MATIC', address: '0xowned')];
+final addresses = [wallet('ETH', address: '0xowned'), wallet('MATIC', address: '0xowned'), wallet('ARB', address: '0xarbitrum')];
 final assets = [wallet('', amount: 10), wallet('QuantumAccount', symbol: 'USD', amount: 50)];
 PlatformResource budget(double euros) => PlatformResource(id: 'equals', title: 'My Equals account', subtitle: '', metadata: {
   'accountId': 'parent', 'currency': 'USD', 'supportedCurrencies': ['USD', 'EUR'],
@@ -31,10 +31,12 @@ BoomFiExchangeOverview overview({bool eurFunding = true, bool restricted = false
   'balances': {'balances': [
     {'accountId': 1, 'currency': 'USDC', 'amount': 0, 'chain': {'id': 1, 'name': 'Ethereum'}},
     {'accountId': 2, 'currency': 'USDC', 'amount': 0, 'chain': {'id': 137, 'name': 'Polygon'}},
+    {'accountId': 6, 'currency': 'USDC', 'amount': 0, 'chain': {'id': 42161, 'name': 'Arbitrum'}},
     {'accountId': 3, 'currency': 'EUR', 'amount': 0},
     if (includeUsdt) ...[
       {'accountId': 4, 'currency': 'USDT', 'amount': 0, 'chain': {'id': 1, 'name': 'Ethereum'}},
       {'accountId': 5, 'currency': 'USDT', 'amount': 0, 'chain': {'id': 137, 'name': 'Polygon'}},
+      {'accountId': 7, 'currency': 'USDT', 'amount': 0, 'chain': {'id': 42161, 'name': 'Arbitrum'}},
     ],
   ]},
   'fiatFundingCurrencies': eurFunding ? ['EUR'] : [],
@@ -72,13 +74,13 @@ void main() {
   test('overview reads camel-case funding currencies and account IDs', () {
     final result = overview();
     expect(result.fiatFundingCurrencies, ['EUR']);
-    expect(result.balances.map((b) => b.accountId), [1, 2, 3]);
+    expect(result.balances.map((b) => b.accountId), [1, 2, 6, 3]);
   });
   test('networkless balances are shared across exact routes, with Polygon first', () {
     final routes = exchangeTransferRoutes(addresses, assets);
-    expect(routes.map((w) => exchangeChainId(w.network)), [137, 1]);
-    expect(routes.map((w) => w.amount), [10, 10]);
-    expect(routes.map(exchangeRouteKey).toSet(), hasLength(2));
+    expect(routes.map((w) => exchangeChainId(w.network)), [137, 1, 42161]);
+    expect(routes.map((w) => w.amount), [10, 10, 10]);
+    expect(routes.map(exchangeRouteKey).toSet(), hasLength(3));
     expect(exchangeTransferRoutes([wallet('ETH / MATIC', address: '0xowned')], assets), isEmpty);
     expect(exchangeTransferRoutes([addresses.first], assets).single.network, 'ETH');
   });
@@ -201,6 +203,7 @@ void main() {
             ...addresses,
             wallet('ETH', symbol: 'USDT', address: '0xusdt'),
             wallet('MATIC', symbol: 'USDT', address: '0xusdt'),
+            wallet('ARB', symbol: 'USDT', address: '0xusdtarb'),
           ]));
         await tap(tester, funding ? 'Fiat account to Crypto card' : 'Crypto card to Fiat account');
         final dropdown = tester.widgetList<DropdownButton<String>>(find.byType(DropdownButton<String>))
@@ -220,7 +223,7 @@ void main() {
         await tap(tester, 'Get quote');
         if (funding) {
           expect(api.destination?.currency, currency);
-          expect(api.destination?.chainId, 137);
+          expect(api.destination?.chainId, 42161);
         } else {
           expect(api.sellRequest?['currency'], currency);
           expect(api.sellRequest?['chainId'], 137);
@@ -268,13 +271,13 @@ void main() {
     await tester.enterText(find.byType(TextField).first, '40');
     await tap(tester, 'Get quote');
     expect(api.source?.accountId, 3);
-    expect(api.destination?.chainId, 137);
+    expect(api.destination?.chainId, 42161);
     expect(api.submissions, 0);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('Equals needs EUR; conversion refreshes the balance before the Polygon quote', (tester) async {
+  testWidgets('Equals needs EUR; conversion refreshes the balance before the Arbitrum quote', (tester) async {
     final api = TransferApi();
     var converted = false;
     await host(tester, api, euros: 0,
@@ -291,7 +294,7 @@ void main() {
     expect(find.text('From'), findsNothing);
     await tap(tester, 'Get quote');
     expect(api.source?.currency, 'EUR');
-    expect(api.destination?.chainId, 137);
+    expect(api.destination?.chainId, 42161);
     expect(api.submissions, 0);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
@@ -304,6 +307,28 @@ void main() {
     pending.complete(addresses);
     await tester.pumpAndSettle();
     expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Crypto card to Fiat account')).onPressed, isNotNull);
+  });
+
+  test('Equals funding requires Arbitrum and its exact receiving address', () {
+    final choices = exchangeTransferCurrencyRoutes([
+      wallet('MATIC', address: '0xpolygon'),
+      wallet('ARB', address: '0xarbitrum'),
+    ], canTrade: (_) => true, requiredChainId: exchangeFundingChainId);
+    expect(choices.single.address, '0xarbitrum');
+    expect(exchangeChainId(choices.single.network), 42161);
+    expect(exchangeTransferCurrencyRoutes([wallet('MATIC', address: '0xpolygon')],
+      canTrade: (_) => true, requiredChainId: exchangeFundingChainId), isEmpty);
+  });
+
+  testWidgets('funding never falls back to Polygon when Arbitrum is unavailable', (tester) async {
+    final api = TransferApi();
+    await host(tester, api, addressFuture: Future.value([
+      wallet('MATIC', address: '0xpolygon'),
+    ]));
+    expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Fiat account to Crypto card')).onPressed, isNull);
+    expect(find.textContaining('An Arbitrum receiving address'), findsOneWidget);
+    expect(api.submissions, 0);
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('funding and withdrawal restrictions have visible reasons', (tester) async {

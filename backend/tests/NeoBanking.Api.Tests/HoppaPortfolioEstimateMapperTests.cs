@@ -6,6 +6,77 @@ namespace NeoBanking.Api.Tests;
 
 public sealed class HoppaPortfolioEstimateMapperTests
 {
+    [Theory]
+    [InlineData("USD", 1.12, 1)]
+    [InlineData("EUR", 1, 0.8928571428571429)]
+    [InlineData("GBP", 0.8, 0.7142857142857143)]
+    public void ReferencePrices_ValueTransactionsWithoutCurrentHoldings(
+        string currency, double expectedEurRate, double expectedUsdRate)
+    {
+        // User 227 has EUR movements but no remaining EUR balance from
+        // which the old mapper could infer a conversion rate.
+        var estimate = HoppaPortfolioEstimateMapper.Map(JsonSerializer.SerializeToElement(new
+        {
+            currency,
+            estimatedTotalAssets = 7.47m,
+            balances = new[] { new { assetCode = "EUR", balance = 0, estimatedValue = 0, targetCurrency = currency } }
+        }), currency);
+        var prices = JsonSerializer.SerializeToElement(new[]
+        {
+            new { assetCode = "USD", baseCurrency = "USD", price = 1m, isAvailable = true },
+            new { assetCode = "EUR", baseCurrency = "USD", price = 1.12m, isAvailable = true },
+            new { assetCode = "GBP", baseCurrency = "USD", price = 1.4m, isAvailable = true }
+        });
+
+        var result = HoppaPortfolioEstimateMapper.WithReferencePrices(estimate, prices);
+        var rates = result.ValuationRates.ToDictionary(row => row.Currency, row => row.Rate);
+        Assert.Equal(expectedEurRate, (double)rates["EUR"], 10);
+        Assert.Equal(expectedUsdRate, (double)rates["USD"], 10);
+        Assert.Equal(estimate.Total, result.Total);
+        Assert.Equal(1m, rates[currency]);
+    }
+
+    [Fact]
+    public void ReferencePrices_PreserveValuationsAndRejectUnusablePrices()
+    {
+        using var holdings = JsonDocument.Parse("""
+            {"currency":"USD","total":12,"balances":[
+              {"assetCode":"EUR","balance":10,"estimatedValue":12,"targetCurrency":"USD"}
+            ]}
+            """);
+        using var prices = JsonDocument.Parse("""
+            [
+              {"AssetCode":"USD","BaseCurrency":"USD","Price":1,"IsAvailable":true},
+              {"AssetCode":"EUR","BaseCurrency":"USD","Price":1.12,"IsAvailable":true},
+              {"AssetCode":"GBP","BaseCurrency":"USD","Price":1.4,"IsAvailable":true,"IsStale":true},
+              {"assetCode":"AED","baseCurrency":"USD","price":0.27,"isAvailable":false},
+              {"assetCode":"RON","baseCurrency":"USD","price":0,"isAvailable":true},
+              {"assetCode":"BTC","baseCurrency":"EUR","price":100000,"isAvailable":true},
+              {"assetCode":"ETH","baseCurrency":"USD","price":-1,"isAvailable":true}
+            ]
+            """);
+        var estimate = HoppaPortfolioEstimateMapper.Map(holdings.RootElement, "USD");
+        var result = HoppaPortfolioEstimateMapper.WithReferencePrices(estimate, prices.RootElement);
+        var rates = result.ValuationRates.ToDictionary(row => row.Currency, row => row.Rate);
+        Assert.Equal(1.2m, rates["EUR"]);
+        Assert.Equal(1.4m, rates["GBP"]);
+        Assert.Equal(3, rates.Count);
+        Assert.True(result.IsStale);
+        Assert.Equal(estimate.Total, result.Total);
+    }
+
+    [Fact]
+    public void ReferencePrices_WithoutTargetOrArrayLeaveEstimateUsable()
+    {
+        var estimate = HoppaPortfolioEstimateMapper.Map(JsonSerializer.SerializeToElement(new { currency = "GBP", total = 10 }), "GBP");
+        Assert.Equal(estimate, HoppaPortfolioEstimateMapper.WithReferencePrices(estimate, null));
+        Assert.Equal(estimate, HoppaPortfolioEstimateMapper.WithReferencePrices(estimate, JsonSerializer.SerializeToElement(new { })));
+        using var prices = JsonDocument.Parse("""
+            [{"assetCode":"USD","baseCurrency":"USD","price":1,"isAvailable":true}]
+            """);
+        Assert.Equal(estimate, HoppaPortfolioEstimateMapper.WithReferencePrices(estimate, prices.RootElement));
+    }
+
     [Fact]
     public void Map_NormalizesLikelyHoppaEstimateFields()
     {

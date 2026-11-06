@@ -18,6 +18,8 @@ public sealed class HoppaOptions
 
     public string? PortfolioEstimatePath { get; init; }
 
+    public string? ReferencePricesPath { get; init; } = "/api/v2/prices";
+
     public ReferralAuditDelegationOptions ReferralAuditDelegation { get; init; } = new();
 }
 

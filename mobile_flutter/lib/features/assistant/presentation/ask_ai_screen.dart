@@ -24,6 +24,7 @@ import '../domain/assistant_dictation_controller.dart';
 import '../domain/assistant_departure.dart';
 import '../domain/assistant_conversation.dart';
 import '../domain/assistant_knowledge.dart';
+import '../domain/hoppa_assistant_knowledge.dart';
 import 'sparkle_icon.dart';
 import 'assistant_voice_button.dart';
 import 'assistant_departure_picker.dart';
@@ -100,6 +101,11 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen>
   bool _sensitiveInputRejected = false;
   String? _error;
   String? _usageError;
+
+  bool get _helpFirst =>
+      ref.read(appConfigProvider).branding.brandId.toLowerCase() == 'hoppa';
+  List<AssistantTopic> get _helpTopics =>
+      _helpFirst ? hoppaAssistantTopics : assistantTopics;
 
   bool get _localHelp => _usage?.enabled == false;
   bool get _exhausted => !_localHelp && _usage?.remaining == 0;
@@ -209,6 +215,7 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen>
   }
 
   Future<void> _loadPreferences() async {
+    if (_helpFirst) return;
     final accountEpoch = _accountEpoch;
     _preferencesCancel?.cancel();
     final token = _preferencesCancel = CancelToken();
@@ -298,11 +305,13 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen>
     _controller.clear();
     _tripDetails = const AssistantTripDetails();
     _quickEntryEpoch++;
-    if (_localHelp) {
-      final topic = assistantTopics
-              .where((topic) => context.tr(topic.prompt) == text)
-              .firstOrNull ??
-          matchAssistantTopic(text);
+    final topic = _helpTopics
+            .where((topic) => context.tr(topic.prompt) == text)
+            .firstOrNull ??
+        (_helpFirst
+            ? matchHoppaAssistantTopic(text)
+            : matchAssistantTopic(text));
+    if (_localHelp || (_helpFirst && topic != null)) {
       final email = ref.read(appConfigProvider).branding.supportEmail;
       setState(() {
         _messages
@@ -329,7 +338,8 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen>
         .toList(growable: false);
     setState(() {
       _messages.add(_Message(text: text, fromUser: true));
-      _pending = _PendingQuestion(text, history, _departure, tripDetails);
+      _pending = _PendingQuestion(
+          text, history, _helpFirst ? null : _departure, tripDetails);
     });
     await _sendPending();
   }
@@ -542,18 +552,24 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen>
         return switch (code) {
           'assistant.daily_limit' =>
             'Daily allowance used. Come back after the reset.',
-          'assistant.global_limit' =>
-            'The concierge has reached its daily service limit. Please try again tomorrow.',
-          'assistant.busy' =>
-            'Another concierge request is still running. Please try again in a minute.',
+          'assistant.global_limit' => _helpFirst
+              ? 'Ask AI has reached its daily service limit. Please try again tomorrow.'
+              : 'The concierge has reached its daily service limit. Please try again tomorrow.',
+          'assistant.busy' => _helpFirst
+              ? 'Another Ask AI request is still running. Please try again in a minute.'
+              : 'Another concierge request is still running. Please try again in a minute.',
           _ => 'Please wait a minute before sending another question.',
         };
       }
       if (status == 503) {
-        return 'The travel concierge is temporarily unavailable. Please try again later.';
+        return _helpFirst
+            ? 'Ask AI is temporarily unavailable. Please try again later.'
+            : 'The travel concierge is temporarily unavailable. Please try again later.';
       }
       if (status == 401 || status == 403) {
-        return 'Please sign in again to use the travel concierge.';
+        return _helpFirst
+            ? 'Please sign in again to use Ask AI.'
+            : 'Please sign in again to use the travel concierge.';
       }
     }
     return 'Your answer could not be loaded. Try again or edit your question.';
@@ -637,6 +653,12 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen>
   }
 
   List<Widget> _footerDetails(BuildContext context) => [
+        if (_helpFirst)
+          TextButton.icon(
+            onPressed: _showHelp,
+            icon: const Icon(Icons.help_outline_rounded, size: 18),
+            label: Text(context.tr('Help')),
+          ),
         if (_usage != null && !_localHelp)
           Semantics(
               liveRegion: true,
@@ -678,7 +700,7 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (final topic in assistantTopics)
+              for (final topic in _helpTopics)
                 ExpansionTile(
                   tilePadding: EdgeInsets.zero,
                   title: Text(context.tr(topic.prompt)),
@@ -720,7 +742,7 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen>
         MediaQuery.sizeOf(context).width >= ExampleBreakpoints.desktop;
     final body = Column(
       children: [
-        if (_usage?.enabled == true)
+        if (!_helpFirst && _usage?.enabled == true)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
             child: AssistantDeparturePicker(
@@ -769,15 +791,18 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen>
                 _Intro(
                     brandName: brandName,
                     localHelp: _localHelp,
+                    helpFirst: _helpFirst,
                     onHelp: _showHelp,
                     onSpending: _canAsk ? _showSpending : null,
                     departure: _departure,
                     preferences: _preferences,
-                    onPick:
-                        _canAsk ? (_localHelp ? _ask : _draftStarter) : null),
+                    onPick: _canAsk
+                        ? (_localHelp || _helpFirst ? _ask : _draftStarter)
+                        : null),
               for (final message in _messages)
                 _Bubble(
                   brandName: brandName,
+                  helpFirst: _helpFirst,
                   message: message,
                   onOpen: (route) => context.go(route),
                   onExternal: _openExternal,
@@ -814,7 +839,7 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen>
         Padding(
           key: const ValueKey('assistant-compact-toolbar'),
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _usage?.enabled == true
+          child: !_helpFirst && _usage?.enabled == true
               ? AssistantQuickEntry(
                   key: ValueKey('assistant-quick-entry-$_quickEntryEpoch'),
                   value: _tripDetails,
@@ -855,7 +880,7 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen>
           },
           controller: _controller,
           enabled: _canAsk,
-          localHelp: _localHelp,
+          localHelp: _localHelp || _helpFirst,
           maxLength: _messageLimit,
           onSend: () => _ask(_controller.text),
         ),
@@ -975,6 +1000,7 @@ class _Intro extends StatelessWidget {
   const _Intro(
       {required this.brandName,
       required this.localHelp,
+      required this.helpFirst,
       required this.onHelp,
       required this.onSpending,
       required this.onPick,
@@ -982,6 +1008,7 @@ class _Intro extends StatelessWidget {
       required this.preferences});
   final String brandName;
   final bool localHelp;
+  final bool helpFirst;
   final AssistantDeparture? departure;
   final AssistantPreferences preferences;
   final ValueChanged<String>? onPick;
@@ -1002,7 +1029,11 @@ class _Intro extends StatelessWidget {
         const Center(child: SparkleIcon(selected: true, size: 64)),
         const SizedBox(height: 14),
         Text(
-          context.tr(localHelp ? 'App help' : 'Your travel concierge'),
+          context.tr(helpFirst
+              ? 'How can we help?'
+              : localHelp
+                  ? 'App help'
+                  : 'Your travel concierge'),
           textAlign: TextAlign.center,
           style: TextStyle(
             color: palette.ink,
@@ -1014,9 +1045,11 @@ class _Intro extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           context.tr(
-              localHelp
-                  ? 'Travel concierge is not enabled here. Browse answers from {p0} help content.'
-                  : 'Pick an idea, make it yours and send. Your dates and trip budget are always up to you.',
+              helpFirst
+                  ? 'Get help with your Hoppa account, cards and payments. Ask a question or browse Help.'
+                  : localHelp
+                      ? 'Travel concierge is not enabled here. Browse answers from {p0} help content.'
+                      : 'Pick an idea, make it yours and send. Your dates and trip budget are always up to you.',
               {'p0': brandName}),
           textAlign: TextAlign.center,
           style: TextStyle(
@@ -1025,7 +1058,8 @@ class _Intro extends StatelessWidget {
               height: 1.5),
         ),
         const SizedBox(height: 22),
-        if (!localHelp &&
+        if (!helpFirst &&
+            !localHelp &&
             (departure != null || preferences.monthlyVolume != null)) ...[
           Text(
             [
@@ -1061,7 +1095,46 @@ class _Intro extends StatelessWidget {
           onTap: onHelp,
           bottomSpacing: 0,
         ),
-        if (!localHelp) ...[
+        if (helpFirst) ...[
+          for (final topic in hoppaAssistantTopics.take(4))
+            _Suggestion(
+              icon: Icons.question_answer_outlined,
+              title: context.tr(topic.prompt),
+              description: context.tr(topic.routeLabel ?? 'Help'),
+              onTap: onPick == null
+                  ? null
+                  : () => onPick!(context.tr(topic.prompt)),
+            ),
+          if (!localHelp)
+            _Suggestion(
+              icon: Icons.insights_outlined,
+              title: context.tr('My account activity'),
+              description: context.tr(
+                  'Understand money in, money out, fees and transfers. Ask about your activity.'),
+              onTap: onSpending,
+            ),
+          const SizedBox(height: 10),
+          Text(
+            context.tr(
+                'Help with cards, payments, transfers, verification and account security.'),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                color: palette.textTertiary,
+                fontSize: 11.5 * context.brandDesign.typographyScale,
+                height: 1.5),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            context.tr(
+                'For account-specific issues, contact Support from Settings. Never share passwords, PINs or security codes.'),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                color: palette.textTertiary,
+                fontSize: 11.5 * context.brandDesign.typographyScale,
+                height: 1.5),
+          ),
+        ],
+        if (!helpFirst && !localHelp) ...[
           for (var index = 0; index < starters.length; index++)
             _Suggestion(
               icon: _suggestionIcons[index],
@@ -1162,10 +1235,12 @@ class _Suggestion extends StatelessWidget {
 class _Bubble extends StatelessWidget {
   const _Bubble(
       {required this.brandName,
+      required this.helpFirst,
       required this.message,
       required this.onOpen,
       required this.onExternal});
   final String brandName;
+  final bool helpFirst;
   final _Message message;
   final ValueChanged<String> onOpen;
   final ValueChanged<String> onExternal;
@@ -1185,15 +1260,19 @@ class _Bubble extends StatelessWidget {
             .where((source) => safeAssistantLink(source.url) != null)
             .toList() ??
         [];
-    final verificationNote = switch (reply?.verification) {
-      'web_sources' =>
-        'Found on the web. Confirm final prices and availability with the provider.',
-      'planning' =>
-        'Planning suggestions only. Current prices and availability have not been verified.',
-      _ => sources.isNotEmpty || actions.isNotEmpty
-          ? 'Prices and availability are confirmed on the booking site.'
-          : null,
-    };
+    final verificationNote = helpFirst
+        ? (reply == null
+            ? null
+            : 'Check the app for current details. Contact Support if you need help with your account.')
+        : switch (reply?.verification) {
+            'web_sources' =>
+              'Found on the web. Confirm final prices and availability with the provider.',
+            'planning' =>
+              'Planning suggestions only. Current prices and availability have not been verified.',
+            _ => sources.isNotEmpty || actions.isNotEmpty
+                ? 'Prices and availability are confirmed on the booking site.'
+                : null,
+          };
     return Align(
       alignment: fromUser ? Alignment.centerRight : Alignment.centerLeft,
       child: FractionallySizedBox(
@@ -1226,7 +1305,11 @@ class _Bubble extends StatelessWidget {
                       Expanded(
                           child: Text(
                               context.tr(
-                                  reply == null ? 'App help' : '{p0} concierge',
+                                  helpFirst
+                                      ? 'Ask AI'
+                                      : reply == null
+                                          ? 'App help'
+                                          : '{p0} concierge',
                                   {'p0': brandName}),
                               style: TextStyle(
                                   color: palette.accent,

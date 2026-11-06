@@ -152,17 +152,17 @@ class HoppaActivity {
       return secondaryAmount;
     }
     if (currency.trim().toUpperCase() == base) return amount;
+    final rate = valuationRates[
+        (ledger?.amount.currency ?? currency).trim().toUpperCase()];
+    if (rate != null && rate.isFinite && rate > 0) {
+      return settlementAmount * rate;
+    }
     if (estimateStablecoins && base == 'USD') {
       final settlementCurrency =
           (ledger?.amount.currency ?? currency).trim().toUpperCase();
       if (const {'USDT', 'USDC'}.contains(settlementCurrency)) {
         return ledger?.amount.decimalAmount ?? amount;
       }
-    }
-    final rate = valuationRates[
-        (ledger?.amount.currency ?? currency).trim().toUpperCase()];
-    if (rate != null && rate.isFinite && rate > 0) {
-      return settlementAmount * rate;
     }
     return null;
   }

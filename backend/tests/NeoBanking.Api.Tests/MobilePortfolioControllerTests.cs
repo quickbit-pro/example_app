@@ -45,6 +45,33 @@ public sealed class MobilePortfolioControllerTests
         Assert.Equal("/api/v2/prices/estimated-total-assets", proxy.Path);
         Assert.Equal("10466", proxy.Query?["user_id"]);
         Assert.Equal("GBP", proxy.Query?["currency"]);
+        Assert.Equal("/api/v2/prices", proxy.PricesPath);
+        var eurRate = Assert.Single(payload.GetProperty("valuationRates").EnumerateArray(),
+            row => row.GetProperty("currency").GetString() == "EUR");
+        Assert.Equal(.8m, eurRate.GetProperty("rate").GetDecimal());
+    }
+
+    [Fact]
+    public async Task GetSummary_PreservesEstimateWhenReferencePricesAreUnavailable()
+    {
+        var proxy = new RecordingProxy { PricesUnavailable = true };
+        var controller = new MobilePortfolioController(proxy,
+            Options.Create(new HoppaOptions { PortfolioEstimatePath = "/api/v2/prices/estimated-total-assets" }))
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity(
+                        [new Claim("hoppa_user_id", "227")], "test"))
+                }
+            }
+        };
+
+        var response = await controller.GetSummary("GBP", CancellationToken.None);
+        var payload = Assert.IsType<JsonElement>(Assert.IsType<OkObjectResult>(response.Result).Value);
+        Assert.Equal(100m, payload.GetProperty("total").GetDecimal());
+        Assert.Single(payload.GetProperty("valuationRates").EnumerateArray());
     }
 
     private sealed class RecordingProxy : IProxyHoppaRequestUseCase
@@ -53,10 +80,26 @@ public sealed class MobilePortfolioControllerTests
 
         public IReadOnlyDictionary<string, string?>? Query { get; private set; }
 
+        public string? PricesPath { get; private set; }
+        public bool PricesUnavailable { get; init; }
+
         public Task<ApplicationResult<JsonElement?>> ExecuteAsync<TRequest>(
             ProxyHoppaRequestCommand<TRequest> command,
             CancellationToken cancellationToken)
         {
+            if (command.UpstreamPath == "/api/v2/prices")
+            {
+                PricesPath = command.UpstreamPath;
+                if (PricesUnavailable)
+                    return Task.FromResult(ApplicationResult<JsonElement?>.Failure(
+                        new ApplicationError("prices.unavailable", "Unavailable", 503)));
+                return Task.FromResult(ApplicationResult<JsonElement?>.Success(JsonSerializer.SerializeToElement(new[]
+                {
+                    new { assetCode = "USD", baseCurrency = "USD", price = 1m, isAvailable = true },
+                    new { assetCode = "EUR", baseCurrency = "USD", price = 1.12m, isAvailable = true },
+                    new { assetCode = "GBP", baseCurrency = "USD", price = 1.4m, isAvailable = true }
+                })));
+            }
             Path = command.UpstreamPath;
             Query = command.Query;
             using var document = JsonDocument.Parse("""

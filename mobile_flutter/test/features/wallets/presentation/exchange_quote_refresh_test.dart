@@ -52,7 +52,7 @@ void main() {
       'fiatFundingCurrencies': ['EUR'],
       'balances': {'balances': [
         {'accountId': 1, 'currency': 'EUR', 'amount': 100},
-        {'accountId': 2, 'currency': 'USDC', 'amount': 0, 'chain': {'id': 137, 'name': 'Polygon'}},
+        {'accountId': 2, 'currency': 'USDC', 'amount': 0, 'chain': {'id': 42161, 'name': 'Arbitrum'}},
       ]},
     });
     await tester.pumpWidget(ProviderScope(overrides: [

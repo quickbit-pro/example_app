@@ -65,6 +65,11 @@ Future<void> mount(WidgetTester tester, FeesApi api, ExchangeFlow flow) async {
   tester.view.physicalSize = const Size(1400, 2200);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
+  final receivingWallet = HoppaWalletAsset(
+    symbol: wallet.symbol, name: wallet.name,
+    network: flow == ExchangeFlow.fund ? 'Arbitrum' : wallet.network,
+    walletId: wallet.walletId, amount: wallet.amount, fiatValue: wallet.fiatValue,
+    address: wallet.address, tint: wallet.tint);
   final overview = BoomFiExchangeOverview.fromJson({
     'fiat_funding_currencies': ['EUR'],
     'fiat_funding_fees_and_limits': {
@@ -76,7 +81,7 @@ Future<void> mount(WidgetTester tester, FeesApi api, ExchangeFlow flow) async {
           'account_id': 20,
           'currency': 'USDC',
           'amount': '200',
-          'chain': {'id': 1, 'name': 'Ethereum'},
+          'chain': {'id': flow == ExchangeFlow.fund ? 42161 : 1, 'name': flow == ExchangeFlow.fund ? 'Arbitrum' : 'Ethereum'},
           'fees_and_limits': {
             'min_deposit': '99',
             'min_withdraw': '5',
@@ -99,7 +104,7 @@ Future<void> mount(WidgetTester tester, FeesApi api, ExchangeFlow flow) async {
         mobilePlatformApiProvider.overrideWithValue(api),
         payeesProvider.overrideWith((ref) async => []),
         exchangeCardDepositAddressesProvider
-            .overrideWith((ref) async => [wallet]),
+            .overrideWith((ref) async => [receivingWallet]),
       ],
       child: MaterialApp(
           home: Scaffold(
@@ -107,7 +112,7 @@ Future<void> mount(WidgetTester tester, FeesApi api, ExchangeFlow flow) async {
         flow: flow,
         overview: overview,
         outflowsEnabled: true,
-        wallets: const [wallet],
+        wallets: [receivingWallet],
         budgets: const [
           PlatformResource(
               id: 'budget',

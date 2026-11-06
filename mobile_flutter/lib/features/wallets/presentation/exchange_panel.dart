@@ -218,7 +218,8 @@ class ExchangeAccountTransferActions extends ConsumerWidget {
         .where((w) => overview.canTrade(w.symbol) && overview.balances.any((b) =>
             b.currency == w.symbol && b.chainId == exchangeChainId(w.network))).toList();
     final euroBudgets = budgets;
-    final fundingWallets = eligibleWallets.where((w) => overview.canTrade(w.symbol) &&
+    final fundingWallets = eligibleWallets.where((w) =>
+        exchangeChainId(w.network) == exchangeFundingChainId && overview.canTrade(w.symbol) &&
         overview.balances.any((b) => b.currency == w.symbol && b.chainId == exchangeChainId(w.network))).toList();
     String? unavailable({required bool funding}) {
       if (!outflowsEnabled) { return 'Transfers are currently unavailable for this account.'; }
@@ -229,7 +230,7 @@ class ExchangeAccountTransferActions extends ConsumerWidget {
         return 'No Crypto card transfer network matches an available BoomFi crypto account yet.';
       }
       if (funding && !overview.fiatFundingCurrencies.contains('EUR')) { return 'BoomFi has not provided EUR bank funding details for this account yet.'; }
-      if (funding && fundingWallets.isEmpty) { return 'No matching crypto receiving network is available in BoomFi yet.'; }
+      if (funding && fundingWallets.isEmpty) { return 'An Arbitrum receiving address and matching exchange account are needed for this transfer.'; }
       return null;
     }
     final fundReason = unavailable(funding: true);
@@ -322,7 +323,8 @@ class _ReadyExchangePanel extends ConsumerWidget {
         .where((w) => overview.canTrade(w.symbol) && overview.balances.any((b) =>
             b.currency == w.symbol && b.chainId == exchangeChainId(w.network))).toList();
     final euroBudgets = budgets;
-    final fundingWallets = eligibleWallets.where((w) => overview.canTrade(w.symbol) &&
+    final fundingWallets = eligibleWallets.where((w) =>
+        exchangeChainId(w.network) == exchangeFundingChainId && overview.canTrade(w.symbol) &&
         overview.balances.any((b) => b.currency == w.symbol && b.chainId == exchangeChainId(w.network))).toList();
     String? unavailable({required bool funding}) {
       if (!outflowsEnabled) { return 'Transfers are currently unavailable for this account.'; }
@@ -333,7 +335,7 @@ class _ReadyExchangePanel extends ConsumerWidget {
         return 'No Crypto card transfer network matches an available BoomFi crypto account yet.';
       }
       if (funding && !overview.fiatFundingCurrencies.contains('EUR')) { return 'BoomFi has not provided EUR bank funding details for this account yet.'; }
-      if (funding && fundingWallets.isEmpty) { return 'No matching crypto receiving network is available in BoomFi yet.'; }
+      if (funding && fundingWallets.isEmpty) { return 'An Arbitrum receiving address and matching exchange account are needed for this transfer.'; }
       return null;
     }
     final fundReason = unavailable(funding: true);
