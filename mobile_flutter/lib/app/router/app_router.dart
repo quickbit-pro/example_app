@@ -1,3 +1,4 @@
+import '../../features/wallets/presentation/exchange_onboarding_status_screen.dart';
 import '../../features/support/presentation/complaints_screen.dart';
 import '../../features/onboarding/presentation/personal_onboarding_gate.dart';
 import 'package:flutter/material.dart';
@@ -244,6 +245,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: AppRoutes.walletBalances,
             builder: (context, state) => const MoneyScreen(),
           ),
+          GoRoute(
+              path: AppRoutes.exchangeOnboarding,
+              builder: (context, state) =>
+                  const ExchangeOnboardingStatusScreen()),
           GoRoute(
             path: AppRoutes.walletExchange,
             builder: (context, state) =>

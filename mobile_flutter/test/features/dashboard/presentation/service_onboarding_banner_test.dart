@@ -1,346 +1,664 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile_flutter/core/api/auth_token_provider.dart';
 import 'package:mobile_flutter/core/api/dio_provider.dart';
+import 'package:mobile_flutter/core/cache/display_snapshot.dart';
 import 'package:mobile_flutter/core/models/platform_models.dart';
+import 'package:mobile_flutter/features/dashboard/data/onboarding_notice_store.dart';
 import 'package:mobile_flutter/features/dashboard/data/service_onboarding_provider.dart';
 import 'package:mobile_flutter/features/dashboard/domain/service_onboarding.dart';
 import 'package:mobile_flutter/features/dashboard/presentation/widgets/service_onboarding_banner.dart';
 import 'package:mobile_flutter/features/platform/application/platform_providers.dart';
 import 'package:mobile_flutter/features/rewards/domain/rewards_models.dart';
 
-void main() {
-  final selected = {'enabled': true, 'banking': true, 'exchange': true};
-  List<ServiceOnboardingItem> remaining(Map<String, dynamic> progress,
-          {bool banking = true,
-          bool exchange = true,
-          Map<String, dynamic>? preferences}) =>
-      remainingServiceOnboarding(
-          bankingEnabled: banking,
-          exchangeEnabled: exchange,
-          preferences: preferences ?? selected,
-          progress: progress);
+const selected = {
+  'enabled': true,
+  'cryptoCard': true,
+  'banking': true,
+  'exchange': true
+};
+List<ServiceOnboardingItem> statuses(Map<String, dynamic> progress,
+        {Map<String, dynamic> preferences = selected,
+        bool cards = true,
+        bool banking = true,
+        bool exchange = true}) =>
+    remainingServiceOnboarding(
+        cardsEnabled: cards,
+        bankingEnabled: banking,
+        exchangeEnabled: exchange,
+        preferences: preferences,
+        progress: progress);
+const ready = KycDetailedStatus(
+    hoppaStatus: 'approved',
+    bankStatus: 'approved',
+    cardIssuerStatus: 'approved',
+    nextAction: '',
+    interlaceApproved: true,
+    interlaceStatus: 'approved',
+    interlaceKycApproved: true,
+    equalsMoneyApproved: true);
+const pending = KycDetailedStatus(
+    hoppaStatus: 'not_started',
+    bankStatus: 'not_started',
+    cardIssuerStatus: 'not_started',
+    nextAction: '',
+    interlaceStatus: 'not_started');
+const exchangeReady = {
+  'status': 'approved',
+  'hasProviderAccount': true,
+  'provider': {'kycStatus': 'accepted'}
+};
+final now = DateTime.utc(2026, 11, 6, 15);
 
-  test('company availability and registration selection both gate each service',
-      () {
-    for (final bankingEnabled in [false, true]) {
-      for (final exchangeEnabled in [false, true]) {
-        for (final bankingSelected in [false, true]) {
-          for (final exchangeSelected in [false, true]) {
-            final items = remaining({},
-                banking: bankingEnabled,
-                exchange: exchangeEnabled,
-                preferences: {
-                  'enabled': true,
-                  'banking': bankingSelected,
-                  'exchange': exchangeSelected,
-                });
-            expect(items.any((item) => item.name == 'Equals Money banking'),
-                bankingEnabled && bankingSelected);
-            expect(items.any((item) => item.name == 'ZBX exchange'),
-                exchangeEnabled && exchangeSelected);
-          }
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    await (FontLoader('Geist')
+          ..addFont(rootBundle.load('assets/fonts/Geist-Regular.ttf')))
+        .load();
+  });
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  test('only selected and enabled services appear, in onboarding order', () {
+    for (final cards in [false, true]) {
+      for (final banking in [false, true]) {
+        for (final exchange in [false, true]) {
+          final items =
+              statuses({}, cards: cards, banking: banking, exchange: exchange);
+          expect(items.map((i) => i.kind), [
+            if (cards) OnboardingService.cryptoCards,
+            if (banking) OnboardingService.banking,
+            if (exchange) OnboardingService.exchange
+          ]);
         }
       }
     }
-    expect(remaining({}, preferences: {'enabled': false}), isEmpty);
-  });
-
-  test('identity approval does not complete provider applications', () {
-    final items = remaining({
-      'status': 'approved',
-      'equalsMoney': 'not_started',
-      'boomFi': 'not_started',
-      'submissionRequested': false
+    final unselected = statuses({}, preferences: {
+      'enabled': true,
+      'cryptoCard': false,
+      'banking': false,
+      'exchange': false
     });
-    expect(items, hasLength(2));
-    expect(items.every((item) => item.needsAction), isTrue);
+    expect(unselected, isEmpty);
+    expect(
+        statuses({}, preferences: {'enabled': false, 'cryptoCard': true})
+            .single
+            .kind,
+        OnboardingService
+            .cryptoCards); // Crypto Cards are included at registration.
   });
 
-  test('completed providers disappear independently', () {
-    expect(
-        remaining({'equalsMoney': 'approved', 'boomFi': 'not_started'})
-            .single
-            .name,
-        'ZBX exchange');
-    expect(
-        remaining({'equalsMoney': 'not_started', 'boomFi': 'accepted'})
-            .single
-            .name,
-        'Equals Money banking');
-    expect(
-        remaining({'equalsMoney': 'approved', 'boomFi': 'approved'}), isEmpty);
-  });
-
-  test('submitted applications show review while invitations still need action',
+  test(
+      'later selected services stay Start and point to the first incomplete step',
       () {
-    final items = remaining({
-      'submissionRequested': true,
+    final items = statuses({
+      'interlace': 'approved',
       'equalsMoney': 'invite_required',
-      'boomFi': 'submitted'
+      'boomFi': 'not_started',
+      'submissionRequested': true
     });
-    expect(items.first.status, 'Accept your banking invite');
-    expect(items.first.needsAction, isTrue);
-    expect(items.last.status, 'Application under review');
-    expect(items.last.needsAction, isFalse);
+    expect(items.map((i) => i.status), ['Complete', 'Need update', 'Start']);
+    expect(items.last.blockedBy, OnboardingService.banking);
+    expect(statuses({}).last.blockedBy, OnboardingService.cryptoCards);
     expect(
-        remaining({'submissionRequested': true}).every((i) => !i.needsAction),
-        isTrue);
+        statuses({}, preferences: {'enabled': true, 'exchange': true})
+            .single
+            .blockedBy,
+        isNull);
+    expect(
+        statuses({
+          'interlace': 'approved',
+          'equalsMoney': 'approved',
+          'boomFi': 'not_started'
+        }).last.blockedBy,
+        isNull);
   });
 
-  Future<(ProviderContainer, List<RequestOptions>)> container({
-    bool enabled = true,
+  for (final entry in {
+    'not_started': OnboardingStage.start,
+    'pending': OnboardingStage.inProgress,
+    'submitted': OnboardingStage.inProgress,
+    'dispatching': OnboardingStage.inProgress,
+    'rejected': OnboardingStage.rejected,
+    'failed': OnboardingStage.rejected,
+    'resubmission_required': OnboardingStage.needUpdate,
+    'action_required': OnboardingStage.needUpdate,
+    'invite_required': OnboardingStage.needUpdate,
+    'payment_required': OnboardingStage.needUpdate,
+    'accepted': OnboardingStage.complete,
+    'approved': OnboardingStage.complete,
+    'unavailable': OnboardingStage.unavailable
+  }.entries) {
+    test('provider state ${entry.key} maps to ${entry.value.label}',
+        () => expect(onboardingStage(entry.key), entry.value));
+  }
+
+  Future<(ProviderContainer, List<RequestOptions>)> fixture({
+    String? owner = 'customer-a',
     bool banking = true,
     bool exchange = true,
-    Map<String, dynamic>? preferences,
+    Map<String, dynamic> preferences = selected,
     Object? progress = const {},
-    bool fail = false,
-    bool bankingApproved = false,
-    bool exchangeApproved = false,
-    bool bankingReview = false,
-    bool bankingAction = false,
-    String? exchangeStatus,
+    KycDetailedStatus detailed = pending,
+    Map<String, dynamic>? verification,
+    bool failDetailed = false,
+    bool failExchange = false,
   }) async {
     final requests = <RequestOptions>[];
     final dio = Dio()
       ..interceptors.add(InterceptorsWrapper(onRequest: (r, h) {
         requests.add(r);
-        if (fail && !r.path.endsWith('/preferences')) {
-          h.reject(DioException(requestOptions: r));
-        } else {
-          h.resolve(Response(
-              requestOptions: r,
-              data: r.path.endsWith('/preferences')
-                  ? preferences ?? selected
-                  : progress));
-        }
+        h.resolve(Response(
+            requestOptions: r,
+            data: r.path.endsWith('/preferences') ? preferences : progress));
       }));
-    final result = ProviderContainer(overrides: [
+    final container = ProviderContainer(overrides: [
       dioProvider.overrideWithValue(dio),
-      kycDetailedStatusProvider.overrideWith((ref) async => KycDetailedStatus(
+      displayCacheOwnerProvider.overrideWithValue(owner),
+      serviceOnboardingClockProvider.overrideWithValue(() => now),
+      kycDetailedStatusProvider.overrideWith((ref) async {
+        if (failDetailed) throw StateError('Unavailable');
+        return detailed;
+      }),
+      exchangeVerificationProvider.overrideWith((ref) async {
+        if (failExchange) throw StateError('Unavailable');
+        return verification ?? {'status': 'not_started'};
+      }),
+      mobileTenantConfigProvider
+          .overrideWith((ref) async => MobileTenantConfig.fromJson({
+                'features': {
+                  'unifiedCddOnboardingEnabled': true,
+                  'equalsMoneyEnabled': banking,
+                  'boomFiExchangeEnabled': exchange
+                }
+              })),
+    ]);
+    addTearDown(container.dispose);
+    return (container, requests);
+  }
+
+  test('Home only reads statuses and never starts an application', () async {
+    final (container, requests) = await fixture(progress: null);
+    final items = await container.read(homeServiceOnboardingProvider.future);
+    expect(items.map((i) => i.status), ['Start', 'Start', 'Start']);
+    expect(requests.map((r) => r.method), everyElement('GET'));
+    expect(requests.any((r) => r.path.contains('/session')), isFalse);
+  });
+
+  test('signed-out and unselected services do not request provider status',
+      () async {
+    final (signedOut, requests) = await fixture(owner: null);
+    expect(await signedOut.read(homeServiceOnboardingProvider.future), isEmpty);
+    expect(requests, isEmpty);
+    final (disabled, disabledRequests) = await fixture(
+        banking: false,
+        exchange: false,
+        preferences: {
+          'enabled': true,
+          'cryptoCard': false,
+          'banking': true,
+          'exchange': true
+        });
+    expect(await disabled.read(homeServiceOnboardingProvider.future), isEmpty);
+    expect(disabledRequests.single.path, endsWith('/preferences'));
+  });
+
+  test('provider approval wins over stale submitted dispatch records',
+      () async {
+    final (container, _) = await fixture(
+        detailed: ready,
+        verification: exchangeReady,
+        progress: {
+          'interlace': 'submitted',
+          'equalsMoney': 'submitted',
+          'boomFi': 'submitted'
+        });
+    expect(
+        (await container.read(homeServiceOnboardingProvider.future))
+            .map((i) => i.status),
+        ['Complete', 'Complete', 'Complete']);
+  });
+
+  test('Interlace and Equals follow-up requests override earlier approval',
+      () async {
+    final (container, _) = await fixture(
+        detailed: const KycDetailedStatus(
+            hoppaStatus: 'approved',
+            bankStatus: 'approved',
+            cardIssuerStatus: 'approved',
+            nextAction: '',
+            interlaceRequiredAction: 'RESUBMIT_DOCUMENTS',
+            equalsMoneyApproved: true,
+            equalsMoneyRequiredAction: 'ADDITIONAL_DOCUMENTS'),
+        verification: exchangeReady,
+        progress: {
+          'interlace': 'approved',
+          'equalsMoney': 'approved',
+          'boomFi': 'approved'
+        });
+    expect(
+        (await container.read(homeServiceOnboardingProvider.future))
+            .map((i) => i.status),
+        ['Need update', 'Need update', 'Complete']);
+  });
+
+  test('an explicit negative Interlace approval cannot display Complete',
+      () async {
+    final (container, _) = await fixture(
+        detailed: const KycDetailedStatus(
             hoppaStatus: 'approved',
             bankStatus: 'not_started',
             cardIssuerStatus: 'approved',
             nextAction: '',
-            equalsMoneyApproved: bankingApproved,
-            equalsMoneyApplicationId: bankingReview ? "pending" : null,
-            equalsMoneyRequiredAction:
-                bankingAction ? "ADDITIONAL_DOCUMENTS" : null,
-          )),
-      exchangeVerificationProvider.overrideWith((ref) async => {
-            'hasProviderAccount': exchangeApproved,
-            'provider': {
-              'kycStatus': exchangeStatus ??
-                  (exchangeApproved ? 'accepted' : 'not_started')
-            },
-          }),
-      mobileTenantConfigProvider
-          .overrideWith((ref) async => MobileTenantConfig.fromJson({
-                'features': {
-                  'unifiedCddOnboardingEnabled': enabled,
-                  'equalsMoneyEnabled': banking,
-                  'boomFiExchangeEnabled': exchange
-                },
-              })),
-    ]);
-    addTearDown(result.dispose);
-    return (result, requests);
+            interlaceApproved: false));
+    expect(
+        (await container.read(homeServiceOnboardingProvider.future))
+            .first
+            .status,
+        'In progress');
+  });
+
+  for (final action in [
+    'tin_required',
+    'edd_required',
+    'cdd_required',
+    'kyc_required'
+  ]) {
+    test('Exchange $action is Need update, not Complete', () async {
+      final (container, _) = await fixture(detailed: ready, verification: {
+        ...exchangeReady,
+        'provider': {'kycStatus': 'accepted', 'nextAction': action}
+      });
+      expect(
+          (await container.read(homeServiceOnboardingProvider.future))
+              .last
+              .status,
+          'Need update');
+    });
   }
 
-  test('disabled services and unselected products avoid status requests',
-      () async {
-    for (final options in [
-      (enabled: false, banking: true, exchange: true),
-      (enabled: true, banking: false, exchange: false),
-    ]) {
-      final (ref, requests) = await container(
-          enabled: options.enabled,
-          banking: options.banking,
-          exchange: options.exchange);
-      expect(await ref.read(homeServiceOnboardingProvider.future), isEmpty);
-      expect(requests, isEmpty);
-    }
-    final (ref, requests) = await container(
-        preferences: {'enabled': true, 'banking': false, 'exchange': false});
-    expect(await ref.read(homeServiceOnboardingProvider.future), isEmpty);
-    expect(requests.single.path, endsWith('/preferences'));
-  });
-
-  test('Home reads status only and handles an application not yet started',
-      () async {
-    final (ref, requests) = await container(progress: null);
-    expect(await ref.read(homeServiceOnboardingProvider.future), hasLength(2));
-    expect(requests.map((r) => r.method), everyElement('GET'));
-    expect(requests.map((r) => r.path).any((p) => p.endsWith('/session')),
-        isFalse);
-  });
-
-  test('PascalCase provider status and selections are supported', () async {
-    final (ref, _) = await container(preferences: {
-      'Enabled': true,
-      'Banking': true,
-      'Exchange': true
-    }, progress: {
-      'SubmissionRequested': true,
-      'EqualsMoney': 'approved',
-      'BoomFi': 'submitted'
-    });
-    final items = await ref.read(homeServiceOnboardingProvider.future);
-    expect(items.single.name, 'ZBX exchange');
-    expect(items.single.needsAction, isFalse);
-  });
-
-  test('actual provider approval hides stale submitted onboarding records',
-      () async {
-    for (final bankingReady in [false, true]) {
-      for (final exchangeReady in [false, true]) {
-        final (ref, _) = await container(
-            bankingApproved: bankingReady,
-            exchangeApproved: exchangeReady,
-            progress: {
-              'submissionRequested': true,
-              'equalsMoney': 'submitted',
-              'boomFi': 'submitted'
-            });
-        final items = await ref.read(homeServiceOnboardingProvider.future);
-        expect(
-            items.any((i) => i.name == 'Equals Money banking'), !bankingReady);
-        expect(items.any((i) => i.name == 'ZBX exchange'), !exchangeReady);
+  test('submitted Exchange follow-up is In progress', () async {
+    final (container, _) = await fixture(detailed: ready, verification: {
+      ...exchangeReady,
+      'provider': {
+        'kycStatus': 'accepted',
+        'nextAction': 'edd_required',
+        'actionSubmitted': true
       }
-    }
+    });
+    expect(
+        (await container.read(homeServiceOnboardingProvider.future))
+            .last
+            .status,
+        'In progress');
+  });
+
+  for (final current in ['rejected', 'pending']) {
+    test('current Interlace $current overrides a stale issuer approval flag',
+        () async {
+      final (container, _) = await fixture(
+          detailed: KycDetailedStatus.fromJson({
+        'CardIssuerKycApproved': true,
+        'Interlace': {'Status': current, 'Approved': current == 'pending'},
+      }));
+      expect(
+          (await container.read(homeServiceOnboardingProvider.future))
+              .first
+              .status,
+          current == 'rejected' ? 'Rejected' : 'In progress');
+    });
+  }
+  test(
+      'negative Equals approval does not become Complete from stale status text',
+      () async {
+    final (container, _) = await fixture(
+        detailed: const KycDetailedStatus(
+            hoppaStatus: 'approved',
+            bankStatus: 'approved',
+            cardIssuerStatus: 'approved',
+            nextAction: '',
+            equalsMoneyApproved: false,
+            equalsMoneyStatus: 'approved'));
+    expect(
+        (await container.read(homeServiceOnboardingProvider.future))[1].status,
+        'In progress');
+  });
+  test('current Equals approval wins over an earlier rejected application',
+      () async {
+    final (container, _) = await fixture(
+        detailed: const KycDetailedStatus(
+            hoppaStatus: 'approved',
+            bankStatus: 'approved',
+            cardIssuerStatus: 'approved',
+            nextAction: '',
+            equalsMoneyApproved: true,
+            equalsMoneyStatus: 'approved',
+            equalsMoneyApplicationStatus: 'rejected'));
+    expect(
+        (await container.read(homeServiceOnboardingProvider.future))[1].status,
+        'Complete');
+  });
+  test(
+      'terminal Exchange rejection remains Rejected with an old action reference',
+      () async {
+    final (container, _) = await fixture(verification: {
+      'provider': {'kycStatus': 'rejected', 'nextAction': 'edd_required'}
+    });
+    expect(
+        (await container.read(homeServiceOnboardingProvider.future))
+            .last
+            .status,
+        'Rejected');
+  });
+  test('provider rejection remains separate from a request for updates',
+      () async {
+    final (container, _) = await fixture(
+        detailed: const KycDetailedStatus(
+            hoppaStatus: 'approved',
+            bankStatus: 'rejected',
+            cardIssuerStatus: 'rejected',
+            nextAction: '',
+            equalsMoneyStatus: 'rejected'),
+        verification: {
+          'provider': {'kycStatus': 'rejected'}
+        });
+    expect(
+        (await container.read(homeServiceOnboardingProvider.future))
+            .map((i) => i.status),
+        ['Rejected', 'Rejected', 'Rejected']);
   });
 
   test(
-      'current provider review and follow-up states override stale dispatch status',
+      'a shared staging organization is not a completed customer application',
       () async {
-    final (ref, _) = await container(
-        bankingReview: true,
-        exchangeStatus: 'rejected',
-        progress: {'equalsMoney': 'not_started', 'boomFi': 'submitted'});
-    final items = await ref.read(homeServiceOnboardingProvider.future);
-    expect(items.first.status, 'Application under review');
-    expect(items.first.needsAction, isFalse);
-    expect(items.last.status, 'Application needs attention');
-    expect(items.last.needsAction, isTrue);
-    final (actionRef, _) = await container(
-        bankingAction: true,
-        progress: {'equalsMoney': 'approved', 'boomFi': 'approved'});
-    final action = await actionRef.read(homeServiceOnboardingProvider.future);
-    expect(action.single.name, 'Equals Money banking');
-    expect(action.single.needsAction, isTrue);
+    final (container, _) = await fixture(detailed: ready, verification: {
+      ...exchangeReady,
+      'usesSharedStagingOrganization': true
+    });
+    expect(
+        (await container.read(homeServiceOnboardingProvider.future))
+            .last
+            .status,
+        'Check status');
+  });
+  test('one failed provider read does not hide the other provider reminders',
+      () async {
+    final (container, _) = await fixture(detailed: ready, failExchange: true);
+    expect(
+        (await container.read(homeServiceOnboardingProvider.future))
+            .map((i) => i.status),
+        ['Complete', 'Complete', 'Check status']);
   });
 
-  test('a new login invalidates status from the previous account', () async {
-    final (ref, requests) = await container();
-    final subscription = ref.listen(homeServiceOnboardingProvider, (_, __) {});
+  test('a new session refreshes the account-bound reads', () async {
+    final (container, requests) = await fixture();
+    final subscription =
+        container.listen(homeServiceOnboardingProvider, (_, __) {});
     addTearDown(subscription.close);
-    await ref.read(homeServiceOnboardingProvider.future);
-    ref.read(authSessionGenerationProvider.notifier).state++;
-    await ref.read(homeServiceOnboardingProvider.future);
-    expect(requests, hasLength(4));
+    await container.read(homeServiceOnboardingProvider.future);
+    container.read(authSessionGenerationProvider.notifier).state++;
+    await container.read(homeServiceOnboardingProvider.future);
+    expect(
+        requests.where((r) => r.path.endsWith('/preferences')), hasLength(2));
   });
 
-  for (final width in [320.0, 1280.0]) {
+  Future<OnboardingNoticeStore> store([String owner = 'customer-a']) async =>
+      OnboardingNoticeStore(await SharedPreferences.getInstance(), owner);
+  final allComplete = statuses({
+    'interlace': 'approved',
+    'equalsMoney': 'approved',
+    'boomFi': 'approved'
+  });
+
+  test(
+      'Complete is visible until clicked, and acknowledgement survives a reload',
+      () async {
+    final s = await store();
+    expect(await s.visible(allComplete, now), hasLength(3));
+    await s.acknowledge(OnboardingService.banking);
+    final reloaded = await store();
+    expect((await reloaded.visible(allComplete, now)).map((i) => i.kind),
+        [OnboardingService.cryptoCards, OnboardingService.exchange]);
+  });
+
+  test('Complete hides after 24 hours, including if Home was closed', () async {
+    final s = await store();
+    expect(await s.visible(allComplete, now), hasLength(3));
+    expect(
+        await s.visible(
+            allComplete, now.add(const Duration(hours: 23, minutes: 59))),
+        hasLength(3));
+    expect(
+        await (await store())
+            .visible(allComplete, now.add(const Duration(hours: 24))),
+        isEmpty);
+  });
+
+  test('provider completion timestamp is used when available', () async {
+    final items = statuses({
+      'interlace': 'complete',
+      'interlaceCompletedAt':
+          now.subtract(const Duration(days: 2)).toIso8601String()
+    }, banking: false, exchange: false);
+    expect(await (await store()).visible(items, now), isEmpty);
+  });
+
+  test(
+      'new provider action reopens a dismissed Complete and starts a new completion window',
+      () async {
+    final s = await store();
+    await s.visible(allComplete, now);
+    await s.acknowledge(OnboardingService.cryptoCards);
+    final updates = statuses({
+      'interlace': 'action_required',
+      'equalsMoney': 'approved',
+      'boomFi': 'approved'
+    });
+    expect(
+        (await s.visible(updates, now.add(const Duration(days: 2))))
+            .single
+            .status,
+        'Need update');
+    expect(
+        (await s.visible(allComplete, now.add(const Duration(days: 3))))
+            .single
+            .kind,
+        OnboardingService.cryptoCards);
+  });
+
+  test(
+      'an unavailable status neither resets nor discards completion acknowledgement',
+      () async {
+    final s = await store();
+    await s.visible(allComplete, now);
+    await s.acknowledge(OnboardingService.exchange);
+    final unavailable = await s.visible(
+        statuses({
+          'interlace': 'approved',
+          'equalsMoney': 'approved',
+          'boomFi': 'unavailable'
+        }),
+        now);
+    expect(
+        unavailable.any((i) => i.kind == OnboardingService.exchange), isFalse);
+    expect(
+        (await s.visible(allComplete, now))
+            .any((i) => i.kind == OnboardingService.exchange),
+        isFalse);
+  });
+
+  test('a click while incomplete cannot dismiss a future completion', () async {
+    final s = await store();
+    await s.visible(statuses({}), now);
+    await s.acknowledge(OnboardingService.cryptoCards);
+    expect(await s.visible(allComplete, now), hasLength(3));
+  });
+
+  test('acknowledgements are isolated between users and installations',
+      () async {
+    final a = await store('installation-a:user-a');
+    await a.visible(allComplete, now);
+    await a.acknowledge(OnboardingService.cryptoCards);
+    expect(
+        await (await store('installation-a:user-b')).visible(allComplete, now),
+        hasLength(3));
+    expect(
+        await (await store('installation-b:user-a')).visible(allComplete, now),
+        hasLength(3));
+  });
+
+  final sample = statuses({
+    'interlace': 'approved',
+    'equalsMoney': 'action_required',
+    'boomFi': 'not_started'
+  });
+  Future<void> mount(WidgetTester tester,
+      {double width = 320,
+      double scale = 1.5,
+      Brightness brightness = Brightness.dark,
+      bool business = false,
+      List<ServiceOnboardingItem>? items,
+      bool fail = false}) async {
+    await tester.binding.setSurfaceSize(Size(width, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(ProviderScope(
+        overrides: [
+          homeServiceOnboardingProvider.overrideWith((ref) async {
+            if (fail) throw StateError('Unavailable');
+            return items ?? sample;
+          }),
+        ],
+        child: MaterialApp(
+            theme: ThemeData(brightness: brightness, fontFamily: 'Geist'),
+            home: MediaQuery(
+                data: MediaQueryData(
+                    size: Size(width, 800),
+                    textScaler: TextScaler.linear(scale)),
+                child: Scaffold(
+                    body: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: ServiceOnboardingBanner(
+                            isBusinessAccount: business)))))));
+    await tester.pumpAndSettle();
+  }
+
+  for (final width in [320.0, 760.0, 1470.0]) {
     for (final brightness in Brightness.values) {
-      testWidgets('reminder fits $width ${brightness.name} at larger text',
+      testWidgets('status buttons fit $width ${brightness.name}',
           (tester) async {
-        await tester.binding.setSurfaceSize(Size(width, 700));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
-        await tester.pumpWidget(ProviderScope(
-            overrides: [
-              homeServiceOnboardingProvider
-                  .overrideWith((ref) async => remaining({})),
-            ],
-            child: MaterialApp(
-                theme: ThemeData(brightness: brightness),
-                home: MediaQuery(
-                    data: MediaQueryData(
-                        size: Size(width, 700),
-                        textScaler: const TextScaler.linear(1.3)),
-                    child: const Scaffold(
-                        body: SingleChildScrollView(
-                            child: ServiceOnboardingBanner(
-                                isBusinessAccount: false)))))));
-        await tester.pumpAndSettle();
-        expect(find.text('Equals Money banking'), findsOneWidget);
-        expect(find.text('ZBX exchange'), findsOneWidget);
-        expect(find.text('Continue setup'), findsOneWidget);
+        await mount(tester, width: width, brightness: brightness);
+        for (final label in [
+          'Crypto Cards',
+          'Banking',
+          'Exchange',
+          'Complete',
+          'Need update',
+          'Start'
+        ]) {
+          expect(find.text(label), findsOneWidget);
+        }
         expect(tester.takeException(), isNull);
       });
     }
   }
-
-  testWidgets('business accounts do not request personal signup preferences',
+  testWidgets('all labels remain readable on a phone at 200 percent text',
       (tester) async {
-    var calls = 0;
-    await tester.pumpWidget(ProviderScope(
-        overrides: [
-          homeServiceOnboardingProvider.overrideWith((ref) async {
-            calls++;
-            return remaining({});
-          }),
-        ],
-        child: const MaterialApp(
-            home: ServiceOnboardingBanner(isBusinessAccount: true))));
-    await tester.pumpAndSettle();
-    expect(calls, 0);
-    expect(find.text('Your service setup'), findsNothing);
+    await mount(tester, scale: 2);
+    expect(find.text('Crypto Cards'), findsOneWidget);
+    expect(find.text('Need update'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
-
-  testWidgets('an unreadable status does not label setup as incomplete',
+  testWidgets('business and unselected services are hidden', (tester) async {
+    await mount(tester, business: true);
+    expect(find.text('Crypto Cards'), findsNothing);
+    await mount(tester, items: []);
+    expect(find.text('Banking'), findsNothing);
+  });
+  testWidgets('old owner statuses are not exposed while switching accounts',
       (tester) async {
-    await tester.pumpWidget(ProviderScope(
-        overrides: [
-          homeServiceOnboardingProvider
-              .overrideWith((ref) async => throw StateError('Unavailable')),
-        ],
-        child: const MaterialApp(
-            home: ServiceOnboardingBanner(isBusinessAccount: false))));
-    await tester.pumpAndSettle();
-    expect(find.text('Your service setup'), findsNothing);
+    await mount(tester,
+        items: sample.map((i) => i.forOwner('previous-user')).toList());
+    expect(find.text('Crypto Cards'), findsNothing);
+  });
+  testWidgets('unreadable selections do not invent Start reminders',
+      (tester) async {
+    await mount(tester, fail: true);
+    expect(find.text('Start'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets(
-      'review offers status, and completing setup removes the reminder on return',
+      'later Start opens the earlier required step and refreshes after return',
       (tester) async {
-    var approved = false;
+    var reads = 0;
     final router = GoRouter(routes: [
       GoRoute(
           path: '/',
           builder: (_, __) => const Scaffold(
               body: ServiceOnboardingBanner(isBusinessAccount: false))),
       GoRoute(
-          path: '/kyc',
+          path: '/onboarding/banking',
           builder: (context, _) => Scaffold(
               body: TextButton(
-                  onPressed: () {
-                    approved = true;
-                    context.pop();
-                  },
-                  child: const Text('Finish')))),
+                  onPressed: () => context.pop(),
+                  child: const Text('Banking step')))),
+      GoRoute(
+          path: '/onboarding/exchange',
+          builder: (_, __) => const Scaffold(body: Text('Exchange step'))),
     ]);
     addTearDown(router.dispose);
     await tester.pumpWidget(ProviderScope(overrides: [
-      homeServiceOnboardingProvider.overrideWith((ref) async => approved
-          ? []
-          : remaining({
-              'submissionRequested': true,
-              'boomFi': 'submitted',
-              'equalsMoney': 'approved'
-            })),
+      homeServiceOnboardingProvider.overrideWith((ref) async {
+        reads++;
+        return sample;
+      }),
     ], child: MaterialApp.router(routerConfig: router)));
     await tester.pumpAndSettle();
-    expect(find.text('Check status'), findsOneWidget);
-    expect(find.text('Continue setup'), findsNothing);
-    await tester.tap(find.text('Check status'));
+    await tester.tap(find.byKey(const ValueKey('onboarding-exchange')));
     await tester.pumpAndSettle();
-    expect(find.text('Finish'), findsOneWidget);
-    await tester.tap(find.text('Finish'));
+    expect(find.text('Banking step'), findsOneWidget);
+    expect(find.text('Exchange step'), findsNothing);
+    await tester.tap(find.text('Banking step'));
     await tester.pumpAndSettle();
-    expect(find.text('Your service setup'), findsNothing);
+    expect(reads, greaterThan(1));
+  });
+  testWidgets(
+      'clicking Complete acknowledges that service and opens its status page',
+      (tester) async {
+    const owner = 'customer-a';
+    final s = await store(owner);
+    final items = allComplete.map((i) => i.forOwner(owner)).toList();
+    final router = GoRouter(routes: [
+      GoRoute(
+          path: '/',
+          builder: (_, __) => const Scaffold(
+              body: ServiceOnboardingBanner(isBusinessAccount: false))),
+      GoRoute(
+          path: '/kyc/status',
+          builder: (context, _) => Scaffold(
+              body: TextButton(
+                  onPressed: () => context.pop(),
+                  child: const Text('Close status')))),
+    ]);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(ProviderScope(overrides: [
+      displayCacheOwnerProvider.overrideWithValue(owner),
+      onboardingNoticeStoreProvider.overrideWith((ref) async => s),
+      homeServiceOnboardingProvider
+          .overrideWith((ref) async => s.visible(items, now)),
+    ], child: MaterialApp.router(routerConfig: router)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('onboarding-cryptoCards')));
+    await tester.pumpAndSettle();
+    expect(find.text('Close status'), findsOneWidget);
+    await tester.tap(find.text('Close status'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('onboarding-cryptoCards')), findsNothing);
+    expect(find.byKey(const ValueKey('onboarding-banking')), findsOneWidget);
   });
 }

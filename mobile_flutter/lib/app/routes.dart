@@ -18,6 +18,7 @@ abstract final class AppRoutes {
   static const kycStatus = '/kyc/status';
   static const business = '/business';
   static const bankingOnboarding = '/onboarding/banking';
+  static const exchangeOnboarding = '/onboarding/exchange';
   static const bankingServices = '/banking/services';
   static const tiers = '/tiers';
   static const payments = '/payments';

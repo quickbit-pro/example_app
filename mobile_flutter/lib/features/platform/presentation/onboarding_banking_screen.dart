@@ -22,7 +22,11 @@ import '../application/platform_providers.dart';
 import 'platform_widgets.dart';
 import 'tiers_screen.dart' show tierIdOf;
 import '../../profile/presentation/security_sheets.dart'
-    show showExampleSheet, ExampleSheetHeader, ExampleSheetNote, ExampleSheetCta;
+    show
+        showExampleSheet,
+        ExampleSheetHeader,
+        ExampleSheetNote,
+        ExampleSheetCta;
 import '../../../shared/widgets/app_progress_indicator.dart';
 
 /// Providers and budgets: the EqualsMoney onboarding flow.
@@ -63,21 +67,40 @@ class OnboardingBankingScreen extends ConsumerWidget {
 
     final unified = ref.watch(unifiedCddPreferenceProvider);
     if (unified.isLoading) {
-      return Scaffold(body: LoadingState(label: context.tr('Loading onboarding')));
+      return Scaffold(
+          body: LoadingState(label: context.tr('Loading onboarding')));
     }
     if (unified.hasError) {
-      return Scaffold(body: ErrorState(error: unified.error!,
-          onRetry: () => ref.invalidate(unifiedCddPreferenceProvider)));
+      return Scaffold(
+          body: ErrorState(
+              error: unified.error!,
+              onRetry: () => ref.invalidate(unifiedCddPreferenceProvider)));
+    }
+    final providerStatus = ref.watch(kycDetailedStatusProvider);
+    if (unified.valueOrNull == true && providerStatus.valueOrNull == null) {
+      return Scaffold(
+          body: providerStatus.hasError
+              ? ErrorState(
+                  error: providerStatus.error!,
+                  onRetry: () => ref.invalidate(kycDetailedStatusProvider))
+              : LoadingState(label: context.tr('Loading onboarding')));
     }
     if (unified.valueOrNull == true &&
-        ref.watch(kycDetailedStatusProvider).valueOrNull?.isBankApproved != true) {
+        ref.watch(kycDetailedStatusProvider).valueOrNull?.isBankApproved !=
+            true &&
+        ref
+                .watch(kycDetailedStatusProvider)
+                .valueOrNull
+                ?.requiresEqualsMoneyAction !=
+            true) {
       return const UnifiedCddScreen();
     }
 
     return PlatformActionListener(
       child: Scaffold(
         appBar: AppBar(title: Text(context.tr('Providers and budgets'))),
-        body: context.isExampleTheme ? const _ExampleBody() : const _LegacyBody(),
+        body:
+            context.isExampleTheme ? const _ExampleBody() : const _LegacyBody(),
       ),
     );
   }
@@ -368,7 +391,8 @@ Widget _providerPill(
       dot: true,
     );
   }
-  return ExamplePill(label: context.tr('Not started'), color: ExampleColors.iris);
+  return ExamplePill(
+      label: context.tr('Not started'), color: ExampleColors.iris);
 }
 
 /// Setup progress: the count, the step bar, and the three checks as hairline
@@ -1339,7 +1363,8 @@ Future<void> _showEqualsMoneyDialog(BuildContext context, WidgetRef ref) async {
   } catch (_) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(context.tr('Could not load onboarding. Please retry.'))));
+          content:
+              Text(context.tr('Could not load onboarding. Please retry.'))));
     }
     return;
   }
@@ -1413,7 +1438,8 @@ Future<void> _showEqualsMoneyDialog(BuildContext context, WidgetRef ref) async {
                   label: context.tr('Destination countries'),
                   values: destinationCountries,
                   options: equalsCountryCodes,
-                  labelBuilder: (v) => personalOnboardingCountryLabel(context, v),
+                  labelBuilder: (v) =>
+                      personalOnboardingCountryLabel(context, v),
                   onChanged: (value) =>
                       setState(() => destinationCountries = value),
                 ),

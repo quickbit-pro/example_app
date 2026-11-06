@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/features/dashboard/data/service_onboarding_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,7 +9,7 @@ import 'package:mobile_flutter/features/dashboard/presentation/home_refresh_on_n
 
 void main() {
   Future<GoRouter> mount(WidgetTester tester, Future<void> Function() refresh,
-      {String initial = '/home'}) async {
+      {String initial = '/home', void Function()? serviceRefresh}) async {
     final router = GoRouter(initialLocation: initial, routes: [
       ShellRoute(
         builder: (_, __, child) => HomeRefreshOnNavigation(
@@ -25,12 +26,42 @@ void main() {
     ]);
     addTearDown(router.dispose);
     await tester.pumpWidget(ProviderScope(
-      overrides: [refreshHoppaDashboardProvider.overrideWithValue(refresh)],
+      overrides: [
+        refreshHoppaDashboardProvider.overrideWithValue(refresh),
+        if (serviceRefresh != null)
+          serviceOnboardingRefreshProvider.overrideWithValue(serviceRefresh)
+      ],
       child: MaterialApp.router(routerConfig: router),
     ));
     await tester.pumpAndSettle();
     return router;
   }
+
+  testWidgets(
+      'provider status refreshes while Home is visible and pauses off page or in background',
+      (tester) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    var calls = 0;
+    final router =
+        await mount(tester, () async {}, serviceRefresh: () => calls++);
+    await tester.pump(const Duration(seconds: 29));
+    expect(calls, 0);
+    await tester.pump(const Duration(seconds: 1));
+    expect(calls, 1);
+    router.go('/cards');
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 30));
+    expect(calls, 1);
+    router.go('/home');
+    await tester.pumpAndSettle();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    await tester.pump(const Duration(seconds: 30));
+    expect(calls, 1);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump(const Duration(seconds: 30));
+    expect(calls, 2);
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('PWA resume refreshes Home once, but focus alone does not',
       (tester) async {

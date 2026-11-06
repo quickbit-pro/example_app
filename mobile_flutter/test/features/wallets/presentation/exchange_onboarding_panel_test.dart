@@ -12,6 +12,7 @@ void main() {
       {required Map<String, dynamic> progress,
       bool selected = true,
       bool fail = false,
+      Map<String, dynamic> verification = const {},
       required List<RequestOptions> requests}) async {
     final dio = Dio();
     dio.interceptors.add(InterceptorsWrapper(onRequest: (r, h) {
@@ -29,6 +30,8 @@ void main() {
     await tester.pumpWidget(ProviderScope(
         overrides: [
           dioProvider.overrideWithValue(dio),
+          exchangeVerificationProvider
+              .overrideWith((ref) async => verification),
           mobileTenantConfigProvider
               .overrideWith((ref) async => MobileTenantConfig.fromJson({
                     'features': {'unifiedCddOnboardingEnabled': true},
@@ -37,11 +40,38 @@ void main() {
         child: const MaterialApp(
             home: Scaffold(
                 body: ExchangeOnboardingPanel(
-          legacy: Text('Activate Exchange'),
+          legacy: Text('Existing provider verification'),
         )))));
     await tester.pumpAndSettle();
   }
 
+  testWidgets(
+      'provider follow-up forms remain accessible after unified submission',
+      (tester) async {
+    await mount(tester, progress: {
+      'boomFi': 'submitted',
+      'submissionRequested': true
+    }, verification: {
+      'hasProviderAccount': false,
+      'provider': {'kycStatus': 'pending', 'nextAction': 'edd_required'}
+    }, requests: []);
+    expect(find.text('Existing provider verification'), findsOneWidget);
+    expect(find.textContaining('application is in progress'), findsNothing);
+  });
+  testWidgets(
+      'shared staging account never bypasses the selected staging block',
+      (tester) async {
+    await mount(tester, progress: {
+      'boomFi': 'disabled_in_staging',
+      'submissionRequested': true
+    }, verification: {
+      'hasProviderAccount': true,
+      'usesSharedStagingOrganization': true,
+      'provider': {'kycStatus': 'accepted'}
+    }, requests: []);
+    expect(find.text('Exchange is unavailable in staging.'), findsOneWidget);
+    expect(find.text('Existing provider verification'), findsNothing);
+  });
   testWidgets('staging selected Exchange cannot activate or start another KYC',
       (tester) async {
     final requests = <RequestOptions>[];
@@ -52,7 +82,7 @@ void main() {
         },
         requests: requests);
     expect(find.text('Exchange is unavailable in staging.'), findsOneWidget);
-    expect(find.text('Activate Exchange'), findsNothing);
+    expect(find.text('Existing provider verification'), findsNothing);
     expect(find.text('Continue onboarding'), findsNothing);
     expect(requests.map((r) => r.method), everyElement('GET'));
   });
@@ -69,7 +99,7 @@ void main() {
           progress: {'BoomFi': state, 'SubmissionRequested': true},
           requests: requests);
       expect(find.textContaining('application is in progress'), findsOneWidget);
-      expect(find.text('Activate Exchange'), findsNothing);
+      expect(find.text('Existing provider verification'), findsNothing);
       expect(find.text('Continue onboarding'), findsNothing);
       expect(requests.map((r) => r.method), everyElement('GET'));
     });
@@ -80,13 +110,13 @@ void main() {
         progress: {'boomFi': 'not_started', 'submissionRequested': false},
         requests: []);
     expect(find.text('Continue onboarding'), findsOneWidget);
-    expect(find.text('Activate Exchange'), findsNothing);
+    expect(find.text('Existing provider verification'), findsNothing);
   });
   testWidgets('Exchange not selected preserves later legacy opt-in',
       (tester) async {
     final requests = <RequestOptions>[];
     await mount(tester, progress: {}, selected: false, requests: requests);
-    expect(find.text('Activate Exchange'), findsOneWidget);
+    expect(find.text('Existing provider verification'), findsOneWidget);
     expect(requests.length, 1);
   });
   testWidgets(
@@ -95,6 +125,6 @@ void main() {
     await mount(tester, progress: {}, fail: true, requests: []);
     expect(find.text('Could not check your Exchange application.'),
         findsOneWidget);
-    expect(find.text('Activate Exchange'), findsNothing);
+    expect(find.text('Existing provider verification'), findsNothing);
   });
 }

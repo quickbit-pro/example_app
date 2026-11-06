@@ -10,7 +10,9 @@ import '../../platform/application/platform_providers.dart';
 final unifiedExchangeProgressProvider =
     FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
   final config = await ref.watch(mobileTenantConfigProvider.future);
-  if (!config.unifiedCddOnboardingEnabled) return null;
+  if (!config.unifiedCddOnboardingEnabled) {
+    return null;
+  }
   final dio = ref.watch(dioProvider);
   final preferences = (await dio.get('$unifiedCddRoot/preferences')).data;
   if (preferences is! Map || preferences['enabled'] is! bool) {
@@ -20,7 +22,9 @@ final unifiedExchangeProgressProvider =
     return null;
   }
   final data = (await dio.get(unifiedCddRoot)).data;
-  if (data == null) return <String, dynamic>{};
+  if (data == null) {
+    return <String, dynamic>{};
+  }
   if (data is! Map) throw const FormatException('Missing onboarding progress');
   return data.map((key, value) {
     final name = key.toString();
@@ -38,6 +42,7 @@ class ExchangeOnboardingPanel extends ConsumerWidget {
     void refresh() {
       ref.invalidate(unifiedExchangeProgressProvider);
       ref.invalidate(exchangeOverviewProvider);
+      ref.invalidate(exchangeVerificationProvider);
     }
 
     return ref.watch(unifiedExchangeProgressProvider).when(
@@ -52,7 +57,18 @@ class ExchangeOnboardingPanel extends ConsumerWidget {
             ]),
           )),
           data: (progress) {
-            if (progress == null) return legacy;
+            if (progress == null) {
+              return legacy;
+            }
+            final verification =
+                ref.watch(exchangeVerificationProvider).asData?.value;
+            if ((verification?['hasProviderAccount'] == true ||
+                    (verification?['provider'] is Map &&
+                        (verification!['provider'] as Map).isNotEmpty)) &&
+                verification?['verificationType'] != 'business' &&
+                verification?['usesSharedStagingOrganization'] != true) {
+              return legacy;
+            }
             final state = progress['boomFi']?.toString();
             final staging = state == 'disabled_in_staging';
             final submitted = progress['submissionRequested'] == true;

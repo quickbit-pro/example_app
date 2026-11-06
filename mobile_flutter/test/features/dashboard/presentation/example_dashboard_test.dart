@@ -64,22 +64,33 @@ List<Override> _hermeticOverrides() => [
 
 void main() {
   for (final width in [393.0, 1280.0]) {
-    testWidgets('Home exposes selected unfinished services at $width', (tester) async {
+    testWidgets('Home exposes selected unfinished services at $width',
+        (tester) async {
       await tester.binding.setSurfaceSize(Size(width, 1000));
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      await tester.pumpWidget(ProviderScope(overrides: [
-        ..._hermeticOverrides(),
-        homeServiceOnboardingProvider.overrideWith((ref) async => const [
-          ServiceOnboardingItem(name: 'Equals Money banking', status: 'Setup incomplete', needsAction: true),
-          ServiceOnboardingItem(name: 'ZBX exchange', status: 'Application under review', needsAction: false),
-        ]),
-      ], child: MaterialApp(theme: buildAppThemes(_branding).light,
-        home: ExampleDashboard(snapshot: _snapshot, unreadNotifications: 0,
-          onRefresh: () async {}, animateChart: false))));
+      await tester.pumpWidget(ProviderScope(
+          overrides: [
+            ..._hermeticOverrides(),
+            homeServiceOnboardingProvider.overrideWith((ref) async => const [
+                  ServiceOnboardingItem(
+                      name: 'Banking', status: 'Start', needsAction: true),
+                  ServiceOnboardingItem(
+                      name: 'Exchange',
+                      status: 'In progress',
+                      needsAction: false),
+                ]),
+          ],
+          child: MaterialApp(
+              theme: buildAppThemes(_branding).light,
+              home: ExampleDashboard(
+                  snapshot: _snapshot,
+                  unreadNotifications: 0,
+                  onRefresh: () async {},
+                  animateChart: false))));
       await tester.pumpAndSettle();
-      expect(find.text('Your service setup'), findsOneWidget);
-      expect(find.text('Equals Money banking'), findsOneWidget);
-      expect(find.text('ZBX exchange'), findsOneWidget);
+      expect(find.byKey(const ValueKey('onboarding-banking')), findsOneWidget);
+      expect(find.text('Banking'), findsOneWidget);
+      expect(find.text('Exchange'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }

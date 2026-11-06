@@ -74,7 +74,9 @@ class _KycScreenState extends ConsumerState<KycScreen> {
 
   Future<void> _showHostedVerificationDialog({required bool blocked}) async {
     final link = ref.read(hostedKycLinkProvider);
-    if (link == null || !mounted) return;
+    if (link == null || !mounted) {
+      return;
+    }
     Future<void> open() async {
       await launchUrl(
         link,
@@ -132,9 +134,16 @@ class _KycScreenState extends ConsumerState<KycScreen> {
   @override
   Widget build(BuildContext context) {
     final unified = ref.watch(unifiedCddPreferenceProvider);
-    if (unified.isLoading) return Scaffold(body: LoadingState(label: context.tr('Loading onboarding')));
-    if (unified.hasError) return Scaffold(body: ErrorState(error: unified.error!, onRetry: () => ref.invalidate(unifiedCddPreferenceProvider)));
-    if (unified.valueOrNull == true) return const UnifiedCddScreen();
+    if (unified.isLoading) {
+      return Scaffold(
+          body: LoadingState(label: context.tr('Loading onboarding')));
+    }
+    if (unified.hasError) {
+      return Scaffold(
+          body: ErrorState(
+              error: unified.error!,
+              onRetry: () => ref.invalidate(unifiedCddPreferenceProvider)));
+    }
     final detailedStatus = ref.watch(kycDetailedStatusProvider);
     final resetStatus = detailedStatus.valueOrNull;
     if (resetStatus == null) {
@@ -156,6 +165,9 @@ class _KycScreenState extends ConsumerState<KycScreen> {
                 padding: const EdgeInsets.all(16),
                 children: [KycResubmissionPanel(status: resetStatus)])),
       );
+    }
+    if (unified.valueOrNull == true) {
+      return const UnifiedCddScreen();
     }
     // Returning from hosted verification can recreate this screen, so use the
     // persisted identity approval as well as this widget's resubmission state.
@@ -1298,11 +1310,15 @@ enum _KycDocState {
   attention;
 
   static _KycDocState from(_KycStatus status) {
-    if (status.step >= 2) return _KycDocState.received;
+    if (status.step >= 2) {
+      return _KycDocState.received;
+    }
     if (status.tone == _KycTone.attention && status.step >= 1) {
       return _KycDocState.attention;
     }
-    if (status.step >= 1) return _KycDocState.active;
+    if (status.step >= 1) {
+      return _KycDocState.active;
+    }
     return _KycDocState.waiting;
   }
 }
@@ -1687,8 +1703,9 @@ class _KycHandoffDialog extends StatelessWidget {
                         icon: blocked
                             ? Icons.tab_unselected_rounded
                             : Icons.open_in_new_rounded,
-                        color:
-                            blocked ? ExampleColors.warning : ExampleColors.teal,
+                        color: blocked
+                            ? ExampleColors.warning
+                            : ExampleColors.teal,
                         size: 38,
                         radius: 12,
                       ),

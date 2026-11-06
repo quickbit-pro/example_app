@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../data/service_onboarding_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,10 +25,14 @@ class _HomeRefreshOnNavigationState
   bool _homeVisible = false;
   int _navigation = 0;
   bool _foreground = true;
+  Timer? _serviceRefresh;
 
   @override
   void initState() {
     super.initState();
+    _serviceRefresh = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted && _foreground && _homeVisible) refreshServiceOnboarding(ref);
+    });
     WidgetsBinding.instance.addObserver(this);
     final state = WidgetsBinding.instance.lifecycleState;
     _foreground = state != AppLifecycleState.hidden &&
@@ -92,6 +98,7 @@ class _HomeRefreshOnNavigationState
 
   @override
   void dispose() {
+    _serviceRefresh?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _router?.routerDelegate.removeListener(_onNavigation);
     super.dispose();

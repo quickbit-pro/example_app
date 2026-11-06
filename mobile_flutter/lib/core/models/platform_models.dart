@@ -509,6 +509,10 @@ class KycDetailedStatus {
     required this.cardIssuerStatus,
     required this.nextAction,
     this.interlaceKycApproved = false,
+    this.interlaceApproved,
+    this.interlaceStatus,
+    this.interlaceCompletedAt,
+    this.equalsMoneyCompletedAt,
     this.interlaceRequiredAction,
     this.interlaceReason,
     this.interlaceResubmissionDocSets = const [],
@@ -581,7 +585,21 @@ class KycDetailedStatus {
             'requiredAction',
           ]);
 
+    DateTime? completedAt(Map<String, dynamic>? data) =>
+        DateTime.tryParse((data?['completedAt'] ??
+                    data?['CompletedAt'] ??
+                    data?['approvedAt'] ??
+                    data?['ApprovedAt'])
+                ?.toString() ??
+            '');
     return KycDetailedStatus(
+      interlaceApproved:
+          _asBool(interlace?['Approved'] ?? interlace?['approved']),
+      interlaceStatus: interlace == null
+          ? null
+          : _firstNonEmptyValue(interlace, const ['Status', 'status']),
+      interlaceCompletedAt: completedAt(interlace),
+      equalsMoneyCompletedAt: completedAt(equalsMoney),
       interlaceKycApproved: (interlaceAction?.trim().isEmpty ?? true) &&
           _asBool(interlace?['Approved'] ?? interlace?['approved']) == true &&
           (interlace?['Status'] ?? interlace?['status'])
@@ -653,6 +671,10 @@ class KycDetailedStatus {
   final String bankStatus;
   final String cardIssuerStatus;
   final bool interlaceKycApproved;
+  final bool? interlaceApproved;
+  final String? interlaceStatus;
+  final DateTime? interlaceCompletedAt;
+  final DateTime? equalsMoneyCompletedAt;
   final String nextAction;
   final String? interlaceRequiredAction;
   final String? interlaceReason;

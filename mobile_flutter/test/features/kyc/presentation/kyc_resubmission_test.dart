@@ -92,44 +92,47 @@ void main() {
         resetStatus('CONTACT_SUPPORT').requiresDocumentResubmission, isFalse);
   });
 
-  testWidgets('reset opens secure verification without restarting onboarding',
-      (tester) async {
-    final requests = <String>[];
-    final dio = Dio();
-    dio.interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
-      requests.add(options.path);
-      expect(options.data, isNull);
-      handler.resolve(Response(requestOptions: options, data: {
-        'success': true,
-        'accessToken': 'https://in.sumsub.com/websdk/p/existing-applicant',
+  for (final unified in [false, true]) {
+    testWidgets(
+        'reset opens secure verification without restarting onboarding unified=$unified',
+        (tester) async {
+      final requests = <String>[];
+      final dio = Dio();
+      dio.interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
+        requests.add(options.path);
+        expect(options.data, isNull);
+        handler.resolve(Response(requestOptions: options, data: {
+          'success': true,
+          'accessToken': 'https://in.sumsub.com/websdk/p/existing-applicant',
+        }));
       }));
-    }));
-    Uri? opened;
-    await tester.pumpWidget(ProviderScope(overrides: [
-        unifiedCddPreferenceProvider.overrideWith((ref) async => false),
-      kycApiProvider.overrideWithValue(KycApi(dio)),
-      verificationLinkLauncherProvider.overrideWithValue((uri) async {
-        opened = uri;
-        return true;
-      }),
-      kycDetailedStatusProvider.overrideWith((ref) async => resetStatus()),
-    ], child: const MaterialApp(home: KycScreen())));
-    await tester.pumpAndSettle();
-    expect(find.text('Action required'), findsOneWidget);
-    expect(find.text('• Identity document'), findsOneWidget);
-    expect(
-        find.text(
-            'Reopen the secure Sumsub page to complete the requested verification steps.'),
-        findsOneWidget);
-    expect(find.text('Upload requested documents'), findsNothing);
-    expect(find.text('Occupation'), findsNothing);
-    await tester.tap(find.text('Reopen verification'));
-    await tester.pumpAndSettle();
-    expect(requests, ['/api/v1/mobile/kyc/resume']);
-    expect(opened?.path, '/websdk/p/existing-applicant');
-    expect(find.text('Check status'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      Uri? opened;
+      await tester.pumpWidget(ProviderScope(overrides: [
+        unifiedCddPreferenceProvider.overrideWith((ref) async => unified),
+        kycApiProvider.overrideWithValue(KycApi(dio)),
+        verificationLinkLauncherProvider.overrideWithValue((uri) async {
+          opened = uri;
+          return true;
+        }),
+        kycDetailedStatusProvider.overrideWith((ref) async => resetStatus()),
+      ], child: const MaterialApp(home: KycScreen())));
+      await tester.pumpAndSettle();
+      expect(find.text('Action required'), findsOneWidget);
+      expect(find.text('• Identity document'), findsOneWidget);
+      expect(
+          find.text(
+              'Reopen the secure Sumsub page to complete the requested verification steps.'),
+          findsOneWidget);
+      expect(find.text('Upload requested documents'), findsNothing);
+      expect(find.text('Occupation'), findsNothing);
+      await tester.tap(find.text('Reopen verification'));
+      await tester.pumpAndSettle();
+      expect(requests, ['/api/v1/mobile/kyc/resume']);
+      expect(opened?.path, '/websdk/p/existing-applicant');
+      expect(find.text('Check status'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('support-only actions do not offer to reopen verification',
       (tester) async {
@@ -155,7 +158,7 @@ void main() {
     }));
     await tester.pumpWidget(ProviderScope(
         overrides: [
-        unifiedCddPreferenceProvider.overrideWith((ref) async => false),
+          unifiedCddPreferenceProvider.overrideWith((ref) async => false),
           kycApiProvider.overrideWithValue(KycApi(dio)),
           verificationLinkLauncherProvider
               .overrideWithValue((_) async => ++launches > 1),
@@ -222,7 +225,7 @@ void main() {
     }));
     await tester.pumpWidget(ProviderScope(
         overrides: [
-        unifiedCddPreferenceProvider.overrideWith((ref) async => false),
+          unifiedCddPreferenceProvider.overrideWith((ref) async => false),
           kycApiProvider.overrideWithValue(KycApi(dio)),
           verificationLinkLauncherProvider.overrideWithValue((uri) async {
             opened.add(uri);
@@ -350,7 +353,7 @@ void main() {
     var current = resetStatus();
     var reads = 0;
     await tester.pumpWidget(ProviderScope(overrides: [
-        unifiedCddPreferenceProvider.overrideWith((ref) async => false),
+      unifiedCddPreferenceProvider.overrideWith((ref) async => false),
       kycDetailedStatusProvider.overrideWith((ref) async {
         reads++;
         return current;

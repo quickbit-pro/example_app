@@ -113,11 +113,24 @@ class ExampleDashboard extends ConsumerWidget {
             context,
             ref,
             desktop: constraints.maxWidth >= ExampleBreakpoints.desktop,
+            availableWidth: constraints.maxWidth,
           ),
         ),
       );
 
-  Widget _build(BuildContext context, WidgetRef ref, {required bool desktop}) {
+  Widget _build(BuildContext context, WidgetRef ref,
+      {required bool desktop, required double availableWidth}) {
+    final serviceStatuses = watchServiceOnboarding(ref,
+        isBusinessAccount: snapshot.isBusinessAccount);
+    final actionPadding = Theme.of(context)
+            .appBarTheme
+            .actionsPadding
+            ?.resolve(Directionality.of(context))
+            .right ??
+        0;
+    final inlineStatuses = desktop &&
+        ServiceOnboardingButtons.fitsInline(
+            context, serviceStatuses, availableWidth - 380 - actionPadding);
     final firstName = _firstName(snapshot.customerName);
     final rows = _accountRows(context, snapshot);
     final openCards = snapshot.cards
@@ -131,7 +144,17 @@ class ExampleDashboard extends ConsumerWidget {
       return Scaffold(
         appBar: AppBar(
           title: Text(context.tr('Home')),
+          bottom: inlineStatuses
+              ? null
+              : ServiceOnboardingButtons.bottom(
+                  context, serviceStatuses, availableWidth),
           actions: [
+            if (inlineStatuses && serviceStatuses.isNotEmpty)
+              Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Center(
+                      widthFactor: 1,
+                      child: ServiceOnboardingButtons(items: serviceStatuses))),
             RefreshAction(onRefresh: onRefresh),
             if (snapshot.outflowsEnabled)
               _SendMoneyButton(onTap: () => _openSend(context, ref, snapshot)),
@@ -181,7 +204,6 @@ class ExampleDashboard extends ConsumerWidget {
                       ),
                       const SizedBox(height: 28),
                       _AccountSetupBanner(snapshot: snapshot),
-                      ServiceOnboardingBanner(isBusinessAccount: snapshot.isBusinessAccount),
                       ExampleActivationPanel(
                         key: ValueKey('activation-${snapshot.accountId}'),
                         setupComplete:
@@ -198,8 +220,9 @@ class ExampleDashboard extends ConsumerWidget {
                       if (!snapshot.isBusinessAccount) ...[
                         const SizedBox(height: 28),
                         _HomeCardShelf(card: selectedCard),
-                  const SizedBox(height: 16),
-                  ExampleReferralTeaser(enabled: snapshot.referralsEnabled),
+                        const SizedBox(height: 16),
+                        ExampleReferralTeaser(
+                            enabled: snapshot.referralsEnabled),
                       ],
                       const SizedBox(height: 28),
                       _DesktopSectionTitle(
@@ -292,6 +315,10 @@ class ExampleDashboard extends ConsumerWidget {
                     ),
                   ),
                 ),
+                if (serviceStatuses.isNotEmpty)
+                  Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: ServiceOnboardingButtons(items: serviceStatuses)),
                 _Greeting(
                   text: greeting,
                   style: TextStyle(
@@ -316,7 +343,7 @@ class ExampleDashboard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 _AccountSetupBanner(snapshot: snapshot),
-                ServiceOnboardingBanner(isBusinessAccount: snapshot.isBusinessAccount),
+
                 ExampleActivationPanel(
                   key: ValueKey('activation-${snapshot.accountId}'),
                   setupComplete:
@@ -471,7 +498,8 @@ class _BellButton extends StatelessWidget {
                         width: 6,
                         height: 6,
                         decoration: BoxDecoration(
-                          color: ExampleInk.accent(context, ExampleColors.violet),
+                          color:
+                              ExampleInk.accent(context, ExampleColors.violet),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -1394,7 +1422,8 @@ class _InsightRow extends StatelessWidget {
   Widget build(BuildContext context) => ExampleRow(
         title: title,
         subtitle: subtitle,
-        leading: ExampleIconTile(icon: icon, color: color ?? ExampleColors.iris),
+        leading:
+            ExampleIconTile(icon: icon, color: color ?? ExampleColors.iris),
         trailing:
             value == null ? null : ExampleRowValue(value: value!, color: color),
         onTap: onTap,
@@ -1896,7 +1925,8 @@ class _DesktopActivityRow extends ConsumerWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: positive
-                    ? ExampleInk.tint(context, ExampleColors.success, alpha: .14)
+                    ? ExampleInk.tint(context, ExampleColors.success,
+                        alpha: .14)
                     : ExampleSurface.of(context, 2),
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -2461,7 +2491,8 @@ class _AccountSetupBanner extends ConsumerWidget {
               height: 36,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: ExampleInk.tint(context, ExampleColors.violet, alpha: .22),
+                color:
+                    ExampleInk.tint(context, ExampleColors.violet, alpha: .22),
                 borderRadius: BorderRadius.circular(11),
               ),
               child: Icon(

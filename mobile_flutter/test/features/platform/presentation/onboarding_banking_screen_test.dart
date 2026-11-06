@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/features/kyc/presentation/unified_cdd_screen.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:mobile_flutter/app/shell/banking_shell.dart';
 import 'package:mobile_flutter/core/api/dio_provider.dart';
@@ -65,7 +66,10 @@ class _Picker extends FilePicker {
 }
 
 Future<void> _pumpScreen(WidgetTester tester, _Api api,
-    {bool example = true, bool business = false}) async {
+    {bool example = true,
+    bool business = false,
+    bool unified = false,
+    KycDetailedStatus? detailed}) async {
   final router = GoRouter(initialLocation: '/onboarding/banking', routes: [
     GoRoute(
         path: '/onboarding/banking',
@@ -84,6 +88,10 @@ Future<void> _pumpScreen(WidgetTester tester, _Api api,
   await tester.pumpWidget(ProviderScope(
       overrides: [
         mobilePlatformApiProvider.overrideWithValue(api),
+        if (unified)
+          unifiedCddPreferenceProvider.overrideWith((ref) async => true),
+        if (detailed != null)
+          kycDetailedStatusProvider.overrideWith((ref) async => detailed),
         mobileTenantConfigProvider
             .overrideWith((ref) async => MobileTenantConfig.fromJson({})),
         dashboardProvider.overrideWith((ref) async => DashboardSnapshot(
@@ -111,6 +119,21 @@ Future<void> _pumpScreen(WidgetTester tester, _Api api,
 }
 
 void main() {
+  testWidgets('Banking follow-up remains accessible for unified onboarding',
+      (tester) async {
+    await _pumpScreen(tester, _Api(true),
+        unified: true,
+        detailed: const KycDetailedStatus(
+            hoppaStatus: 'approved',
+            bankStatus: 'approved',
+            cardIssuerStatus: 'approved',
+            nextAction: '',
+            equalsMoneyApproved: true,
+            equalsMoneyRequiredAction: 'ADDITIONAL_DOCUMENTS'));
+    expect(find.text('Required now'), findsOneWidget);
+    expect(find.byType(UnifiedCddScreen), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('desktop install panel and empty card use configured app name',
       (tester) async {
     tester.view.physicalSize = const Size(1600, 1100);
