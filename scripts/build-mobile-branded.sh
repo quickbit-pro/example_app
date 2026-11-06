@@ -31,8 +31,12 @@ for option in "$@"; do
 done
 python_command="${BRANDING_PYTHON:-python3}"
 "$python_command" "$repository_directory/scripts/prepare-mobile-brand.py" "$brand_file"
+"$python_command" "$repository_directory/scripts/write-app-build-info.py" \
+  --repository "$repository_directory" \
+  --output "$repository_directory/mobile_flutter/.dart_tool/app_build_info.json" -- "$@"
 cd "$repository_directory/mobile_flutter"
-flutter build "$build_target" --dart-define-from-file=.dart_tool/branding/defines.json "$@"
+flutter build "$build_target" --dart-define-from-file=.dart_tool/branding/defines.json \
+  --dart-define-from-file=.dart_tool/app_build_info.json "$@"
 if [[ "$build_target" == web ]]; then
   "$python_command" "$repository_directory/scripts/prepare-mobile-brand.py" --finalize-web "$web_output"
 fi

@@ -10,6 +10,7 @@ import '../brands/example/example_colors.dart';
 import '../brands/example/example_startup_splash.dart';
 import '../core/web/update_available_banner.dart';
 import '../core/web/web_safe_area_padding.dart';
+import '../core/widgets/app_version_header.dart';
 import '../core/api/dio_provider.dart';
 import '../core/privacy/private_mode_provider.dart';
 import '../core/theme/app_theme_provider.dart';
@@ -116,20 +117,22 @@ class _MobileAppState extends ConsumerState<MobileApp> {
           // Both routed pages and the update overlay need the browser's
           // status-bar/notch insets on installed iPhone web apps.
           child: WebSafeAreaPadding(
-            child: Stack(
-              children: [
-                KeyboardFocusVisibility(
-                  child: EqualsReagreementGate(
-                    child: child ?? const SizedBox.shrink(),
+            child: AppVersionFrame(
+              child: Stack(
+                children: [
+                  KeyboardFocusVisibility(
+                    child: EqualsReagreementGate(
+                      child: child ?? const SizedBox.shrink(),
+                    ),
                   ),
-                ),
-                const Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: UpdateAvailableBanner(),
-                ),
-              ],
+                  const Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: UpdateAvailableBanner(),
+                  ),
+                ],
+              ),
             ),
           ),
         );
