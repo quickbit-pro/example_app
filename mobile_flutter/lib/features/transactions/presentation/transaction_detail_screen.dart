@@ -1173,6 +1173,7 @@ bool _isSensitiveMetadataKey(String key) {
 
 String _metadataLabel(String value) {
   final spaced = value
+      .replaceAll(RegExp(r'boomfi', caseSensitive: false), 'ZBX ')
       .replaceAll(RegExp(r'[_-]+'), ' ')
       .replaceAllMapped(
         RegExp(r'([a-z0-9])([A-Z])'),

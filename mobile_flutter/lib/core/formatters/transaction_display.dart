@@ -1,6 +1,6 @@
 /// Public name for the exchange provider, including legacy API wording.
 String exchangeProviderDisplayText(String value) =>
-    value.replaceAll(RegExp(r'\bboomfi\b', caseSensitive: false), 'ZBX');
+    value.replaceAll(RegExp(r'\bboom\s*fi\b', caseSensitive: false), 'ZBX');
 
 String transactionDisplayTitle(String value) {
   final raw = exchangeProviderDisplayText(value.trim());

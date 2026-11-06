@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/features/transactions/domain/transaction_identity.dart';
 import 'package:dio/dio.dart';
 import 'package:mobile_flutter/core/widgets/app_states.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,6 +6,12 @@ import 'package:mobile_flutter/core/models/banking_models.dart';
 import 'package:mobile_flutter/core/formatters/transaction_display.dart';
 
 void main() {
+  test('legacy provider metadata uses ZBX on receipts', () {
+    for (final name in ['BoomFi', 'BoomFI', 'boomfi', 'Boom Fi']) {
+      expect(transactionMetadataDisplayValue('provider', name), 'ZBX');
+    }
+  });
+
   test('legacy provider names display as ZBX in transaction descriptions', () {
     for (final name in ['BoomFi', 'BoomFI', 'BOOMFI', 'boomfi']) {
       expect(transactionDisplayTitle(name), 'ZBX');

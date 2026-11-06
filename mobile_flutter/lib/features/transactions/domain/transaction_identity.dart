@@ -1,4 +1,5 @@
 import '../../../core/models/banking_models.dart';
+import '../../../core/formatters/transaction_display.dart';
 import '../../../core/models/platform_models.dart';
 import '../../wallets/domain/receiving_account_details.dart';
 import 'transaction_scope.dart';
@@ -185,7 +186,7 @@ String? transactionMetadataDisplayValue(String key, Object value) {
       normalized.endsWith('accountidentifier')) {
     return maskTransactionAccountIdentifier(display);
   }
-  return display;
+  return exchangeProviderDisplayText(display);
 }
 
 const _cardNumberKeys = {
