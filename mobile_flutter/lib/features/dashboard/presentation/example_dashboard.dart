@@ -38,6 +38,7 @@ import '../domain/dashboard_models.dart';
 import '../domain/spending_insights.dart';
 import '../data/display_currency_provider.dart';
 import 'display_currency_selector.dart';
+import 'widgets/service_onboarding_banner.dart';
 import 'widgets/example_balance_chart.dart';
 
 /// Home's alive layer lives under the shell's [ExampleSheenScope]: the screen
@@ -180,6 +181,7 @@ class ExampleDashboard extends ConsumerWidget {
                       ),
                       const SizedBox(height: 28),
                       _AccountSetupBanner(snapshot: snapshot),
+                      ServiceOnboardingBanner(isBusinessAccount: snapshot.isBusinessAccount),
                       ExampleActivationPanel(
                         key: ValueKey('activation-${snapshot.accountId}'),
                         setupComplete:
@@ -314,6 +316,7 @@ class ExampleDashboard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 _AccountSetupBanner(snapshot: snapshot),
+                ServiceOnboardingBanner(isBusinessAccount: snapshot.isBusinessAccount),
                 ExampleActivationPanel(
                   key: ValueKey('activation-${snapshot.accountId}'),
                   setupComplete:

@@ -21,6 +21,7 @@ import '../../wallets/data/wallet_providers.dart';
 import '../../wallets/presentation/deposit_address_dialog.dart';
 import '../data/dashboard_providers.dart';
 import '../domain/dashboard_models.dart';
+import 'widgets/service_onboarding_banner.dart';
 import 'example_dashboard.dart';
 
 Future<void> _retryDashboard(WidgetRef ref) async {
@@ -154,6 +155,7 @@ class _DashboardContent extends ConsumerWidget {
                 ),
                 sliver: SliverList.list(
                   children: [
+                    ServiceOnboardingBanner(isBusinessAccount: snapshot.isBusinessAccount),
                     _PortfolioEstimateCard(
                       estimate: snapshot.portfolioEstimate,
                     ),

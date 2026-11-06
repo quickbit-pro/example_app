@@ -14,6 +14,7 @@ import '../../wallets/domain/exchange_models.dart';
 import '../../wallets/domain/receiving_account_details.dart';
 import '../domain/dashboard_models.dart';
 import '../domain/market_rates.dart';
+import 'service_onboarding_provider.dart';
 
 final refreshHoppaDashboardProvider = Provider<Future<void> Function()>((ref) {
   Future<void>? inFlight;
@@ -33,11 +34,13 @@ final refreshHoppaDashboardProvider = Provider<Future<void> Function()>((ref) {
     ref.invalidate(mobileTenantConfigProvider);
     ref.invalidate(equalsBankingInfoProvider);
     ref.invalidate(exchangeOverviewProvider);
+    ref.invalidate(exchangeVerificationProvider);
     ref.invalidate(userAssetsProvider);
     ref.invalidate(userWalletsProvider);
     ref.invalidate(portfolioEstimateProvider);
     ref.invalidate(kycDetailedStatusProvider);
     ref.invalidate(marketRatesProvider);
+    ref.invalidate(homeServiceOnboardingProvider);
     ref.invalidate(hoppaDashboardProvider);
     await ref.read(hoppaDashboardProvider.future);
   }
