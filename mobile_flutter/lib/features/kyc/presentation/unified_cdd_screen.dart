@@ -1,5 +1,6 @@
 import '../../../shared/widgets/equals_fee_schedule.dart';
 import 'dart:convert';
+import 'package:go_router/go_router.dart';
 import '../../onboarding/presentation/personal_onboarding_gate.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -33,12 +34,22 @@ String unifiedCddErrorMessage(DioException error) {
   if (status == 428) {
     return 'Review and accept the current Equals Money agreements before continuing.';
   }
+  if (status == 429) {
+    return 'Too many attempts. Please wait a moment and try again. Your answers are still here.';
+  }
   Object? data = error.response?.data;
-  for (var depth = 0; depth < 3; depth++) {
+  for (var depth = 0; depth < 5; depth++) {
     if (data is String) {
+      final text = data;
       try {
-        data = jsonDecode(data);
+        data = jsonDecode(text);
       } catch (_) {
+        if (text.trim().isNotEmpty &&
+            text.length < 400 &&
+            !text.contains('<') &&
+            !text.contains('{')) {
+          return text;
+        }
         break;
       }
     }
@@ -51,12 +62,44 @@ String unifiedCddErrorMessage(DioException error) {
         !message.contains('<')) {
       return message;
     }
+    final errors = data['errors'];
+    if (errors is Map) {
+      final messages = errors.values
+          .expand((value) => value is List ? value : [value])
+          .whereType<String>()
+          .where((message) =>
+              message.length < 300 &&
+              !message.contains('<') &&
+              !message.contains('{'))
+          .toList();
+      if (messages.isNotEmpty) return messages.take(4).join('\n');
+    }
     data = data['detail'];
   }
   return error.response == null
       ? 'Could not connect. Please retry this step.'
       : 'Could not complete verification. Please retry this step.';
 }
+
+String unifiedCddMissingFieldLabel(String field) =>
+    const {
+      'cdd.address.postCode': 'Postal / ZIP code',
+      'cdd.address.street': 'Street address',
+      'cdd.address.town': 'City',
+      'cdd.address.country': 'Address country',
+      'cdd.info.nationality': 'Nationality',
+      'cdd.info.firstName': 'First name',
+      'cdd.info.lastName': 'Last name',
+      'cdd.info.dob': 'Date of birth',
+      'cdd.identity.number': 'Identity document number',
+      'cdd.identity.validUntil': 'Identity document expiry date',
+      'cdd.documents.IDENTITY': 'Identity document',
+      'cdd.documents.SELFIE': 'Identity selfie',
+      'cdd.documents.PROOF_OF_RESIDENCE': 'Proof of address',
+    }[field] ??
+    (field.startsWith('cdd.questionnaire.')
+        ? 'Verification questionnaire answers'
+        : 'Verification details');
 
 /// Uses the existing registration choices and questionnaire option lists. No legacy KYC call.
 class UnifiedCddScreen extends ConsumerStatefulWidget {
@@ -67,6 +110,52 @@ class UnifiedCddScreen extends ConsumerStatefulWidget {
 
 class _UnifiedCddScreenState extends ConsumerState<UnifiedCddScreen> {
   final _form = GlobalKey<FormState>();
+  final _errorAnchor = GlobalKey();
+  final _summaryAnchor = GlobalKey();
+  final _fieldKeys = <String, GlobalKey>{};
+  final _fieldLabels = <String, String>{};
+  Set<String> _invalidFields = {};
+  bool _validationAttempted = false;
+
+  GlobalKey _anchor(String key, String label) {
+    _fieldLabels[key] = context.tr(label);
+    return _fieldKeys.putIfAbsent(key, () => GlobalKey(debugLabel: key));
+  }
+
+  void _showAt(GlobalKey key) =>
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final target = key.currentContext;
+        if (mounted && target != null) {
+          Scrollable.ensureVisible(target,
+              alignment: .12, duration: const Duration(milliseconds: 250));
+        }
+      });
+  void _saveAnswers() {
+    final invalid = _form.currentState?.validateGranularly();
+    if (invalid == null) return;
+    final keys = <String>{};
+    for (final field in invalid) {
+      field.context.visitAncestorElements((element) {
+        for (final entry in _fieldKeys.entries) {
+          if (element.widget.key == entry.value) {
+            keys.add(entry.key);
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+    setState(() {
+      _validationAttempted = true;
+      _invalidFields = keys;
+    });
+    if (invalid.isNotEmpty) {
+      _showAt(_summaryAnchor);
+      return;
+    }
+    _request('answers');
+  }
+
   Map<String, dynamic>? _state;
   Map<String, dynamic> _answers = {};
   bool _busy = false;
@@ -112,10 +201,12 @@ class _UnifiedCddScreenState extends ConsumerState<UnifiedCddScreen> {
     } on DioException catch (e) {
       if (mounted) {
         setState(() => _error = unifiedCddErrorMessage(e));
+        _showAt(_errorAnchor);
       }
     } catch (_) {
       if (mounted) {
         setState(() => _error = 'Could not load onboarding. Please retry.');
+        _showAt(_errorAnchor);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -125,8 +216,10 @@ class _UnifiedCddScreenState extends ConsumerState<UnifiedCddScreen> {
   void _change(String key, dynamic value) => setState(() {
         _answers[key] = value;
         _dirty = true;
+        _invalidFields.remove(key);
       });
   Widget _choice(String key, String label, List<String> options) => Padding(
+      key: _anchor(key, label),
       padding: const EdgeInsets.only(bottom: 12),
       child: SearchableSingleSelectDropdown(
           label: context.tr(label),
@@ -138,6 +231,7 @@ class _UnifiedCddScreenState extends ConsumerState<UnifiedCddScreen> {
   Widget _multiple(String key, String label, List<String> options,
           {OptionLabelBuilder? labelBuilder}) =>
       Padding(
+          key: _anchor(key, label),
           padding: const EdgeInsets.only(bottom: 12),
           child: SearchableMultiSelectDropdown(
               label: context.tr(label),
@@ -147,6 +241,7 @@ class _UnifiedCddScreenState extends ConsumerState<UnifiedCddScreen> {
                   (v) => personalOnboardingOptionLabel(context, v),
               onChanged: (v) => _change(key, v)));
   Widget _yesNo(String key, String label) => Padding(
+      key: _anchor(key, label),
       padding: const EdgeInsets.only(bottom: 16),
       child: SearchableSingleSelectDropdown(
         label: context.tr(label),
@@ -159,6 +254,7 @@ class _UnifiedCddScreenState extends ConsumerState<UnifiedCddScreen> {
         onChanged: (value) => _change(key, value == 'Yes'),
       ));
   Widget _text(String key, String label, {String? hint}) => Padding(
+      key: _anchor(key, label),
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
           key: ValueKey('$key:${_state?['status']}'),
@@ -166,8 +262,19 @@ class _UnifiedCddScreenState extends ConsumerState<UnifiedCddScreen> {
           enabled: !_busy,
           decoration:
               InputDecoration(labelText: context.tr(label), hintText: hint),
-          validator: (v) =>
-              v?.trim().isNotEmpty == true ? null : context.tr('Required'),
+          validator: (v) {
+            if (v?.trim().isNotEmpty != true) return context.tr('Required');
+            if (key == 'documentIssueDate') {
+              final date = DateTime.tryParse(v!.trim());
+              if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(v.trim()) ||
+                  date == null ||
+                  date.toIso8601String().substring(0, 10) != v.trim() ||
+                  date.isAfter(DateTime.now())) {
+                return context.tr('Enter a valid date in YYYY-MM-DD format');
+              }
+            }
+            return null;
+          },
           onChanged: (v) => _change(key, v)));
   String _providerStatus(dynamic value) => switch (value?.toString()) {
         'invite_required' => 'Accept your banking invite to continue',
@@ -216,6 +323,7 @@ class _UnifiedCddScreenState extends ConsumerState<UnifiedCddScreen> {
                                       'Your identity and proof of address will be used for your crypto card and the additional services you selected.')),
                                   if (_error != null)
                                     Padding(
+                                        key: _errorAnchor,
                                         padding: const EdgeInsets.symmetric(
                                             vertical: 12),
                                         child: Text(_error!,
@@ -292,190 +400,264 @@ class _UnifiedCddScreenState extends ConsumerState<UnifiedCddScreen> {
                                       const SizedBox(height: 20),
                                     ],
                                     if (approved && !submitted)
-                                      Form(
-                                          key: _form,
-                                          child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.stretch,
-                                              children: [
-                                                if (banking) ...[
+                                      if (_invalidFields.isNotEmpty)
+                                        Container(
+                                            key: _summaryAnchor,
+                                            margin: const EdgeInsets.symmetric(
+                                                vertical: 12),
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .errorContainer,
+                                                borderRadius:
+                                                    BorderRadius.circular(12)),
+                                            child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
                                                   Text(
                                                       context.tr(
-                                                          'Equals Money account details'),
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .titleMedium),
-                                                  const SizedBox(height: 12),
+                                                          'Please complete the following fields:'),
+                                                      style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w600)),
+                                                  for (final key
+                                                      in _invalidFields)
+                                                    TextButton(
+                                                        onPressed: () =>
+                                                            _showAt(_fieldKeys[
+                                                                key]!),
+                                                        child: Text(
+                                                            _fieldLabels[key] ??
+                                                                key)),
+                                                ])),
+                                    Form(
+                                        key: _form,
+                                        autovalidateMode: _validationAttempted
+                                            ? AutovalidateMode.onUserInteraction
+                                            : AutovalidateMode.disabled,
+                                        child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            children: [
+                                              if (banking) ...[
+                                                Text(
+                                                    context.tr(
+                                                        'Equals Money account details'),
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .titleMedium),
+                                                const SizedBox(height: 12),
+                                                _multiple(
+                                                    'equalsMainPurpose',
+                                                    'Main purposes',
+                                                    equalsPersonalPurposeOptions),
+                                                _multiple(
+                                                    'equalsSourceOfFunds',
+                                                    'Sources of funds',
+                                                    equalsPersonalSourceOfFundsOptions),
+                                                _multiple(
+                                                    'equalsDestinationCountries',
+                                                    'Destination countries',
+                                                    equalsCountryCodes,
+                                                    labelBuilder: (v) =>
+                                                        personalOnboardingCountryLabel(
+                                                            context, v)),
+                                                _multiple(
+                                                    'equalsCurrenciesRequired',
+                                                    'Required currencies',
+                                                    equalsSupportedCurrencyCodes),
+                                                _choice(
+                                                    'equalsExpectedAnnualVolume',
+                                                    'Annual volume',
+                                                    equalsAnnualVolumeOptions),
+                                                _choice(
+                                                    'equalsExpectedPayments',
+                                                    'Number of payments',
+                                                    equalsPersonalPaymentCountOptions),
+                                                const SizedBox(height: 12),
+                                                Text(
+                                                    context.tr(
+                                                        'Equals Money cards'),
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .titleMedium),
+                                                const SizedBox(height: 12),
+                                                _yesNo('equalsCardsRequested',
+                                                    'Request cards'),
+                                                if (_answers[
+                                                        'equalsCardsRequested'] ==
+                                                    true) ...[
                                                   _multiple(
-                                                      'equalsMainPurpose',
-                                                      'Main purposes',
+                                                      'equalsCardPurposes',
+                                                      'Card purposes',
                                                       equalsPersonalPurposeOptions),
-                                                  _multiple(
-                                                      'equalsSourceOfFunds',
-                                                      'Sources of funds',
-                                                      equalsPersonalSourceOfFundsOptions),
-                                                  _multiple(
-                                                      'equalsDestinationCountries',
-                                                      'Destination countries',
-                                                      equalsCountryCodes,
-                                                      labelBuilder: (v) =>
-                                                          personalOnboardingCountryLabel(
-                                                              context, v)),
-                                                  _multiple(
-                                                      'equalsCurrenciesRequired',
-                                                      'Required currencies',
-                                                      equalsSupportedCurrencyCodes),
                                                   _choice(
-                                                      'equalsExpectedAnnualVolume',
-                                                      'Annual volume',
+                                                      'equalsCardAnnualSpend',
+                                                      'Annual card spend',
                                                       equalsAnnualVolumeOptions),
                                                   _choice(
-                                                      'equalsExpectedPayments',
-                                                      'Number of payments',
-                                                      equalsPersonalPaymentCountOptions),
-                                                  const SizedBox(height: 12),
-                                                  Text(
-                                                      context.tr(
-                                                          'Equals Money cards'),
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .titleMedium),
-                                                  const SizedBox(height: 12),
-                                                  _yesNo('equalsCardsRequested',
-                                                      'Request cards'),
-                                                  if (_answers[
-                                                          'equalsCardsRequested'] ==
-                                                      true) ...[
-                                                    _multiple(
-                                                        'equalsCardPurposes',
-                                                        'Card purposes',
-                                                        equalsPersonalPurposeOptions),
-                                                    _choice(
-                                                        'equalsCardAnnualSpend',
-                                                        'Annual card spend',
-                                                        equalsAnnualVolumeOptions),
-                                                    _choice(
-                                                        'equalsNumberOfCardsRequired',
-                                                        'Number of cards required',
-                                                        equalsCardCountOptions),
-                                                    _yesNo(
-                                                        'equalsAtmWithdrawalsRequired',
-                                                        'ATM withdrawals required'),
-                                                  ],
-                                                  const SizedBox(height: 12),
+                                                      'equalsNumberOfCardsRequired',
+                                                      'Number of cards required',
+                                                      equalsCardCountOptions),
+                                                  _yesNo(
+                                                      'equalsAtmWithdrawalsRequired',
+                                                      'ATM withdrawals required'),
                                                 ],
-                                                if (missing
-                                                    .contains('annualSalary'))
-                                                  _choice(
-                                                      'annualSalary',
-                                                      'Annual salary (USD)',
-                                                      const [
-                                                        '0-10000',
-                                                        '10001-30000',
-                                                        '30001-50000',
-                                                        '50001-75000',
-                                                        '75001-100000',
-                                                        '100001-150000',
-                                                        '150001-250000',
-                                                        '250001+'
-                                                      ]),
-                                                if (missing
-                                                    .contains('occupation'))
-                                                  ref.watch(occupationCodesProvider).when(
-                                                      data: (items) => Padding(
-                                                          padding:
-                                                              const EdgeInsets.only(
-                                                                  bottom: 12),
-                                                          child: SearchableSingleSelectDropdown(
-                                                              label: context.tr(
-                                                                  'Occupation'),
-                                                              value:
-                                                                  _answers['occupation']
-                                                                      as String?,
-                                                              options: items
-                                                                  .where((i) =>
-                                                                      RegExp(r'^\d{2}-\d{4}$')
-                                                                          .hasMatch(i.value))
-                                                                  .map((i) => i.value)
-                                                                  .toList(),
-                                                              labelBuilder: (v) => items.firstWhere((i) => i.value == v).title,
-                                                              onChanged: (v) => _change('occupation', v))),
-                                                      error: (_, __) => TextButton(onPressed: () => ref.invalidate(occupationCodesProvider), child: Text(context.tr('Retry occupations'))),
-                                                      loading: () => const LinearProgressIndicator()),
-                                                if (missing.contains(
-                                                        'accountPurpose') &&
-                                                    !banking)
-                                                  _text('accountPurpose',
-                                                      'Account purpose'),
-                                                if (missing.contains(
-                                                        'expectedMonthlyVolume') &&
-                                                    (!banking ||
-                                                        (_state?['answers']
-                                                                is Map &&
-                                                            _normalise(_state![
-                                                                            'answers']
-                                                                        as Map)[
-                                                                    'equalsExpectedAnnualVolume'] !=
-                                                                null)))
-                                                  _choice(
-                                                      'expectedMonthlyVolume',
-                                                      'Expected monthly volume (USD)',
-                                                      const [
-                                                        '0-1000',
-                                                        '1001-5000',
-                                                        '5001-15000',
-                                                        '15001-50000',
-                                                        '50001-100000',
-                                                        '100001+'
-                                                      ]),
-                                                if (missing.contains(
-                                                    'documentIssueDate'))
-                                                  _text('documentIssueDate',
-                                                      'Document issue date',
-                                                      hint: 'YYYY-MM-DD'),
-                                                if (missing.contains(
-                                                    'cdd.info.nationality'))
-                                                  Text(context.tr(
-                                                      'Nationality is missing from your verification record. Contact support to complete this detail.')),
-                                                if (missing.any((v) =>
-                                                    v.startsWith('cdd.') &&
-                                                    v !=
-                                                        'cdd.info.nationality'))
-                                                  Text(context.tr(
-                                                      'Some verification information is missing. Contact support if your verification is already approved.')),
-                                                if (banking)
-                                                  const EqualsFeeScheduleButton(),
+                                                const SizedBox(height: 12),
+                                              ],
+                                              if (missing
+                                                  .contains('annualSalary'))
+                                                _choice(
+                                                    'annualSalary',
+                                                    'Annual salary (USD)',
+                                                    const [
+                                                      '0-10000',
+                                                      '10001-30000',
+                                                      '30001-50000',
+                                                      '50001-75000',
+                                                      '75001-100000',
+                                                      '100001-150000',
+                                                      '150001-250000',
+                                                      '250001+'
+                                                    ]),
+                                              if (missing
+                                                  .contains('occupation'))
+                                                ref.watch(occupationCodesProvider).when(
+                                                    data: (items) => Padding(
+                                                        key: _anchor(
+                                                            'occupation',
+                                                            'Occupation'),
+                                                        padding:
+                                                            const EdgeInsets.only(
+                                                                bottom: 12),
+                                                        child: SearchableSingleSelectDropdown(
+                                                            label: context.tr(
+                                                                'Occupation'),
+                                                            value:
+                                                                _answers['occupation']
+                                                                    as String?,
+                                                            options: items
+                                                                .where((i) => RegExp(r'^\d{2}-\d{4}$').hasMatch(i.value))
+                                                                .map((i) => i.value)
+                                                                .toList(),
+                                                            labelBuilder: (v) => items.firstWhere((i) => i.value == v).title,
+                                                            onChanged: (v) => _change('occupation', v))),
+                                                    error: (_, __) => TextButton(onPressed: () => ref.invalidate(occupationCodesProvider), child: Text(context.tr('Retry occupations'))),
+                                                    loading: () => const LinearProgressIndicator()),
+                                              if (missing.contains(
+                                                      'accountPurpose') &&
+                                                  !banking)
+                                                _text('accountPurpose',
+                                                    'Account purpose'),
+                                              if (missing.contains(
+                                                      'expectedMonthlyVolume') &&
+                                                  (!banking ||
+                                                      (_state?['answers']
+                                                              is Map &&
+                                                          _normalise(_state![
+                                                                          'answers']
+                                                                      as Map)[
+                                                                  'equalsExpectedAnnualVolume'] !=
+                                                              null)))
+                                                _choice(
+                                                    'expectedMonthlyVolume',
+                                                    'Expected monthly volume (USD)',
+                                                    const [
+                                                      '0-1000',
+                                                      '1001-5000',
+                                                      '5001-15000',
+                                                      '15001-50000',
+                                                      '50001-100000',
+                                                      '100001+'
+                                                    ]),
+                                              if (missing.contains(
+                                                  'documentIssueDate'))
+                                                _text('documentIssueDate',
+                                                    'Document issue date',
+                                                    hint: 'YYYY-MM-DD'),
+                                              if (missing.contains(
+                                                  'cdd.address.postCode'))
+                                                _text('postCode',
+                                                    'Postal / ZIP code'),
+                                              if (missing.any(
+                                                  (v) => v.startsWith('cdd.')))
+                                                Container(
+                                                    margin: const EdgeInsets
+                                                        .symmetric(
+                                                        vertical: 12),
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                            12),
+                                                    decoration: BoxDecoration(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .errorContainer,
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(12)),
+                                                    child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                              context.tr(
+                                                                  'Missing from your verification:'),
+                                                              style: const TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600)),
+                                                          for (final label in missing
+                                                              .where((v) =>
+                                                                  v.startsWith(
+                                                                      'cdd.'))
+                                                              .map(
+                                                                  unifiedCddMissingFieldLabel)
+                                                              .toSet())
+                                                            Text(
+                                                                '• ${context.tr(label)}'),
+                                                          const SizedBox(
+                                                              height: 8),
+                                                          Text(context.tr(missing
+                                                                  .contains(
+                                                                      'cdd.address.postCode')
+                                                              ? 'Enter your postal / ZIP code above, then save your answers. Contact support if other verification details are missing.'
+                                                              : 'These details are needed before your services can be activated. Check status to refresh, or contact support for help.')),
+                                                          TextButton(
+                                                              onPressed: () =>
+                                                                  context.push(
+                                                                      '/support'),
+                                                              child: Text(
+                                                                  context.tr(
+                                                                      'Contact support'))),
+                                                        ])),
+                                              if (banking)
+                                                const EqualsFeeScheduleButton(),
+                                              const SizedBox(height: 16),
+                                              OutlinedButton(
+                                                  onPressed: _busy
+                                                      ? null
+                                                      : _saveAnswers,
+                                                  child: Text(context
+                                                      .tr('Save answers'))),
+                                              if (!_dirty &&
+                                                  missing.isEmpty &&
+                                                  (!banking ||
+                                                      _answers[
+                                                              'equalsCardsRequested']
+                                                          is bool)) ...[
                                                 const SizedBox(height: 16),
-                                                OutlinedButton(
+                                                FilledButton(
                                                     onPressed: _busy
                                                         ? null
-                                                        : () {
-                                                            if (_form
-                                                                    .currentState
-                                                                    ?.validate() ==
-                                                                true) {
-                                                              _request(
-                                                                  'answers');
-                                                            }
-                                                          },
-                                                    child: Text(context
-                                                        .tr('Save answers'))),
-                                                if (!_dirty &&
-                                                    missing.isEmpty &&
-                                                    (!banking ||
-                                                        _answers[
-                                                                'equalsCardsRequested']
-                                                            is bool)) ...[
-                                                  const SizedBox(height: 16),
-                                                  FilledButton(
-                                                      onPressed: _busy
-                                                          ? null
-                                                          : () => _request(
-                                                              'submit'),
-                                                      child: Text(context.tr(
-                                                          'Activate selected services'))),
-                                                ],
-                                              ])),
+                                                        : () =>
+                                                            _request('submit'),
+                                                    child: Text(context.tr(
+                                                        'Activate selected services'))),
+                                              ],
+                                            ])),
                                     if (submitted) ...[
                                       Text(context.tr('Application submitted'),
                                           style: Theme.of(context)

@@ -193,6 +193,143 @@ void main() {
         'Could not complete verification. Please retry this step.');
   });
 
+  test('plain validation detail and rate limit preserve useful feedback', () {
+    DioException error(int status, Object data) => DioException(
+        requestOptions: RequestOptions(path: unifiedCddRoot),
+        response: Response(
+            requestOptions: RequestOptions(path: unifiedCddRoot),
+            statusCode: status,
+            data: data));
+    expect(
+        unifiedCddErrorMessage(error(
+            400, {'detail': 'Choose whether you require Equals Money cards.'})),
+        'Choose whether you require Equals Money cards.');
+    expect(
+        unifiedCddErrorMessage(error(400, {
+          'detail':
+              '{"errors":{"DocumentIssueDate":["Enter a valid document issue date."]}}'
+        })),
+        'Enter a valid document issue date.');
+    expect(unifiedCddErrorMessage(error(429, {})),
+        contains('Your answers are still here'));
+  });
+
+  testWidgets('missing answers are named and linked before any save request',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final dio = onboardingDio();
+    var writes = 0;
+    dio.interceptors.add(InterceptorsWrapper(onRequest: (request, handler) {
+      if (request.method == 'PUT') writes++;
+      handler.resolve(Response(requestOptions: request, data: {
+        'status': 'approved',
+        'banking': false,
+        'submissionRequested': false,
+        'missingFields': [
+          'annualSalary',
+          'documentIssueDate',
+          'cdd.address.postCode'
+        ],
+        'answers': {},
+      }));
+    }));
+    await tester.pumpWidget(ProviderScope(
+        overrides: [dioProvider.overrideWithValue(dio)],
+        child: const MaterialApp(home: UnifiedCddScreen())));
+    await tester.pumpAndSettle();
+    expect(find.text('• Postal / ZIP code'), findsOneWidget);
+    expect(find.text('cdd.address.postCode'), findsNothing);
+    await tester.ensureVisible(find.text('Save answers'));
+    await tester.tap(find.text('Save answers'));
+    await tester.pumpAndSettle();
+    expect(find.text('Please complete the following fields:'), findsOneWidget);
+    expect(
+        find.widgetWithText(TextButton, 'Annual salary (USD)'), findsOneWidget);
+    expect(
+        find.widgetWithText(TextButton, 'Document issue date'), findsOneWidget);
+    expect(writes, 0);
+    await tester.tap(find.widgetWithText(TextButton, 'Document issue date'));
+    await tester.pumpAndSettle();
+    expect(
+        tester
+            .getRect(find.byType(TextFormField).first)
+            .overlaps(const Rect.fromLTWH(0, 0, 390, 700)),
+        isTrue);
+    await tester.enterText(find.byType(TextFormField).first, '2026-02-31');
+    await tester.ensureVisible(find.text('Save answers'));
+    await tester.tap(find.text('Save answers'));
+    await tester.pumpAndSettle();
+    expect(
+        find.text('Enter a valid date in YYYY-MM-DD format'), findsOneWidget);
+    expect(writes, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('unresolved postcode can be entered and saved without activation',
+      (tester) async {
+    final dio = onboardingDio();
+    Map? saved;
+    final actions = <String>[];
+    dio.interceptors.add(InterceptorsWrapper(onRequest: (request, handler) {
+      actions.add(request.path);
+      if (request.method == 'PUT') saved = request.data as Map;
+      handler.resolve(Response(requestOptions: request, data: {
+        'status': 'approved',
+        'banking': false,
+        'submissionRequested': false,
+        'missingFields': saved == null ? ['cdd.address.postCode'] : [],
+        'answers': saved ?? {},
+      }));
+    }));
+    await tester.pumpWidget(ProviderScope(
+        overrides: [dioProvider.overrideWithValue(dio)],
+        child: const MaterialApp(home: UnifiedCddScreen())));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '110111');
+    await tester.ensureVisible(find.text('Save answers'));
+    await tester.tap(find.text('Save answers'));
+    await tester.pumpAndSettle();
+    expect(saved?['postCode'], '110111');
+    expect(find.text('Activate selected services'), findsOneWidget);
+    expect(actions.any((p) => p.endsWith('/submit')), isFalse);
+  });
+
+  testWidgets('server validation is visible and keeps entered answers',
+      (tester) async {
+    final dio = onboardingDio();
+    dio.interceptors.add(InterceptorsWrapper(onRequest: (request, handler) {
+      if (request.method == 'PUT') {
+        handler.reject(DioException(
+            requestOptions: request,
+            response: Response(
+                requestOptions: request,
+                statusCode: 400,
+                data: {'detail': 'Please check the document issue date.'})));
+      } else {
+        handler.resolve(Response(requestOptions: request, data: {
+          'status': 'approved',
+          'banking': false,
+          'submissionRequested': false,
+          'missingFields': ['documentIssueDate'],
+          'answers': {},
+        }));
+      }
+    }));
+    await tester.pumpWidget(ProviderScope(
+        overrides: [dioProvider.overrideWithValue(dio)],
+        child: const MaterialApp(home: UnifiedCddScreen())));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '2001-04-02');
+    await tester.ensureVisible(find.text('Save answers'));
+    await tester.tap(find.text('Save answers'));
+    await tester.pumpAndSettle();
+    expect(find.text('Please check the document issue date.'), findsOneWidget);
+    expect(find.text('2001-04-02'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   test('older configurations default to legacy without a preferences request',
       () async {
     final dio = onboardingDio();
@@ -313,11 +450,25 @@ void main() {
 Dio onboardingDio() {
   final dio = Dio();
   dio.interceptors.add(InterceptorsWrapper(onRequest: (request, handler) {
-    if (request.path == '/api/v1/mobile/onboarding/requirements') {
-      handler.resolve(Response(requestOptions: request, data: {'nextAction': 'START_KYC2'}));
+    if (request.path == '/api/v1/mobile/kyc/detailed-status') {
+      handler.resolve(Response(requestOptions: request, data: {
+        'hoppaStatus': 'not_started',
+        'bankStatus': 'not_started',
+        'cardIssuerStatus': 'not_started',
+        'nextAction': ''
+      }));
+    } else if (request.path == '/api/v1/mobile/config') {
+      handler
+          .resolve(Response(requestOptions: request, data: {'features': {}}));
+    } else if (request.path == '/api/v1/mobile/onboarding/requirements') {
+      handler.resolve(Response(
+          requestOptions: request, data: {'nextAction': 'START_KYC2'}));
     } else if (request.path == '/api/v1/mobile/onboarding/invite') {
-      handler.resolve(Response(requestOptions: request, data: {'inviteRequired': false}));
-    } else { handler.next(request); }
+      handler.resolve(
+          Response(requestOptions: request, data: {'inviteRequired': false}));
+    } else {
+      handler.next(request);
+    }
   }));
   return dio;
 }

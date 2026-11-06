@@ -28,27 +28,49 @@ final serviceOnboardingStatusProvider =
   final dio = ref.watch(dioProvider);
   final preferences = _map((await dio.get('$_root/preferences')).data);
   final cards = preferences['cryptoCard'] == true;
-  final banking = config.equalsMoneyEnabled &&
+  var banking = config.equalsMoneyEnabled &&
       preferences['enabled'] == true &&
       preferences['banking'] == true;
-  final exchange = config.boomFiExchangeEnabled &&
+  var exchange = config.boomFiExchangeEnabled &&
       preferences['enabled'] == true &&
       preferences['exchange'] == true;
-  if (!cards && !banking && !exchange) return const [];
+  final legacy = preferences['enabled'] != true;
+  final readBanking = config.equalsMoneyEnabled && (banking || legacy);
+  final readExchange = config.boomFiExchangeEnabled && (exchange || legacy);
+  if (!cards && !readBanking && !readExchange) return const [];
   final results = await Future.wait<Object?>([
     preferences['enabled'] == true
         ? _optional(() async => (await dio.get(_root)).data)
         : Future.value(null),
-    cards || banking
+    cards || readBanking
         ? _optional(() => ref.watch(kycDetailedStatusProvider.future))
         : Future.value(null),
-    exchange
+    readExchange
         ? _optional(() => ref.watch(exchangeVerificationProvider.future))
         : Future.value(null),
   ]);
   final progress = results[0] is Map ? _map(results[0]) : <String, dynamic>{};
   if (ref.read(authSessionGenerationProvider) != generation) return const [];
   final detailed = results[1] as KycDetailedStatus?;
+  final verification = results[2] is Map ? _map(results[2]) : null;
+  if (legacy) {
+    // Existing customers predate registration choices. A real enrollment is
+    // evidence of a selected service; company enablement alone never is.
+    banking = readBanking &&
+        detailed != null &&
+        (detailed.hasEqualsMoneyAccount ||
+            detailed.hasEqualsMoneyApplication ||
+            detailed.hasEqualsMoneyExternalReference ||
+            detailed.equalsMoneyApproved == true);
+    exchange = readExchange &&
+        verification != null &&
+        verification['usesSharedStagingOrganization'] != true &&
+        (verification['hasProviderAccount'] == true ||
+            (verification['applicantId']?.toString().isNotEmpty == true &&
+                onboardingStage(verification['status']) !=
+                    OnboardingStage.start));
+  }
+
   if (cards) {
     final current = normalizedOnboardingStatus(detailed?.interlaceStatus);
     progress['interlace'] = detailed == null
@@ -99,7 +121,6 @@ final serviceOnboardingStatusProvider =
         detailed?.equalsMoneyCompletedAt?.toIso8601String();
   }
   if (exchange) {
-    final verification = results[2] is Map ? _map(results[2]) : null;
     if (verification == null ||
         verification['usesSharedStagingOrganization'] == true) {
       progress['boomFi'] = 'unavailable';
@@ -140,7 +161,14 @@ final serviceOnboardingStatusProvider =
           cardsEnabled: cards,
           bankingEnabled: banking,
           exchangeEnabled: exchange,
-          preferences: preferences,
+          preferences: legacy
+              ? {
+                  ...preferences,
+                  'enabled': true,
+                  'banking': banking,
+                  'exchange': exchange,
+                }
+              : preferences,
           progress: progress)
       .map((item) => item.forOwner(owner))
       .toList(growable: false);

@@ -208,6 +208,55 @@ void main() {
     expect(disabledRequests.single.path, endsWith('/preferences'));
   });
 
+  test('legacy customer retains enrolled Banking and Exchange reminders',
+      () async {
+    final (container, requests) = await fixture(preferences: {
+      'enabled': false,
+      'cryptoCard': true,
+      'banking': false,
+      'exchange': false
+    }, detailed: ready, verification: exchangeReady);
+    final items = await container.read(homeServiceOnboardingProvider.future);
+    expect(items.map((i) => i.name), ['Crypto Cards', 'Banking', 'Exchange']);
+    expect(items.map((i) => i.status), ['Complete', 'Complete', 'Complete']);
+    expect(requests.map((r) => r.method), everyElement('GET'));
+    expect(
+        requests.any((r) => r.path == '/api/v1/mobile/onboarding/cdd'), false);
+  });
+  test('legacy customer with no enrollments only sees selected cards',
+      () async {
+    final (container, _) =
+        await fixture(preferences: {'enabled': false, 'cryptoCard': true});
+    expect(
+        (await container.read(homeServiceOnboardingProvider.future))
+            .map((i) => i.name),
+        ['Crypto Cards']);
+  });
+  test('legacy enrollments respect company-disabled services', () async {
+    final (container, _) = await fixture(
+        banking: false,
+        exchange: false,
+        preferences: {'enabled': false, 'cryptoCard': true},
+        detailed: ready,
+        verification: exchangeReady);
+    expect(
+        (await container.read(homeServiceOnboardingProvider.future))
+            .map((i) => i.name),
+        ['Crypto Cards']);
+  });
+  test('explicit choices do not infer an unselected provider', () async {
+    final (container, _) = await fixture(preferences: {
+      'enabled': true,
+      'cryptoCard': true,
+      'banking': false,
+      'exchange': false
+    }, detailed: ready, verification: exchangeReady);
+    expect(
+        (await container.read(homeServiceOnboardingProvider.future))
+            .map((i) => i.name),
+        ['Crypto Cards']);
+  });
+
   test('provider approval wins over stale submitted dispatch records',
       () async {
     final (container, _) = await fixture(
@@ -373,8 +422,7 @@ void main() {
         ['Rejected', 'Rejected', 'Rejected']);
   });
 
-  test(
-      'a shared staging organization is not a completed customer application',
+  test('a shared staging organization is not a completed customer application',
       () async {
     final (container, _) = await fixture(detailed: ready, verification: {
       ...exchangeReady,
