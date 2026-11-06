@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -9,6 +10,12 @@ import 'package:mobile_flutter/core/diagnostics/client_environment.dart';
 import 'package:mobile_flutter/core/widgets/app_version_header.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    final font = FontLoader('Geist')
+      ..addFont(rootBundle.load('assets/fonts/Geist-Regular.ttf'));
+    await font.load();
+  });
   const info =
       AppBuildInfo(version: '0.1.7', buildNumber: '11', revision: 'abc1234');
 
@@ -86,7 +93,7 @@ void main() {
           clientEnvironmentProvider.overrideWithValue(client),
         ],
         child: MaterialApp(
-            theme: ThemeData(brightness: brightness),
+            theme: ThemeData(brightness: brightness, fontFamily: 'Geist'),
             builder: (context, child) => MediaQuery(
                   data: MediaQuery.of(context).copyWith(
                       textScaler: TextScaler.linear(scale),
@@ -106,7 +113,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  for (final width in [320.0, 1280.0]) {
+  for (final width in [320.0, 900.0, 1280.0, 1600.0]) {
     for (final brightness in Brightness.values) {
       testWidgets('version and browser fit at $width ${brightness.name}',
           (tester) async {
@@ -116,10 +123,21 @@ void main() {
             scale: 1.5,
             client: 'Samsung Internet');
         expect(find.text(info.label), findsOneWidget);
-        expect(find.text('· Samsung Internet'), findsOneWidget);
+        expect(
+            find.text(width >= 900 ? 'Samsung Internet' : '· Samsung Internet'),
+            findsOneWidget);
         final header = tester.getRect(find.byKey(AppVersionFrame.headerKey));
         final title = tester.getRect(find.text('Home'));
-        expect(header.bottom, lessThanOrEqualTo(title.top));
+        if (width >= 900) {
+          final help = tester.getRect(find.byIcon(Icons.help_outline));
+          expect(help.right, lessThanOrEqualTo(header.left));
+          expect(title.top, lessThan(header.bottom));
+          expect(header.top, lessThan(title.bottom));
+          expect(tester.getTopLeft(find.byType(Scaffold)).dy, 0);
+          expect(header.width, lessThan(400));
+        } else {
+          expect(header.bottom, lessThanOrEqualTo(title.top));
+        }
         expect(tester.takeException(), isNull);
       });
     }
@@ -142,32 +160,36 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('header remains visible on another page and in a dialog',
-      (tester) async {
-    await mount(tester,
-        home: Builder(
-            builder: (context) => Scaffold(
-                appBar: AppBar(title: const Text('Home')),
-                body: TextButton(
-                    onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                            builder: (context) => Scaffold(
-                                appBar: AppBar(title: const Text('Details')),
-                                body: TextButton(
-                                    onPressed: () => showDialog<void>(
-                                        context: context,
-                                        builder: (_) => const AlertDialog(
-                                            title: Text('Dialog'))),
-                                    child: const Text('Open dialog'))))),
-                    child: const Text('Open details')))));
-    await tester.tap(find.text('Open details'));
-    await tester.pumpAndSettle();
-    expect(find.text('Details'), findsOneWidget);
-    expect(find.text(info.label), findsOneWidget);
-    await tester.tap(find.text('Open dialog'));
-    await tester.pumpAndSettle();
-    expect(find.text('Dialog'), findsOneWidget);
-    expect(find.text(info.label), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+  for (final width in [320.0, 1280.0]) {
+    testWidgets(
+        'header remains visible on another page and in a dialog at $width',
+        (tester) async {
+      await mount(tester,
+          width: width,
+          home: Builder(
+              builder: (context) => Scaffold(
+                  appBar: AppBar(title: const Text('Home')),
+                  body: TextButton(
+                      onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                              builder: (context) => Scaffold(
+                                  appBar: AppBar(title: const Text('Details')),
+                                  body: TextButton(
+                                      onPressed: () => showDialog<void>(
+                                          context: context,
+                                          builder: (_) => const AlertDialog(
+                                              title: Text('Dialog'))),
+                                      child: const Text('Open dialog'))))),
+                      child: const Text('Open details')))));
+      await tester.tap(find.text('Open details'));
+      await tester.pumpAndSettle();
+      expect(find.text('Details'), findsOneWidget);
+      expect(find.text(info.label), findsOneWidget);
+      await tester.tap(find.text('Open dialog'));
+      await tester.pumpAndSettle();
+      expect(find.text('Dialog'), findsOneWidget);
+      expect(find.text(info.label), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
 }

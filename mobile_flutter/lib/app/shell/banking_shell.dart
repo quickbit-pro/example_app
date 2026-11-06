@@ -14,6 +14,7 @@ import '../../brands/example/example_ui.dart';
 import '../../core/api/dio_provider.dart';
 import '../../core/branding/app_design.dart';
 import '../../core/models/banking_models.dart';
+import '../../core/widgets/app_version_header.dart';
 import '../../features/assistant/presentation/sparkle_icon.dart';
 import '../../features/banking/application/banking_providers.dart';
 import '../../features/cards/presentation/widgets/card_face.dart';
@@ -297,7 +298,11 @@ class _ExampleDesktopShell extends StatelessWidget {
         backgroundColor: Colors.transparent,
         toolbarHeight: headerHeight,
         titleSpacing: compact ? 24 : 40,
-        actionsPadding: EdgeInsets.only(right: compact ? 16 : 32),
+        actionsPadding: EdgeInsets.only(
+          // Home's empty aside header already accommodates the fixed badge.
+          right: (compact ? 16 : 32) +
+              (showAside ? 0 : AppVersionFrame.reservedWidthOf(context)),
+        ),
         centerTitle: false,
         titleTextStyle: theme.textTheme.titleMedium?.copyWith(
           color: ExampleInk.primary(context),
@@ -331,9 +336,11 @@ class _ExampleDesktopShell extends StatelessWidget {
                 child: Semantics(
                     container: true,
                     explicitChildNodes: true,
-                    child: Align(alignment: Alignment.topCenter,
-                        child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1280),
-                          child: Theme(data: shellTheme, child: child)))),
+                    child: Align(
+                        alignment: Alignment.topCenter,
+                        child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1280),
+                            child: Theme(data: shellTheme, child: child)))),
               ),
               if (showAside)
                 _ExampleHomeAside(
@@ -1027,7 +1034,8 @@ class _ExampleBottomBar extends StatelessWidget {
     // before.
     return DecoratedBox(
       decoration: BoxDecoration(
-        boxShadow: light ? ExampleShadows.sheetOf(context) : ExampleShadows.none,
+        boxShadow:
+            light ? ExampleShadows.sheetOf(context) : ExampleShadows.none,
       ),
       child: Stack(
         fit: StackFit.passthrough,

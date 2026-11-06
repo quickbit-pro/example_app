@@ -781,9 +781,9 @@ class _ExampleLoginView extends StatelessWidget {
                       ? AutovalidateMode.always
                       : AutovalidateMode.disabled,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
+                    padding: EdgeInsets.fromLTRB(
                       AppSpacing.lg,
-                      AppSpacing.md,
+                      AppSpacing.md + (wide ? 44 : 0),
                       AppSpacing.lg,
                       AppSpacing.lg,
                     ),
@@ -1952,8 +1952,9 @@ class _LoginCard extends StatelessWidget {
                   subtitle:
                       Text(context.tr('Only your email is stored locally.')),
                   dense: isExample,
-                  visualDensity:
-                      isExample ? VisualDensity.compact : VisualDensity.standard,
+                  visualDensity: isExample
+                      ? VisualDensity.compact
+                      : VisualDensity.standard,
                 ),
                 if (biometricCapable)
                   SwitchListTile.adaptive(
