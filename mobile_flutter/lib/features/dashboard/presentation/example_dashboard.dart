@@ -18,6 +18,7 @@ import '../../../brands/example/example_typography.dart';
 import '../../../brands/example/example_ui.dart';
 import '../../../core/branding/app_design.dart';
 import '../../../core/models/banking_models.dart';
+import '../../../core/formatters/transaction_display.dart';
 import '../../../core/models/group_card_fees.dart';
 import '../../../core/models/platform_models.dart';
 import '../../../core/privacy/private_mode_provider.dart';
@@ -2162,7 +2163,7 @@ List<_AccountRowData> _accountRows(
                 {'p0': identifier.isEmpty ? '' : ' $identifier'})
             : account.provider.trim().isEmpty
                 ? context.tr('Account')
-                : account.provider,
+                : exchangeProviderDisplayText(account.provider),
         amount: _money(account.currency, account.balance),
         trailing: account.currency.toUpperCase(),
         avatar: _currencyAvatar(account.currency),

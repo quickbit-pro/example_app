@@ -227,9 +227,9 @@ class ExchangeAccountTransferActions extends ConsumerWidget {
       if (eligibleWallets.isEmpty) {
         if (addresses.isLoading) { return 'Loading your Crypto card transfer networks…'; }
         if (addresses.hasError) { return 'Could not load your Crypto card transfer networks. Please retry.'; }
-        return 'No Crypto card transfer network matches an available BoomFi crypto account yet.';
+        return 'No Crypto card transfer network matches an available ZBX crypto account yet.';
       }
-      if (funding && !overview.fiatFundingCurrencies.contains('EUR')) { return 'BoomFi has not provided EUR bank funding details for this account yet.'; }
+      if (funding && !overview.fiatFundingCurrencies.contains('EUR')) { return 'ZBX has not provided EUR bank funding details for this account yet.'; }
       if (funding && fundingWallets.isEmpty) { return 'An Arbitrum receiving address and matching exchange account are needed for this transfer.'; }
       return null;
     }
@@ -332,9 +332,9 @@ class _ReadyExchangePanel extends ConsumerWidget {
       if (eligibleWallets.isEmpty) {
         if (addresses.isLoading) { return 'Loading your Crypto card transfer networks…'; }
         if (addresses.hasError) { return 'Could not load your Crypto card transfer networks. Please retry.'; }
-        return 'No Crypto card transfer network matches an available BoomFi crypto account yet.';
+        return 'No Crypto card transfer network matches an available ZBX crypto account yet.';
       }
-      if (funding && !overview.fiatFundingCurrencies.contains('EUR')) { return 'BoomFi has not provided EUR bank funding details for this account yet.'; }
+      if (funding && !overview.fiatFundingCurrencies.contains('EUR')) { return 'ZBX has not provided EUR bank funding details for this account yet.'; }
       if (funding && fundingWallets.isEmpty) { return 'An Arbitrum receiving address and matching exchange account are needed for this transfer.'; }
       return null;
     }

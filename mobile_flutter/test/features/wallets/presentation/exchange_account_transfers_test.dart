@@ -333,7 +333,7 @@ void main() {
 
   testWidgets('funding and withdrawal restrictions have visible reasons', (tester) async {
     await host(tester, TransferApi(), eurFunding: false);
-    expect(find.textContaining('BoomFi has not provided EUR'), findsOneWidget);
+    expect(find.textContaining('ZBX has not provided EUR'), findsOneWidget);
     expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Fiat account to Crypto card')).onPressed, isNull);
     expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Crypto card to Fiat account')).onPressed, isNotNull);
     await tester.pumpWidget(const SizedBox());

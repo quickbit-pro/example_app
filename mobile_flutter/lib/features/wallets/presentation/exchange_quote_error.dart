@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import '../../../core/widgets/app_states.dart';
 
 String exchangeQuoteError(Object error, {required bool cardDelivery}) {
-  var message = friendlyErrorMessage(error).replaceAll('BoomFi', 'ZBX');
+  var message = friendlyErrorMessage(error);
   if (message == 'We could not process the Exchange request.' ||
       message == 'We could not complete that request. Please try again.') {
     message = cardDelivery

@@ -1,8 +1,37 @@
+import 'package:dio/dio.dart';
+import 'package:mobile_flutter/core/widgets/app_states.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/core/models/banking_models.dart';
 import 'package:mobile_flutter/core/formatters/transaction_display.dart';
 
 void main() {
+  test('legacy provider names display as ZBX in transaction descriptions', () {
+    for (final name in ['BoomFi', 'BoomFI', 'BOOMFI', 'boomfi']) {
+      expect(transactionDisplayTitle(name), 'ZBX');
+      expect(transactionDisplayTitle('$name transfer'), 'ZBX transfer');
+      expect(exchangeProviderDisplayText('Account with $name'), 'Account with ZBX');
+    }
+  });
+
+  test('all provider error paths use the public ZBX name', () {
+    for (final name in ['BoomFi', 'BoomFI', 'BOOMFI', 'boomfi']) {
+      expect(friendlyErrorMessage(FormatException('$name needs verification')),
+          'ZBX needs verification');
+      expect(friendlyErrorMessage(Exception('$name needs verification')),
+          'ZBX needs verification');
+      for (final status in [400, 409, 422]) {
+        final options = RequestOptions(path: '/exchange/quote');
+        final error = DioException(
+          requestOptions: options,
+          response: Response(requestOptions: options, statusCode: status,
+              data: {'message': '$name needs verification'}),
+          type: DioExceptionType.badResponse,
+        );
+        expect(friendlyErrorMessage(error), 'ZBX needs verification');
+      }
+    }
+  });
+
   test('sold USDC is a debit and EUR proceeds remain separate', () {
     final row = LedgerTransaction.fromJson({
       'id': 88840,

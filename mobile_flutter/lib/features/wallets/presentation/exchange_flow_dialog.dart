@@ -623,7 +623,7 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
                   ? 'Loading your Crypto card receiving networks…'
                   : depositWallets.hasError
                       ? 'Could not load your Crypto card receiving networks. Please retry.'
-                      : 'No Crypto card receiving address matches an available BoomFi crypto network.'),
+                      : 'No Crypto card receiving address matches an available ZBX crypto network.'),
           actions: [
             if (depositWallets.hasError)
               TextButton(

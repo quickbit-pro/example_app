@@ -1,9 +1,11 @@
+/// Public name for the exchange provider, including legacy API wording.
+String exchangeProviderDisplayText(String value) =>
+    value.replaceAll(RegExp(r'\bboomfi\b', caseSensitive: false), 'ZBX');
+
 String transactionDisplayTitle(String value) {
-  final raw = value.trim();
+  final raw = exchangeProviderDisplayText(value.trim());
   if (raw.isEmpty) return 'Transaction';
   final normalized = raw.toLowerCase();
-
-  if (normalized == 'boomfi') return 'ZBX';
 
   if (normalized.contains('uk.obie.balancetransfer')) {
     return 'Bank transfer';

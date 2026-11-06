@@ -272,7 +272,7 @@ class _ExchangeBusinessOnboardingDialogState
                             const SizedBox(width: 10),
                             Expanded(
                                 child: Text(
-                                    'Next, complete company verification with BoomFi/ZBX. They may ask for more details or documents.',
+                                    'Next, complete company verification with ZBX. They may ask for more details or documents.',
                                     style: theme.textTheme.bodyMedium?.copyWith(
                                         color: colors.onSurfaceVariant))),
                           ]),

@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import '../../brands/example/example_colors.dart';
 import '../../brands/example/example_ui.dart';
 import '../../shared/widgets/app_progress_indicator.dart';
+import '../formatters/transaction_display.dart';
 import '../branding/app_design.dart';
 
 class EmptyState extends StatelessWidget {
@@ -172,7 +173,10 @@ class LoadingState extends StatelessWidget {
   }
 }
 
-String friendlyErrorMessage(Object error) {
+String friendlyErrorMessage(Object error) =>
+    exchangeProviderDisplayText(_friendlyErrorMessage(error));
+
+String _friendlyErrorMessage(Object error) {
   if (error is FormatException) return error.message;
   if (error is DioException) {
     if (error.type == DioExceptionType.connectionError ||
