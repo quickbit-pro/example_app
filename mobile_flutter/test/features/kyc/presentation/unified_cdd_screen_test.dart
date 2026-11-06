@@ -296,6 +296,49 @@ void main() {
     expect(actions.any((p) => p.endsWith('/submit')), isFalse);
   });
 
+  testWidgets(
+      'unavailable verification details offer refresh instead of blaming the customer',
+      (tester) async {
+    const missing = [
+      'cdd.info.firstName',
+      'cdd.info.lastName',
+      'cdd.info.dob',
+      'cdd.info.nationality',
+      'cdd.identity.number',
+      'cdd.identity.validUntil',
+      'cdd.address.street',
+      'cdd.address.town',
+      'cdd.address.country',
+      'cdd.address.postCode'
+    ];
+    final dio = onboardingDio();
+    final paths = <String>[];
+    dio.interceptors.add(InterceptorsWrapper(onRequest: (request, handler) {
+      paths.add(request.path);
+      handler.resolve(Response(requestOptions: request, data: {
+        'status': 'approved',
+        'banking': false,
+        'submissionRequested': false,
+        'missingFields': request.method == 'GET' ? [] : missing,
+        'answers': {},
+      }));
+    }));
+    await tester.pumpWidget(ProviderScope(
+        overrides: [dioProvider.overrideWithValue(dio)],
+        child: const MaterialApp(home: UnifiedCddScreen())));
+    await tester.pumpAndSettle();
+    expect(find.text('Reload verification'), findsOneWidget);
+    expect(find.text('Missing from your verification:'), findsNothing);
+    expect(find.text('• First name'), findsNothing);
+    expect(find.byType(TextFormField), findsNothing);
+    await tester.ensureVisible(find.text('Reload verification'));
+    await tester.tap(find.text('Reload verification'));
+    await tester.pumpAndSettle();
+    expect(find.text('Reload verification'), findsNothing);
+    expect(find.text('Activate selected services'), findsOneWidget);
+    expect(paths.any((path) => path.endsWith('/submit')), false);
+  });
+
   testWidgets('server validation is visible and keeps entered answers',
       (tester) async {
     final dio = onboardingDio();

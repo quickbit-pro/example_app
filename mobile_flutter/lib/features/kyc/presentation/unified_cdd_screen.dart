@@ -101,6 +101,16 @@ String unifiedCddMissingFieldLabel(String field) =>
         ? 'Verification questionnaire answers'
         : 'Verification details');
 
+bool unifiedCddDetailsUnavailable(Iterable<String> missing) => const [
+      'cdd.info.firstName',
+      'cdd.info.lastName',
+      'cdd.info.dob',
+      'cdd.identity.number',
+      'cdd.address.street',
+      'cdd.address.town',
+      'cdd.address.country',
+    ].every(missing.contains);
+
 /// Uses the existing registration choices and questionnaire option lists. No legacy KYC call.
 class UnifiedCddScreen extends ConsumerStatefulWidget {
   const UnifiedCddScreen({super.key});
@@ -293,6 +303,7 @@ class _UnifiedCddScreenState extends ConsumerState<UnifiedCddScreen> {
   Widget build(BuildContext context) {
     final state = _state;
     final missing = List<String>.from(state?['missingFields'] as List? ?? []);
+    final detailsUnavailable = unifiedCddDetailsUnavailable(missing);
     final submitted = state?['submissionRequested'] == true;
     final approved = state?['status'] == 'approved';
     final banking = state?['banking'] == true;
@@ -577,12 +588,35 @@ class _UnifiedCddScreenState extends ConsumerState<UnifiedCddScreen> {
                                                 _text('documentIssueDate',
                                                     'Document issue date',
                                                     hint: 'YYYY-MM-DD'),
-                                              if (missing.contains(
-                                                  'cdd.address.postCode'))
+                                              if (!detailsUnavailable &&
+                                                  missing.contains(
+                                                      'cdd.address.postCode'))
                                                 _text('postCode',
                                                     'Postal / ZIP code'),
-                                              if (missing.any(
-                                                  (v) => v.startsWith('cdd.')))
+                                              if (detailsUnavailable)
+                                                Padding(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        vertical: 12),
+                                                    child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(context.tr(
+                                                              'We could not load your verified details. Check status to try again. Your saved answers are still here.')),
+                                                          TextButton(
+                                                              onPressed: _busy
+                                                                  ? null
+                                                                  : () => _request(
+                                                                      'refresh'),
+                                                              child: Text(
+                                                                  context.tr(
+                                                                      'Reload verification'))),
+                                                        ])),
+                                              if (!detailsUnavailable &&
+                                                  missing.any((v) =>
+                                                      v.startsWith('cdd.')))
                                                 Container(
                                                     margin: const EdgeInsets
                                                         .symmetric(

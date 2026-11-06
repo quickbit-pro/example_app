@@ -1,4 +1,5 @@
 import '../core/widgets/keyboard_focus_visibility.dart';
+import '../core/widgets/web_text_input_recovery.dart';
 import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -117,9 +118,11 @@ class _MobileAppState extends ConsumerState<MobileApp> {
           // status-bar/notch insets on installed iPhone web apps.
           child: WebSafeAreaPadding(
             child: AppUpdateFrame(
-              child: KeyboardFocusVisibility(
-                child: EqualsReagreementGate(
-                  child: child ?? const SizedBox.shrink(),
+              child: WebTextInputRecovery(
+                child: KeyboardFocusVisibility(
+                  child: EqualsReagreementGate(
+                    child: child ?? const SizedBox.shrink(),
+                  ),
                 ),
               ),
             ),
