@@ -299,9 +299,13 @@ class _ExampleDesktopShell extends StatelessWidget {
         toolbarHeight: headerHeight,
         titleSpacing: compact ? 24 : 40,
         actionsPadding: EdgeInsets.only(
-          // Home's empty aside header already accommodates the fixed badge.
+          // The aside absorbs the badge; reserve any overflow for larger text.
           right: (compact ? 16 : 32) +
-              (showAside ? 0 : AppVersionFrame.reservedWidthOf(context)),
+              (showAside
+                  ? (AppVersionFrame.reservedWidthOf(context) - 336)
+                      .clamp(0.0, double.infinity)
+                      .toDouble()
+                  : AppVersionFrame.reservedWidthOf(context)),
         ),
         centerTitle: false,
         titleTextStyle: theme.textTheme.titleMedium?.copyWith(

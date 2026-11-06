@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/l10n/language_picker.dart';
+import '../../../core/widgets/app_version_header.dart';
 
 import '../../../brands/example/example.dart';
 import '../../../core/branding/app_design.dart';
@@ -783,7 +784,12 @@ class _ExampleLoginView extends StatelessWidget {
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(
                       AppSpacing.lg,
-                      AppSpacing.md + (wide ? 44 : 0),
+                      AppSpacing.md +
+                          (wide &&
+                                  context.brandDesign.layout != 'songs' &&
+                                  AppVersionFrame.reservedWidthOf(context) > 0
+                              ? 44
+                              : 0),
                       AppSpacing.lg,
                       AppSpacing.lg,
                     ),
