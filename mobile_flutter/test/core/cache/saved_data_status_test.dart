@@ -12,7 +12,7 @@ import 'package:mobile_flutter/features/banking/application/banking_providers.da
 import 'package:mobile_flutter/features/transactions/application/activity_display_provider.dart';
 
 void main() {
-  testWidgets('cached content stays mounted through refresh, failure and retry',
+  testWidgets('cached page stays in place through refresh, failure and retry',
       (tester) async {
     FlutterSecureStorage.setMockInitialValues({});
     tester.view.physicalSize = const Size(320, 640);
@@ -75,15 +75,18 @@ void main() {
     expect(find.text('Updating saved data…'), findsOneWidget);
     expect(find.text('Loading'), findsNothing);
     final page = tester.element(find.byKey(pageKey));
+    final pageBounds = tester.getRect(find.byKey(pageKey));
     request.completeError(StateError('offline'));
     await tester.pumpAndSettle();
     expect(find.text('Saved payment'), findsOneWidget);
     expect(find.text('Could not update. Showing saved data.'), findsOneWidget);
     expect(tester.element(find.byKey(pageKey)), same(page));
+    expect(tester.getRect(find.byKey(pageKey)), pageBounds);
     request = Completer<List<LedgerTransaction>>();
     await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
     expect(find.text('Updating saved data…'), findsOneWidget);
+    expect(tester.getRect(find.byKey(pageKey)), pageBounds);
     request.complete([
       LedgerTransaction.fromJson({
         'id': 'fresh',
@@ -98,6 +101,7 @@ void main() {
     expect(find.text('Saved payment'), findsNothing);
     expect(find.text('Updating saved data…'), findsNothing);
     expect(tester.element(find.byKey(pageKey)), same(page));
+    expect(tester.getRect(find.byKey(pageKey)), pageBounds);
     expect(tester.takeException(), isNull);
   });
 }
