@@ -12,16 +12,36 @@ class PayeeNameCheck extends StatelessWidget {
   static bool needsAcknowledgement(Map<String, dynamic> result) =>
       result['requiresAcknowledgement'] == true ||
       result['status'] == 'warning';
+  String get outcome => switch (result['reasonCode']) {
+        'N200' || 'N206' || 'N207' => 'close_match',
+        'N201' || 'N204' || 'N205' => 'no_match',
+        _ => result['outcome']?.toString() ?? '',
+      };
+
   @override
   Widget build(BuildContext context) => Card(
       child: Padding(
           padding: const EdgeInsets.all(16),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('${result['title'] ?? 'Recipient name check'}',
+            Text(
+                switch (outcome) {
+                  'close_match' => 'Close name match',
+                  'no_match' => 'Recipient name does not match',
+                  'unavailable' => 'Name check unavailable',
+                  _ => result['title']?.toString() ?? 'Recipient name check',
+                },
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            Text('${result['message'] ?? 'Check the recipient details.'}'),
+            Text(switch (outcome) {
+              'close_match' =>
+                'The name you entered is similar to the name held by the recipient’s bank.',
+              'no_match' =>
+                'The name you entered does not match the name held by the recipient’s bank.',
+              'unavailable' => 'We couldn’t check the recipient’s name.',
+              _ =>
+                result['message']?.toString() ?? 'Check the recipient details.',
+            }),
             if (result['actualName'] is String &&
                 (result['actualName'] as String).isNotEmpty)
               Text('Account holder name: ${result['actualName']}'),

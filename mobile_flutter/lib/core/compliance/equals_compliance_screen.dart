@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// All requirements, evidence purposes and policy versions come from the backend.
@@ -32,7 +33,8 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
   Map<String, dynamic> _profile = {},
       _data = {},
       _evaluation = {},
-      _application = {};
+      _application = {},
+      _savedApplication = {};
   List<dynamic> _documents = [];
   List<Map<String, dynamic>> _people = [];
   bool _busy = true;
@@ -58,7 +60,8 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
     try {
       final result = await widget.load();
       _profile = _map(result['profile']);
-      _application = _map(result['application']);
+      _savedApplication = _map(result['application']);
+      _application = Map.of(_savedApplication);
       _data = _map(result['data']);
       _data['answers'] = _map(_data['answers']);
       for (final key in (_data['answers'] as Map).keys.toList()) {
@@ -153,14 +156,16 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
       if (file.size == 0 || file.size > 10 * 1024 * 1024) {
         throw StateError('Choose a file between 1 byte and 10 MB.');
       }
-      await widget.uploadPerson!(
-          person['externalId'].toString(), purpose, file);
-      for (final p
-          in _people.where((p) => p['externalId'] == person['externalId'])) {
+      final personId = _personId(person);
+      await widget.uploadPerson!(personId, purpose, file);
+      for (final p in _people.where((p) => _personId(p) == personId)) {
         p[flag] = true;
       }
     });
   }
+
+  String _personId(Map<String, dynamic> person) =>
+      (person['id'] ?? person['externalId'])?.toString() ?? '';
 
   Widget _boolean(String key, String label) => Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -224,34 +229,37 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
                         child: const Text('Retry loading checklist')),
                   if (_profile.isNotEmpty) ...[
                     Text('Policy: ${_evaluation['policyVersion'] ?? ''}'),
-                    if (widget.saveApplication != null)
+                    if (widget.saveApplication != null &&
+                        _application.keys.any(
+                            (key) => key.toLowerCase() == 'registeredaddress'))
                       ExpansionTile(
-                          title: const Text('Saved business details'),
-                          children: [
-                            for (final field in const {
-                              'website': 'Website (optional)',
-                              'businessPromotionDescription':
-                                  'How customers find the business',
-                              'taxId': 'Business tax ID',
-                              'regionOfIncorporation': 'Region of incorporation'
-                            }.entries)
-                              TextFormField(
-                                  initialValue:
-                                      _application[field.key]?.toString(),
-                                  decoration:
-                                      InputDecoration(labelText: field.value),
-                                  onChanged: (v) =>
-                                      _application[field.key] = v.trim()),
-                            TextButton(
-                                onPressed: () => _run(() async {
+                        title: const Text('Saved business details'),
+                        children: [
+                          for (final field in const {
+                            'website': 'Website (optional)',
+                            'promotionDescription':
+                                'How customers find the business',
+                            'taxId': 'Business tax ID',
+                            'regionOfIncorporation': 'Region of incorporation',
+                          }.entries)
+                            _applicationField(field.key, field.value),
+                          TextButton(
+                            onPressed: mapEquals(
+                              _application,
+                              _savedApplication,
+                            )
+                                ? null
+                                : () => _run(() async {
                                       await widget.call('draft', _data);
-                                      await widget
-                                          .saveApplication!(_application);
+                                      await widget.saveApplication!(_application);
                                       await _load();
                                     }),
-                                child: const Text(
-                                    'Save business details and refresh checklist')),
-                          ]),
+                            child: const Text(
+                              'Save business details and refresh checklist',
+                            ),
+                          ),
+                        ],
+                      ),
                     if (_evaluation['requiresDirector'] == true)
                       const Text(
                           'This legal form requires a director in the associated people section.'),
@@ -316,13 +324,18 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
                     }),
                     if (widget.uploadPerson != null)
                       for (final person in {
-                        for (final p in _people) p['externalId']: p
+                        for (final p in _people)
+                          if (_personId(p).isNotEmpty) _personId(p): p
                       }.values)
                         Card(
                             child: Column(children: [
                           ListTile(
                               title: Text(
-                                  '${person['firstName']} ${person['lastName']}')),
+                                  '${person['firstName']} ${person['lastName']}'),
+                              subtitle: Text(person['associationType']
+                                      ?.toString()
+                                      .replaceAll('_', ' ') ??
+                                  '')),
                           for (final entry in const {
                             'PROOF_OF_IDENTITY': 'identityDocumentUploaded',
                             'PROOF_OF_ADDRESS': 'addressDocumentUploaded'
@@ -349,6 +362,26 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
                         child: const Text('Save checklist and continue')),
                   ],
                 ]))));
+  }
+
+  Widget _applicationField(String field, String label) {
+    final key = _application.keys.firstWhere(
+      (key) => key.toLowerCase() == field.toLowerCase(),
+      orElse: () => field,
+    );
+    return TextFormField(
+      key: ValueKey(field),
+      initialValue: _application[key]?.toString(),
+      decoration: InputDecoration(labelText: label),
+      onChanged: (value) => setState(() {
+        final text = value.trim();
+        if (text.isEmpty && !_savedApplication.containsKey(key)) {
+          _application.remove(key);
+        } else {
+          _application[key] = text.isEmpty ? null : text;
+        }
+      }),
+    );
   }
 
   Widget _requirement(Map<String, dynamic> requirement) {

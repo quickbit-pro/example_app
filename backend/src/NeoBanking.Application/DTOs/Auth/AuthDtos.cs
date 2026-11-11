@@ -32,8 +32,15 @@ public sealed class AuthSessionDto
     public bool IsCurrent { get; init; }
 }
 
+public sealed class SignupEmailCodeRequestDto
+{
+    public string? Email { get; init; }
+}
+
 public sealed class SignupRequestDto
 {
+    /// <summary>One-use code sent to this email before any provider account is created.</summary>
+    public string? EmailVerificationCode { get; init; }
     public bool OnboardingExchange { get; init; }
     public bool OnboardingBanking { get; init; }
 
@@ -50,6 +57,10 @@ public sealed class SignupRequestDto
     public string? Phone { get; init; }
 
     public string? AccountType { get; init; }
+
+    public string? CountryCode { get; init; }
+
+    public string? ExternalWalletAddress { get; init; }
 
     public Guid? InstallationToken { get; init; }
     public Guid? RegistrationAttemptId { get; init; }

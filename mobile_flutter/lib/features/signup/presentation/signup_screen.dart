@@ -16,6 +16,7 @@ import '../../../core/models/platform_models.dart' show ActionResult;
 import '../../platform/data/mobile_platform_api.dart';
 import '../../../shared/shared.dart';
 import '../../platform/application/platform_providers.dart';
+import '../../platform/presentation/personal_onboarding_localizations.dart';
 import '../../rewards/domain/rewards_models.dart';
 import '../application/referral_invitation_providers.dart';
 import '../data/visitor_id_store.dart';
@@ -24,6 +25,7 @@ import '../domain/referral_invitation.dart';
 import '../domain/referral_quote.dart';
 import 'referral_signup_outcome.dart';
 import '../domain/signup_destination.dart';
+import '../domain/registration_policy_failure.dart';
 import '../../auth/presentation/example_auth_field.dart';
 import '../../auth/presentation/email_verification_sheet.dart';
 import 'password_strength_checklist.dart';
@@ -61,6 +63,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _externalWalletController = TextEditingController();
+  String? _registrationCountryCode;
 
   /// Country and national number of the phone field, shared by both layouts
   /// so the value survives a swap between them. The registration payload
@@ -75,7 +79,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   bool _passwordSubmitted = false;
   final _acceptedAgreements = <LegalAgreementKey>{};
   bool _accountCreated = false;
-  bool? _verificationEmailQueued;
+  bool _emailChallengeLoading = false;
   bool _continueWithoutInvitation = false;
   String? _appliedInvitationToken;
   ReferralInvitationPreview? _invitationPreview;
@@ -88,7 +92,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   String? _quoteLocale;
   ReferralSignupOutcome? _referralOutcome;
   bool _signupDispatched = false;
-  Future<ActionResult> Function(MobilePlatformApi)? _signupOperation;
+  Future<ActionResult> Function(MobilePlatformApi, String)? _signupOperation;
 
   /// What the entered code promises, from the backend's referral check. Null
   /// until a code has been checked, or when the backend does not serve the
@@ -295,6 +299,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
+    _externalWalletController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
     _referralController.dispose();
@@ -332,8 +337,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
           if (result != null && mounted) {
             setState(() {
               _accountCreated = true;
-              _verificationEmailQueued =
-                  result.metadata['verificationEmailSent'] as bool?;
+              _signupOperation = null;
+              _passwordController.clear();
               if (_referralCodeText.isNotEmpty) {
                 _referralOutcome =
                     ReferralSignupOutcome.fromJson(result.metadata);
@@ -344,13 +349,25 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
         error: (error, stackTrace) {
           if (mounted) {
             final data = error is DioException ? error.response?.data : null;
+            final code = data is Map
+                ? (data['code'] ?? data['Code'])?.toString()
+                : null;
+            final status = error is DioException ? error.response?.statusCode : null;
+            final rejectedByPolicy = canRestartRegistrationSignup(code, status);
             if (data is Map &&
-                canRestartReferralSignup(
-                    (data['code'] ?? data['Code'])?.toString())) {
+                (canRestartReferralSignup(code) || rejectedByPolicy)) {
               setState(() {
                 _signupOperation = null;
                 _signupDispatched = false;
+                if (rejectedByPolicy) {
+                  _registrationAttemptId = VisitorIdStore.newVisitorId(Random.secure());
+                  _referralQuote = null;
+                  _quoteLocale = null;
+                }
               });
+            }
+            if (shouldRefreshRegistrationPolicy(code, status)) {
+              ref.invalidate(mobileTenantConfigProvider);
             }
             _message(_signupErrorMessage(error));
           }
@@ -363,10 +380,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
         referralOutcome: _referralOutcome,
         accountType: _accountType,
         email: _emailController.text.trim(),
-        emailRequestFailed: _verificationEmailQueued == false,
-        onConfirmEmail: () =>
-            _confirmEmail(sendCodeFirst: _verificationEmailQueued == false),
-        onResendEmail: () => _confirmEmail(sendCodeFirst: true),
         onContinue: () => context.go(_signInRoute),
       );
     }
@@ -412,12 +425,43 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
     }
 
     final config = tenantConfig.valueOrNull;
+    if (tenantConfig.isLoading) {
+      return Scaffold(
+        body: LoadingState(label: context.tr('Preparing signup')),
+      );
+    }
+    if (tenantConfig.hasError || config == null || !config.signupAvailable) {
+      final unavailable = tenantConfig.hasError ||
+          config == null ||
+          !config.registrationPolicyAvailable;
+      return Scaffold(
+        appBar: AppBar(title: Text(context.tr('Create account'))),
+        body: EmptyState(
+          icon: Icons.person_off_outlined,
+          title: context.tr(unavailable
+              ? 'Registration is temporarily unavailable'
+              : 'Registration is closed'),
+          message: context.tr(unavailable
+              ? 'Please try again later. You can still sign in to an existing account.'
+              : 'This company is not accepting new account registrations. You can still sign in to an existing account.'),
+          action: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (unavailable)
+                OutlinedButton(
+                  onPressed: () => ref.invalidate(mobileTenantConfigProvider),
+                  child: Text(context.tr('Try again')),
+                ),
+              TextButton(
+                onPressed: () => context.go(_signInRoute),
+                child: Text(context.tr('Go to sign in')),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     if (context.isExampleTheme) {
-      if (tenantConfig.isLoading) {
-        return Scaffold(
-          body: LoadingState(label: context.tr('Preparing signup')),
-        );
-      }
       return _buildExampleSignup(action, config);
     }
     return Scaffold(
@@ -462,10 +506,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                           child: Row(
                             children: [
                               FilledButton(
-                                onPressed: action.isLoading
+                                onPressed: (action.isLoading || _emailChallengeLoading)
                                     ? null
                                     : () => _continue(config),
-                                child: action.isLoading && _currentStep == _lastSignupStep(config)
+                                child: (action.isLoading || _emailChallengeLoading) && _currentStep == _lastSignupStep(config)
                                     ? const SizedBox.square(
                                         dimension: 18,
                                         child: AppProgressIndicator(
@@ -480,7 +524,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                               if (_currentStep > 0) ...[
                                 const SizedBox(width: 8),
                                 TextButton(
-                                  onPressed: action.isLoading
+                                  onPressed: (action.isLoading || _emailChallengeLoading)
                                       ? null
                                       : () => setState(() => _currentStep--),
                                   child: Text(context.tr('Back')),
@@ -588,13 +632,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                   validator: _phoneValidator(context),
                                   onChanged: _onPhoneChanged,
                                 ),
+                                ..._registrationFields(config),
                               ],
                             ),
                           ),
                           Step(
                             title: Text(context.tr('Secure your account')),
                             subtitle: Text(
-                              config?.referralsEnabled == true
+                              config?.signupReferralCodesEnabled == true
                                   ? context.tr('Password and invitation')
                                   : context.tr('Create a strong password'),
                             ),
@@ -637,7 +682,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                   showErrors: _passwordSubmitted,
                                   dark: false,
                                 ),
-                                if (config?.referralsEnabled == true ||
+                                if (config?.signupReferralCodesEnabled == true ||
                                     _invitationPreview != null) ...[
                                   const SizedBox(height: 16),
                                   TextFormField(
@@ -782,7 +827,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
       ('About you', 'Your legal contact details'),
       (
         'Secure your account',
-        config?.referralsEnabled == true
+        config?.signupReferralCodesEnabled == true
             ? 'Password and invitation'
             : 'Create a strong password',
       ),
@@ -792,7 +837,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
         'Confirm before we create the account'),
     ];
     final title = titles[_currentStep];
-    final busy = action.isLoading;
+    final busy = (action.isLoading || _emailChallengeLoading);
     // The rail is the fixed wall of the corridor: it never moves and never
     // fades, so the room stays put while its contents change.
     final progress = Column(
@@ -1055,7 +1100,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
 
   Widget _exampleSignupStep(int step, MobileTenantConfig? config) {
     final showReferral =
-        config?.referralsEnabled == true || _invitationPreview != null;
+        config?.signupReferralCodesEnabled == true || _invitationPreview != null;
     if (step == 3 && _hasServiceSelection(config)) {
       return _serviceSelection(config);
     }
@@ -1169,6 +1214,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                     color: ExampleInk.secondary(context),
                   ),
             ),
+            ..._registrationFields(config),
           ],
         );
       case 2:
@@ -1302,12 +1348,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   }
 
   void _continue(MobileTenantConfig? config) {
+    if (config == null || !config.signupAvailable) {
+      _message('Registration is temporarily unavailable.');
+      return;
+    }
     if (_exampleNotice != null) setState(() => _exampleNotice = null);
     if (_currentStep == 1) {
       final contactValid = _required(_firstNameController.text) == null &&
           _required(_lastNameController.text) == null &&
           _emailValidator(_emailController.text) == null &&
-          _isPhoneValid;
+          _isPhoneValid &&
+          _registrationFieldsValid(config);
       if (!contactValid) {
         _message('Complete your contact details before continuing.');
         return;
@@ -1395,14 +1446,19 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
       );
 
   void _submit(MobileTenantConfig? config) {
+    if (_emailChallengeLoading) return;
+    if (config == null || !config.signupAvailable) {
+      _message('Registration is temporarily unavailable.');
+      return;
+    }
     if (_signupOperation != null) {
-      ref
-          .read(platformActionControllerProvider.notifier)
-          .run(_signupOperation!);
+      _verifyAndRunSignup(_emailController.text.trim());
       return;
     }
     setState(() => _passwordSubmitted = true);
-    if (!(_formKey.currentState?.validate() ?? false) || !_isPhoneValid) {
+    if (!(_formKey.currentState?.validate() ?? false) ||
+        !_isPhoneValid ||
+        !_registrationFieldsValid(config)) {
       _message('Review the highlighted details.');
       return;
     }
@@ -1421,6 +1477,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
     final lastName = _lastNameController.text.trim();
     final accountType = _accountType;
     final phone = _phoneE164;
+    final countryCode = _registrationCountryCode;
+    final externalWallet = _externalWalletController.text.trim();
     final quote = _referralQuote;
     // Entering or retaining a referral code requests attribution when the
     // account is created; no separate referral checkbox is required.
@@ -1436,17 +1494,19 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
     final token = _invitationPreview == null ? null : _activeInvitationToken;
     final agreements =
         legalAgreementsPayload(specs, _acceptedAgreements, config);
-    _signupDispatched = true;
     final deviceStore = ref.read(referralDeviceTokenStoreProvider);
-    _signupOperation = (api) async => api.signUp(
+    _signupOperation = (api, code) async => api.signUp(
           email: email,
           password: password,
+          emailVerificationCode: code,
           firstName: firstName,
           lastName: lastName,
           accountType: accountType,
           onboardingExchange: config?.unifiedCddOnboardingEnabled == true && accountType == 'personal' && _onboardingExchange,
           onboardingBanking: config?.unifiedCddOnboardingEnabled == true && accountType == 'personal' && _onboardingBanking,
           phone: phone,
+          countryCode: countryCode,
+          externalWalletAddress: externalWallet.isEmpty ? null : externalWallet,
           referralCode: referral.isEmpty ? null : referral,
           referralSource: referral.isEmpty ? null : source,
           invitationToken: token,
@@ -1460,26 +1520,113 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
           referralTermsHash: referral.isEmpty ? null : quote?.termsHash,
           referralPolicyHash: referral.isEmpty ? null : quote?.policyHash,
         );
-    ref.read(platformActionControllerProvider.notifier).run(_signupOperation!);
+    _verifyAndRunSignup(email);
+  }
+
+  Future<void> _verifyAndRunSignup(String email) async {
+    setState(() => _emailChallengeLoading = true);
+    final api = ref.read(mobilePlatformApiProvider);
+    try {
+      await api.requestSignupEmailCode(email);
+      if (!mounted) return;
+      await showEmailVerificationSheet(
+        context,
+        email: email,
+        onResendCode: () => api.requestSignupEmailCode(email),
+        onVerifyCode: (code) async {
+          final operation = _signupOperation;
+          if (operation == null) {
+            throw StateError('Review your signup details and try again.');
+          }
+          _signupDispatched = true;
+          await ref.read(platformActionControllerProvider.notifier).run(
+                (api) => operation(api, code),
+              );
+          if (!mounted) return;
+          final result = ref.read(platformActionControllerProvider);
+          if (result.hasError) {
+            Error.throwWithStackTrace(result.error!, result.stackTrace!);
+          }
+        },
+      );
+    } catch (error) {
+      if (mounted) _message(_signupErrorMessage(error));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _emailChallengeLoading = false;
+          if (!_signupDispatched) _signupOperation = null;
+        });
+      }
+    }
+  }
+
+  bool _registrationFieldsValid(MobileTenantConfig config) =>
+      (config.blockedRegistrationCountries.isEmpty ||
+          config.isRegistrationCountryAllowed(_registrationCountryCode)) &&
+      (!config.requireExternalWallet ||
+          _externalWalletController.text.trim().isNotEmpty);
+
+  List<Widget> _registrationFields(MobileTenantConfig? config) {
+    if (config == null) return const [];
+    final countries = IsoCode.values
+        .where((country) => config.isRegistrationCountryAllowed(country.name))
+        .toList()
+      ..sort((a, b) => personalOnboardingCountryLabel(context, a.name)
+          .compareTo(personalOnboardingCountryLabel(context, b.name)));
+    return [
+      if (config.blockedRegistrationCountries.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          key: const Key('signup_country_code'),
+          initialValue:
+              config.isRegistrationCountryAllowed(_registrationCountryCode)
+                  ? _registrationCountryCode
+                  : null,
+          isExpanded: true,
+          menuMaxHeight: 320,
+          decoration: InputDecoration(
+            labelText: context.tr('Country of residence'),
+            prefixIcon: const Icon(Icons.public_outlined),
+          ),
+          items: countries
+              .map((country) => DropdownMenuItem(
+                    value: country.name,
+                    child: Text(
+                        personalOnboardingCountryLabel(context, country.name)),
+                  ))
+              .toList(),
+          onChanged: _signupDispatched
+              ? null
+              : (value) => setState(() => _registrationCountryCode = value),
+          validator: (value) => config.isRegistrationCountryAllowed(value)
+              ? null
+              : context.tr('Choose your country of residence.'),
+        ),
+      ],
+      if (config.requireExternalWallet) ...[
+        const SizedBox(height: 12),
+        ExampleAuthField(
+          key: const Key('signup_external_wallet'),
+          label: context.tr('External wallet address'),
+          controller: _externalWalletController,
+          readOnly: _signupDispatched,
+          autocorrect: false,
+          enableSuggestions: false,
+          textInputAction: TextInputAction.next,
+          validator: (value) {
+            final error = _required(value);
+            return error == null ? null : context.tr(error);
+          },
+        ),
+      ],
+    ];
   }
 
   String? get _activeInvitationToken {
     if (_continueWithoutInvitation) return null;
     final token = widget.invitationToken;
     return token == null || token.isEmpty ? null : token;
-  }
-
-  Future<void> _confirmEmail({bool sendCodeFirst = false}) async {
-    final verified = await showEmailVerificationSheet(
-      context,
-      email: _emailController.text.trim(),
-      sendCodeFirst: sendCodeFirst,
-    );
-    if (verified && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(context.tr('Email confirmed. Sign in to continue.'))));
-      context.go(_signInRoute);
-    }
   }
 
   /// The number in E.164 (`+4915123456789`), or null while nothing is typed.
@@ -2653,17 +2800,11 @@ class _SignupComplete extends StatelessWidget {
     this.referralOutcome,
     required this.accountType,
     required this.email,
-    required this.emailRequestFailed,
-    required this.onConfirmEmail,
-    required this.onResendEmail,
     required this.onContinue,
   });
   final ReferralSignupOutcome? referralOutcome;
   final String accountType;
   final String email;
-  final bool emailRequestFailed;
-  final VoidCallback onConfirmEmail;
-  final VoidCallback onResendEmail;
   final VoidCallback onContinue;
 
   @override
@@ -2682,23 +2823,16 @@ class _SignupComplete extends StatelessWidget {
                     ),
                     const SizedBox(height: 22),
                     Text(
-                      context.tr('Confirm your email'),
+                      context.tr('Account created'),
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),
                     const SizedBox(height: 10),
                     Text(
                       context.tr(
-                          emailRequestFailed
-                              ? 'Your account is created, but we could not request a confirmation email. Request a new code to confirm {p0}.'
-                              : 'Your account is created. Check {p0} for a six-digit confirmation code. Delivery can take a few minutes.',
-                          {'p0': email}),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      context.tr(
-                          'If the email is missing, check Spam or Junk, then request a new code.'),
+                        'Your email address {p0} is confirmed. Sign in to continue.',
+                        {'p0': email},
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
@@ -2719,19 +2853,10 @@ class _SignupComplete extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(
-                        onPressed: onConfirmEmail,
-                        icon: const Icon(Icons.pin_outlined, size: 18),
-                        label: Text(context.tr('Enter confirmation code')),
+                        onPressed: onContinue,
+                        icon: const Icon(Icons.login_rounded, size: 18),
+                        label: Text(context.tr('Sign in')),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: onResendEmail,
-                      child: Text(context.tr('Resend confirmation email')),
-                    ),
-                    TextButton(
-                      onPressed: onContinue,
-                      child: Text(context.tr('I will do this at sign in')),
                     ),
                   ],
                 ),

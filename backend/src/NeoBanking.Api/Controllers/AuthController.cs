@@ -33,7 +33,8 @@ public sealed partial class AuthController(
     AuthEmailNotifier emailNotifier,
     LoginAttemptTracker loginAttempts,
     ILogger<AuthController> logger,
-    DashboardLegalSettings? legalSettings = null) : ApiControllerBase
+    DashboardLegalSettings? legalSettings = null,
+    CompanyRegistrationPolicy? registrationPolicy = null) : ApiControllerBase
 {
     // Two days: the PWA re-verifies biometrics on launch and refreshes the pair anyway.
     private const int AccessTokenSeconds = 48 * 3600;
@@ -176,7 +177,7 @@ public sealed partial class AuthController(
     }
 
     [AllowAnonymous]
-    [EnableRateLimiting(RateLimitPolicies.Auth)]
+    [EnableRateLimiting("signup")]
     [HttpPost("~/api/v1/mobile/auth/signup")]
     public async Task<ActionResult<object>> Signup([FromBody] SignupRequestDto request, CancellationToken cancellationToken)
     {
@@ -208,6 +209,10 @@ public sealed partial class AuthController(
                 StatusCodes.Status400BadRequest)));
         }
 
+        var registration = await (registrationPolicy ?? new CompanyRegistrationPolicy(proxyHoppa, companyOptions)).GetAsync(cancellationToken);
+        if (registration.Validate(request) is { } registrationError)
+            return ToActionResult<object>(ApplicationResult<object>.Failure(registrationError));
+
         var unifiedCdd = request.OnboardingExchange || request.OnboardingBanking;
         if (unifiedCdd && (accountType != "personal" ||
             (request.OnboardingExchange && !companyOptions.Value.Features.BoomFiExchangeEnabled) ||
@@ -221,12 +226,8 @@ public sealed partial class AuthController(
             return BadRequest(new { code = "auth.equals_consent_required", message = equalsConsentError });
         var consentReceivedAt = DateTimeOffset.UtcNow;
         var referralCode = request.ReferralCode?.Trim();
-        var referralFeatures = companyOptions.Value.Features;
-        var referralRequired = referralFeatures.ReferralsEnabled &&
-            string.Equals(
-                referralFeatures.ReferralRegistrationMode?.Trim(),
-                "required",
-                StringComparison.OrdinalIgnoreCase);
+        var referralFeatures = registration;
+        var referralRequired = registration.ReferralRequired;
 
         if (referralRequired && string.IsNullOrWhiteSpace(referralCode))
         {
@@ -279,7 +280,9 @@ public sealed partial class AuthController(
                 user => user.CompanyInstallationId == company.Id &&
                         user.EmailNormalized == normalizedEmail,
                 cancellationToken);
-        if (existingUser is not null)
+        if (existingUser is not null && (existingUser.Status != "pending_signup" || existingUser.LockedAt is not null ||
+            await dbContext.UserIdentities.AnyAsync(x => x.UserId == existingUser.Id, cancellationToken) ||
+            await dbContext.ProviderMappings.AnyAsync(x => x.InternalEntityType == "user" && x.InternalEntityId == existingUser.Id, cancellationToken)))
         {
             return ToActionResult<object>(ApplicationResult<object>.Failure(new ApplicationError(
                 "auth.signup.account_exists",
@@ -293,6 +296,13 @@ public sealed partial class AuthController(
             x.CompanyInstallationId == company.Id && x.EmailNormalized == normalizedEmail, cancellationToken);
         if (emailAttempt is not null || (attempt is not null && attempt.State != "QUOTED"))
             return SignupCreationUncertain(attemptId);
+
+        if (existingUser is null || !NeoBanking.Infrastructure.Security.UserVerificationCodeService.LooksLikeCode(request.EmailVerificationCode?.Trim()))
+            return SignupEmailCodeRequired();
+        var verification = await new NeoBanking.Infrastructure.Security.UserVerificationCodeService(dbContext)
+            .VerifyAndConsumeAsync(existingUser.Id, SignupEmailPurpose, request.EmailVerificationCode!.Trim(), cancellationToken);
+        if (verification != NeoBanking.Infrastructure.Security.VerificationCodeOutcome.Valid)
+            return SignupEmailCodeRequired();
 
         var acceptedReferral = !string.IsNullOrWhiteSpace(referralCode) && request.ReferralAccepted == true;
         var referralRequested = !string.IsNullOrWhiteSpace(referralCode) && (acceptedReferral || request.ReferralNeedsReview);
@@ -312,19 +322,12 @@ public sealed partial class AuthController(
 
         var now = DateTimeOffset.UtcNow;
         var displayName = GetDisplayName(request);
-        var user = new ApplicationUser
-        {
-            CompanyInstallationId = company.Id,
-            Email = email,
-            EmailNormalized = normalizedEmail,
-            DisplayName = displayName,
-            PhoneNumber = request.Phone?.Trim(),
-            Status = "active",
-            Locale = "en-US",
-            MetadataJson = JsonSerializer.Serialize(new { accountType, unifiedCdd = unifiedCdd ? new { exchange = request.OnboardingExchange, banking = request.OnboardingBanking } : null, legalAgreements = EqualsSignupConsent.Record(request.LegalAgreements, requiresEqualsConsent, consentBranding, consentReceivedAt) }),
-            CreatedAt = now,
-            UpdatedAt = now
-        };
+        var user = existingUser;
+        user.DisplayName = displayName;
+        user.PhoneNumber = request.Phone?.Trim();
+        user.Locale = "en-US";
+        user.MetadataJson = JsonSerializer.Serialize(new { accountType, unifiedCdd = unifiedCdd ? new { exchange = request.OnboardingExchange, banking = request.OnboardingBanking } : null, legalAgreements = EqualsSignupConsent.Record(request.LegalAgreements, requiresEqualsConsent, consentBranding, consentReceivedAt) });
+        user.UpdatedAt = now;
 
         ApplicationResult<JsonElement?> hoppaUserResult;
         try
@@ -333,7 +336,7 @@ public sealed partial class AuthController(
             new ProxyHoppaRequestCommand<object>
             {
                 Method = HttpMethod.Post,
-                UpstreamPath = "/api/v2/users",
+                UpstreamPath = "/api/v2/users/self-registration",
                 Request = CreateHoppaUserRequest(user, request),
                 FailureCode = "auth.signup.hoppa_user_failed",
                 FailureMessage = "We could not create the upstream user."
@@ -353,10 +356,15 @@ public sealed partial class AuthController(
             // plainly (with the provider's reason when it gives one) and use 502 so
             // clients can distinguish it from our own failures.
             var upstream = hoppaUserResult.Error!;
-            attempt.State = upstream.StatusCode >= 500 ? "CREATION_UNCERTAIN" : "REJECTED";
-            attempt.FailureReason = upstream.Code;
+            var policyRejection = RegistrationPolicyRejection(upstream);
+            attempt.State = policyRejection is null && upstream.StatusCode >= 500 ? "CREATION_UNCERTAIN" : "REJECTED";
+            attempt.FailureReason = policyRejection?.Code ?? upstream.Code;
+            // Named policy refusals happen before upstream creation and permit a fresh reviewed attempt.
+            if (policyRejection is not null) attempt.EmailNormalized = null;
             await dbContext.SaveChangesAsync(CancellationToken.None);
             if (attempt.State == "CREATION_UNCERTAIN") return SignupCreationUncertain(attempt.Id);
+            if (policyRejection is not null)
+                return ToActionResult<object>(ApplicationResult<object>.Failure(policyRejection));
             var providerReason = ExtractProviderMessage(upstream.Detail);
             if (upstream.StatusCode == StatusCodes.Status409Conflict ||
                 (providerReason?.Contains("already", StringComparison.OrdinalIgnoreCase) ?? false))
@@ -400,7 +408,8 @@ public sealed partial class AuthController(
             UpdatedAt = now
         });
 
-        dbContext.Users.Add(user);
+        user.Status = "active";
+        user.EmailVerifiedAt = now;
         if (requiresEqualsConsent)
             EqualsConsentService.AddEvidence(dbContext, user, consentBranding, consentReceivedAt, "mobile_signup");
         dbContext.ProviderMappings.Add(new ProviderMapping
@@ -455,19 +464,6 @@ public sealed partial class AuthController(
         }
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var verificationEmailSent = false;
-        try
-        {
-            verificationEmailSent = await emailNotifier.SendEmailVerificationAsync(user, cancellationToken);
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            // The account exists; the customer can request a new code from the app.
-            logger.LogError(exception, "Verification email could not be queued for new user {UserId}.", user.Id);
-            verificationEmailSent = false;
-        }
-
         // Attribution is delivered durably by the worker. Account success is independent of engine admission.
         var referralAttributed = false;
         var referralAttributionReason = !string.IsNullOrWhiteSpace(referralCode) && !acceptedReferral
@@ -475,9 +471,7 @@ public sealed partial class AuthController(
 
         return StatusCode(StatusCodes.Status201Created, new
         {
-            message = verificationEmailSent
-                ? "Account created. Check your email for a confirmation code, then sign in."
-                : "Account created. Sign in.",
+            message = "Account created. Your email is confirmed. Sign in.",
             userId = user.Id,
             email = user.Email,
             accountType,
@@ -486,8 +480,8 @@ public sealed partial class AuthController(
             registrationAttemptId=attempt.Id,
             referralCommandId=referralIntent?.Id,
             referralAttributionStatus=referralIntent?.State ?? "NOT_REQUESTED",
-            emailVerificationRequired = emailOptions.Value.RequireVerifiedEmailForLogin,
-            verificationEmailSent
+            emailVerificationRequired = false,
+            verificationEmailSent = false
         });
     }
 
@@ -1563,6 +1557,9 @@ public sealed partial class AuthController(
             Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim(),
             ExternalUserId = user.Id.ToString(),
             AccountType = accountType,
+            CountryCode = request.CountryCode?.Trim().ToUpperInvariant(),
+            ExternalWalletAddress = request.ExternalWalletAddress?.Trim(),
+            ReferralCode = request.ReferralCode?.Trim(),
             Metadata = new
             {
                 source = "hoppa_demo_app",
@@ -1982,6 +1979,32 @@ public sealed partial class AuthController(
         }
 
         return null;
+    }
+
+    /// <summary>Only named, pre-creation policy refusals release the signup reservation.</summary>
+    private static ApplicationError? RegistrationPolicyRejection(ApplicationError error)
+    {
+        if (error.StatusCode is not (400 or 403 or 404 or 503) || string.IsNullOrWhiteSpace(error.Detail)) return null;
+        string? code;
+        try
+        {
+            using var document = JsonDocument.Parse(error.Detail);
+            code = GetJsonValue(document.RootElement, "code", "Code");
+        }
+        catch (JsonException) { return null; }
+        return code switch
+        {
+            "SELF_REGISTRATION_DISABLED" => new("auth.signup.registration_disabled", "Self-registration is not enabled for this company.", 403),
+            "EXTERNAL_WALLET_REQUIRED" => new("auth.signup.external_wallet_required", "An external wallet address is required for registration.", 400),
+            "REFERRAL_CODE_REQUIRED" => new("auth.referral.required", "A valid referral code is required to create an account.", 400),
+            "REFERRAL_CODE_INVALID" => new("auth.referral.invalid", "Enter a valid referral code to create an account.", 400),
+            "REGISTRATION_COUNTRY_REQUIRED" => new("auth.signup.country_required", "Select your country of residence.", 400),
+            "REGISTRATION_COUNTRY_INVALID" => new("auth.signup.country_invalid", "Select a valid two-letter country code.", 400),
+            "REGISTRATION_COUNTRY_BLOCKED" => new("auth.signup.country_blocked", "Registration is not available in your country of residence.", 403),
+            "REGISTRATION_COMPANY_REQUIRED" or "REGISTRATION_COMPANY_NOT_FOUND" or "REGISTRATION_POLICY_INVALID" =>
+                new("auth.signup.policy_unavailable", "Registration settings are temporarily unavailable. Please try again later.", 503),
+            _ => null
+        };
     }
 
     /// <summary>Pulls a human message out of a Hoppa error body; null when there is none.</summary>

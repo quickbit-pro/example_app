@@ -638,6 +638,7 @@ class MobileBankingApi {
     required String sourceCurrency,
     required String targetCurrency,
     String? lastQuoteId,
+    String? balanceId,
   }) async {
     final response = await _dio.post<Map<String, dynamic>>(
       '/api/v1/mobile/banking/quotations',
@@ -646,6 +647,7 @@ class MobileBankingApi {
         'FromCurrency': sourceCurrency,
         'Amount': amount,
         'FeeMethod': 'INCLUDED',
+        if (balanceId != null && balanceId.isNotEmpty) 'BalanceId': balanceId,
         if (lastQuoteId != null && lastQuoteId.trim().isNotEmpty)
           'LastQuoteId': lastQuoteId.trim(),
         if (lastQuoteId != null && lastQuoteId.trim().isNotEmpty)
@@ -653,12 +655,7 @@ class MobileBankingApi {
       },
     );
 
-    return PayoutQuote.fromJson(_extractMap(response.data, 'quote'))
-        .withFallback(
-      sourceAmount: amount,
-      sourceCurrency: sourceCurrency,
-      targetCurrency: targetCurrency,
-    );
+    return PayoutQuote.fromJson(_extractMap(response.data, 'quote'));
   }
 
   Future<PayoutCheck> checkPayout({
@@ -724,6 +721,10 @@ class MobileBankingApi {
         'VerificationToken': verificationToken,
         'OtpCode': otpCode,
       },
+      options: Options(
+          validateStatus: (status) =>
+              status != null &&
+              ((status >= 200 && status < 300) || status == 400)),
     );
 
     return OtpVerification.fromJson(_extractMap(response.data, 'otp'));
@@ -769,41 +770,41 @@ class MobileBankingApi {
     );
   }
 
-  Future<void> submitBusinessProfile({
-    required String legalName,
-    required String registrationNumber,
-    required String country,
-    required String activity,
-  }) async {
-    await _withFallback(
-      () async {
-        await _dio.patch<void>(
-          '/api/v1/mobile/business-onboarding/profile',
-          data: {
-            'businessName': legalName,
-            'legalName': legalName,
-            'registrationNumber': registrationNumber,
-            'countryCode': country,
-            'country': country,
-            'industryCode': activity,
-            'activity': activity,
-          },
-        );
-      },
-      () {},
+  static const _businessOnboarding = '/api/v1/mobile/business-onboarding';
+
+  Future<Map<String, dynamic>> getBusinessWorkflow() async {
+    final response =
+        await _dio.get<Map<String, dynamic>>('$_businessOnboarding/workflow');
+    final workflow = response.data;
+    if (workflow == null || workflow['state'] is! String) {
+      throw StateError('Business onboarding status is unavailable.');
+    }
+    return workflow;
+  }
+
+  Future<void> selectBusinessTier(int tierId) async {
+    await _dio.post<void>(
+      '$_businessOnboarding/workflow/tier',
+      data: {'tierId': tierId},
     );
   }
 
-  Future<Map<String, dynamic>> getBusinessOnboardingStatus() async {
-    final response = await _dio.get<dynamic>(
-      '/api/v1/mobile/business-onboarding/status',
+  Future<Map<String, dynamic>> startBusinessCheckout(
+    String paymentId, {
+    required bool termsAccepted,
+  }) async {
+    final payment = Uri.encodeComponent(paymentId);
+    final response = await _dio.post<Map<String, dynamic>>(
+      '$_businessOnboarding/workflow/payments/$payment/checkout',
+      data: {'termsAccepted': termsAccepted},
     );
-    final value = response.data;
-    if (value is Map<String, dynamic>) return value;
-    if (value is Map) {
-      return value.map((key, item) => MapEntry(key.toString(), item));
-    }
-    return const {};
+    return response.data ?? const {};
+  }
+
+  Future<Map<String, dynamic>> getBusinessOnboardingStatus() async {
+    final response =
+        await _dio.get<Map<String, dynamic>>('$_businessOnboarding/application');
+    return response.data ?? const {};
   }
 
   Future<Map<String, dynamic>> getBusinessOnboardingOptions() async {
@@ -833,49 +834,18 @@ class MobileBankingApi {
     return response.data ?? {};
   }
 
-  Future<Map<String, dynamic>> createBusinessAssociatedPeople(
-    List<Map<String, Object?>> people,
+  Future<Map<String, dynamic>> saveBusinessDraft(
+    Map<String, dynamic> payload,
   ) async {
-    return _withFallback(
-      () async {
-        final response = await _dio.post<dynamic>(
-          '/api/v1/mobile/business-onboarding/associated-people',
-          data: {
-            'People': people.map(_equalsAssociatedPersonPayload).toList(),
-          },
-        );
-
-        final value = response.data;
-        if (value is List) {
-          return {'associatedPeople': value};
-        }
-        if (value is Map) {
-          return value.map((key, item) => MapEntry(key.toString(), item));
-        }
-        return const <String, dynamic>{};
-      },
-      () => {
-        'associatedPeople': [
-          for (var i = 0; i < people.length; i++) {'id': 'person_$i'},
-        ],
-      },
+    final response = await _dio.post<Map<String, dynamic>>(
+      '$_businessOnboarding/workflow/draft',
+      data: payload,
     );
-  }
-
-  Future<Map<String, dynamic>> submitDirectEqualsBusinessApplication(
-    Map<String, Object?> payload,
-  ) async {
-    return _withFallback(
-      () async {
-        final response = await _dio.post<Map<String, dynamic>>(
-          '/api/v1/mobile/business-onboarding/application',
-          data: _equalsBusinessApplicationPayload(payload),
-        );
-
-        return response.data ?? const <String, dynamic>{};
-      },
-      () => {'success': true},
-    );
+    final draft = response.data;
+    if (draft == null || (draft['success'] ?? draft['Success']) != true) {
+      throw StateError('The business draft could not be saved.');
+    }
+    return draft;
   }
 
   Future<Map<String, dynamic>> uploadBusinessOnboardingDocument({
@@ -888,43 +858,47 @@ class MobileBankingApi {
     if ((path == null || path.trim().isEmpty) && bytes == null) {
       throw ArgumentError('A document path or bytes are required.');
     }
-    return _withFallback(
-      () async {
-        final formData = FormData.fromMap({
-          'Purpose': purpose,
-          'File': bytes != null
-              ? MultipartFile.fromBytes(
-                  bytes,
-                  filename: fileName?.trim().isNotEmpty == true
-                      ? fileName!.trim()
-                      : 'document',
-                )
-              : await MultipartFile.fromFile(path!),
-        });
-        final endpoint = associatedPersonId == null ||
-                associatedPersonId.trim().isEmpty
-            ? '/api/v1/mobile/business-onboarding/application/documents'
-            : '/api/v1/mobile/business-onboarding/associated-people/${Uri.encodeComponent(associatedPersonId.trim())}/documents';
-
-        final response =
-            await _dio.post<Map<String, dynamic>>(endpoint, data: formData);
-        return response.data ?? <String, dynamic>{};
-      },
-      () => <String, dynamic>{},
+    final name = fileName?.trim().isNotEmpty == true
+        ? fileName!.trim()
+        : path?.split('/').last ?? 'document';
+    final mimeType = switch (name.split('.').last.toLowerCase()) {
+      'pdf' => 'application/pdf',
+      'jpg' || 'jpeg' => 'image/jpeg',
+      'png' => 'image/png',
+      _ => throw ArgumentError('Choose a PDF, JPEG or PNG document.'),
+    };
+    final contentType = DioMediaType.parse(mimeType);
+    final file = bytes != null
+        ? MultipartFile.fromBytes(bytes, filename: name, contentType: contentType)
+        : await MultipartFile.fromFile(path!,
+            filename: name, contentType: contentType);
+    final personId = associatedPersonId?.trim();
+    final endpoint = personId == null || personId.isEmpty
+        ? '$_businessOnboarding/documents'
+        : '$_businessOnboarding/associated-people/${Uri.encodeComponent(personId)}/documents';
+    final response = await _dio.post<Map<String, dynamic>>(
+      endpoint,
+      data: FormData.fromMap({'Purpose': purpose, 'File': file}),
     );
+    final document = response.data;
+    if (document == null ||
+        (document['success'] ?? document['Success']) != true) {
+      throw StateError('The document could not be saved.');
+    }
+    return document;
   }
 
-  Future<void> submitDirectEqualsBusinessApplicationForReview() async {
-    await _withFallback(
-      () async {
-        await _dio.post<void>(
-          '/api/v1/mobile/business-onboarding/application/submit',
-          data: const <String, Object?>{},
-        );
-      },
-      () {},
+  Future<void> requestBusinessAssessment() async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      '$_businessOnboarding/workflow/assess',
+      data: const <String, Object?>{},
     );
+    if (response.statusCode != 202 ||
+        response.data?['status'] != 'ASSESSMENT_PENDING') {
+      throw StateError('The risk assessment could not be queued.');
+    }
   }
+
 }
 
 String _accountProviderKey(String provider) =>
@@ -1189,132 +1163,6 @@ int? _firstIntValue(Map<String, dynamic> json, List<String> keys) {
     if (parsed != null) return parsed;
   }
   return null;
-}
-
-Map<String, Object?> _equalsAssociatedPersonPayload(
-  Map<String, Object?> person,
-) {
-  final addresses = person['addresses'];
-  final rawAddress = addresses is List && addresses.isNotEmpty
-      ? addresses.first
-      : person['address'];
-  final address = rawAddress is Map
-      ? rawAddress.map((key, value) => MapEntry(key.toString(), value))
-      : const <String, Object?>{};
-  final streetName = _stringValue(address['streetName']);
-  final buildingNumber = _stringValue(address['buildingNumber']);
-  final buildingName = _stringValue(address['buildingName']);
-  final city = _stringValue(address['city'] ?? address['townCity']);
-
-  return _withoutEmptyValues({
-    'firstName': person['firstName'],
-    'lastName': person['lastName'],
-    'dateOfBirth': person['dateOfBirth'],
-    'emailAddress': person['emailAddress'],
-    'nationalities': person['nationalities'],
-    'taxId': person['taxId'],
-    'phoneNumber': person['phoneNumber'],
-    if (address.isNotEmpty)
-      'address': _withoutEmptyValues({
-        'addressLine1': _stringValue(address['addressLine1']).isNotEmpty
-            ? address['addressLine1']
-            : [buildingNumber, buildingName, streetName]
-                .where((part) => part.isNotEmpty)
-                .join(' '),
-        'addressLine2': address['addressLine2'],
-        'streetName': address['streetName'],
-        'buildingNumber': address['buildingNumber'],
-        'buildingName': address['buildingName'],
-        'townCity': city,
-        'postcode': address['postcode'],
-        'countryCode': address['countryCode'],
-        'region': address['region'],
-        'city': city,
-      }),
-  });
-}
-
-Map<String, Object?> _equalsBusinessApplicationPayload(
-  Map<String, Object?> payload,
-) {
-  final industry = _stringMap(payload['industry']);
-  final features = _stringMap(payload['featureInformation']);
-  final addresses = payload['addresses'];
-  final people = payload['associatedPeople'];
-
-  return _withoutEmptyValues({
-    'Market': payload['market'] ?? payload['Market'],
-    'BusinessType': payload['businessType'] ?? payload['type'],
-    'CountryOfIncorporation': payload['countryOfIncorporation'],
-    'RegionOfIncorporation': payload['regionOfIncorporation'],
-    'RegisteredName': payload['registeredName'],
-    'RegistrationNumber': payload['registrationNumber'],
-    'TradingNames': payload['tradingNames'],
-    'BusinessOverview': payload['businessOverview'],
-    'IndustryMain': payload['industryMain'] ?? industry['main'],
-    'IndustrySub': payload['industrySub'] ?? industry['sub'],
-    'EmployeeCount': payload['employeeCount'],
-    'IncorporationDate': payload['incorporationDate'],
-    'PhoneNumber': payload['phoneNumber'],
-    'TaxId': payload['taxId'],
-    'Website': payload['website'],
-    'BusinessPromotionDescription': payload['businessPromotionDescription'],
-    'RequestedFeatures':
-        payload['requestedFeatures'] ?? features['requestedFeatures'],
-    'CardsInformation':
-        payload['cardsInformation'] ?? features['cardsInformation'],
-    'PaymentsInformation':
-        payload['paymentsInformation'] ?? features['paymentsInformation'],
-    if (addresses is List)
-      'Addresses': addresses
-          .whereType<Map>()
-          .map((address) => _pascalCaseBusinessAddress(_stringMap(address)))
-          .toList(),
-    if (people is List)
-      'AssociatedPeople': people
-          .whereType<Map>()
-          .map((person) => _pascalCaseAssociatedPersonLink(_stringMap(person)))
-          .toList(),
-  });
-}
-
-Map<String, Object?> _pascalCaseBusinessAddress(Map<String, Object?> address) {
-  return _withoutEmptyValues({
-    'AddressType': address['addressType'],
-    'StreetName': address['streetName'],
-    'BuildingNumber': address['buildingNumber'],
-    'BuildingName': address['buildingName'],
-    'Postcode': address['postcode'],
-    'City': address['city'],
-    'Region': address['region'],
-    'CountryCode': address['countryCode'],
-  });
-}
-
-Map<String, Object?> _pascalCaseAssociatedPersonLink(
-  Map<String, Object?> person,
-) {
-  final ownership = person['ownershipPercentage'];
-  return _withoutEmptyValues({
-    'AssociatedPersonId': person['associatedPersonId'],
-    'AssociationType': person['associationType'],
-    'JobTitle': person['jobTitle'],
-    'OwnershipPercentage': ownership is num ? ownership.round() : ownership,
-  });
-}
-
-Map<String, Object?> _stringMap(Object? value) {
-  if (value is! Map) return const {};
-  return value.map((key, item) => MapEntry(key.toString(), item));
-}
-
-String _stringValue(Object? value) => value?.toString().trim() ?? '';
-
-Map<String, Object?> _withoutEmptyValues(Map<String, Object?> values) {
-  return Map.fromEntries(values.entries.where((entry) {
-    final value = entry.value;
-    return value != null && (value is! String || value.trim().isNotEmpty);
-  }));
 }
 
 List<OnboardingTask> _withFirstLoginTasks({

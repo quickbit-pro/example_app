@@ -1651,6 +1651,7 @@ class PayoutQuote {
     required this.exchangeRate,
     required this.fee,
     required this.expiresAt,
+    this.totalDebit,
     this.provider = '',
   });
 
@@ -1689,6 +1690,8 @@ class PayoutQuote {
       ),
       fee: _parseNullableDecimal(json['fee'] ?? json['Fee']) ??
           _feeFromList(fees),
+      totalDebit:
+          _parseNullableDecimal(json['totalDebit'] ?? json['TotalDebit']),
       provider: (json['provider'] ?? json['Provider'])?.toString() ?? '',
       expiresAt: DateTime.tryParse(
         (json['expiresAt'] ??
@@ -1709,41 +1712,9 @@ class PayoutQuote {
   final String targetCurrency;
   final double exchangeRate;
   final double? fee;
+  final double? totalDebit;
   final String provider;
   final DateTime? expiresAt;
-
-  PayoutQuote withFallback({
-    required double sourceAmount,
-    required String sourceCurrency,
-    required String targetCurrency,
-  }) {
-    final resolvedSourceAmount =
-        this.sourceAmount <= 0 ? sourceAmount : this.sourceAmount;
-    final resolvedSourceCurrency =
-        this.sourceCurrency.isEmpty ? sourceCurrency : this.sourceCurrency;
-    final resolvedTargetCurrency =
-        this.targetCurrency.isEmpty ? targetCurrency : this.targetCurrency;
-    final resolvedTargetAmount = targetAmount > 0
-        ? targetAmount
-        : resolvedSourceCurrency == resolvedTargetCurrency
-            ? resolvedSourceAmount
-            : exchangeRate > 0
-                ? resolvedSourceAmount * exchangeRate
-                : 0.0;
-
-    return PayoutQuote(
-      id: id,
-      quoteRequestId: quoteRequestId,
-      sourceAmount: resolvedSourceAmount,
-      sourceCurrency: resolvedSourceCurrency,
-      targetAmount: resolvedTargetAmount,
-      targetCurrency: resolvedTargetCurrency,
-      exchangeRate: exchangeRate,
-      fee: fee,
-      provider: provider,
-      expiresAt: expiresAt,
-    );
-  }
 
   String get feeLabel => fee == null
       ? 'Not returned'

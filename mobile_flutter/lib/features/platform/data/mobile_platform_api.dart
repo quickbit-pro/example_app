@@ -20,15 +20,29 @@ class MobilePlatformApi {
 
   final Dio _dio;
 
+  Future<void> requestSignupEmailCode(String email) async {
+    await _dio.post<dynamic>(
+      '/api/v1/mobile/auth/signup/email-code',
+      data: {'email': email.trim()},
+      options: Options(extra: const {
+        'skipAuthRefresh': true,
+        'sensitiveRequest': true,
+      }),
+    );
+  }
+
   Future<ActionResult> signUp({
     required String email,
     required String password,
+    String? emailVerificationCode,
     required String firstName,
     required String lastName,
     required String accountType,
     bool onboardingExchange = false,
     bool onboardingBanking = false,
     String? phone,
+    String? countryCode,
+    String? externalWalletAddress,
     String? referralCode,
     String? referralSource,
     String? invitationToken,
@@ -47,12 +61,19 @@ class MobilePlatformApi {
       {
         'email': email,
         'password': password,
+        if (emailVerificationCode != null)
+          'emailVerificationCode': emailVerificationCode.trim(),
         'firstName': firstName,
         'lastName': lastName,
         'accountType': accountType,
         if (onboardingExchange) 'onboardingExchange': true,
         if (onboardingBanking) 'onboardingBanking': true,
         if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+        if (countryCode != null && countryCode.trim().isNotEmpty)
+          'countryCode': countryCode.trim().toUpperCase(),
+        if (externalWalletAddress != null &&
+            externalWalletAddress.trim().isNotEmpty)
+          'externalWalletAddress': externalWalletAddress.trim(),
         if (referralCode != null && referralCode.trim().isNotEmpty)
           'referralCode': referralCode.trim(),
         if (referralSource != null && referralSource.trim().isNotEmpty)
@@ -73,6 +94,10 @@ class MobilePlatformApi {
         if (installationToken != null) 'installationToken': installationToken,
       },
       'Account created',
+      options: Options(extra: const {
+        'skipAuthRefresh': true,
+        'sensitiveRequest': true,
+      }),
     );
   }
 

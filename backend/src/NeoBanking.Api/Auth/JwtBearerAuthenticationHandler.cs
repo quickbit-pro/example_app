@@ -5,6 +5,8 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.EntityFrameworkCore;
+using NeoBanking.Infrastructure.Persistence;
 using Microsoft.Extensions.Options;
 
 namespace NeoBanking.Api.Auth;
@@ -18,38 +20,79 @@ public sealed class JwtBearerAuthenticationHandler(
 {
     private readonly JwtOptions _jwtOptions = jwtOptions.Value;
 
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         if (!Request.Headers.TryGetValue("Authorization", out var authorizationHeaders))
         {
-            return Task.FromResult(AuthenticateResult.NoResult());
+            return AuthenticateResult.NoResult();
         }
 
         var authorization = authorizationHeaders.ToString();
         if (!authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
-            return Task.FromResult(AuthenticateResult.NoResult());
+            return AuthenticateResult.NoResult();
         }
 
         var token = authorization["Bearer ".Length..].Trim();
         if (string.IsNullOrWhiteSpace(token))
         {
-            return Task.FromResult(AuthenticateResult.Fail("Bearer token is empty."));
+            return AuthenticateResult.Fail("Bearer token is empty.");
         }
 
         try
         {
             var principal = ValidateToken(token);
+            // The dashboard support bridge uses a separate issuer, key and scheme;
+            // its signed identities are not local mobile/admin login sessions.
+            if (Scheme.Name == AuthenticationSchemeNames.Bearer &&
+                !await HasActiveLocalSessionAsync(principal))
+            {
+                return AuthenticateResult.Fail("The account or session is no longer active.");
+            }
             var ticket = new AuthenticationTicket(principal, AuthenticationSchemeNames.Bearer);
 
-            return Task.FromResult(AuthenticateResult.Success(ticket));
+            return AuthenticateResult.Success(ticket);
         }
         catch (Exception ex) when (ex is JsonException or FormatException or CryptographicException
             or InvalidOperationException or KeyNotFoundException)
         {
             Logger.LogDebug(ex, "JWT bearer authentication failed.");
-            return Task.FromResult(AuthenticateResult.Fail("Bearer token is invalid."));
+            return AuthenticateResult.Fail("Bearer token is invalid.");
         }
+    }
+
+    private async Task<bool> HasActiveLocalSessionAsync(ClaimsPrincipal principal)
+    {
+        // Never use the upstream numeric sub claim to identify a local account.
+        // Require one unambiguous claim for each part of the session boundary.
+        if (!TryGetSingleGuidClaim(principal, "local_user_id", out var userId) ||
+            !TryGetSingleGuidClaim(principal, "company_installation_id", out var companyId) ||
+            !TryGetSingleGuidClaim(principal, "sid", out var sessionId))
+        {
+            return false;
+        }
+
+        var db = Context.RequestServices.GetRequiredService<NeoBankingDbContext>();
+        var session = await db.RefreshSessions.AsNoTracking()
+            .Where(s => s.Id == sessionId && s.UserId == userId &&
+                        s.CompanyInstallationId == companyId && s.User != null &&
+                        s.User.CompanyInstallationId == companyId)
+            .Select(s => new { s.RevokedAt, s.ExpiresAt, s.User!.LockedAt, s.User.Status })
+            .SingleOrDefaultAsync(Context.RequestAborted);
+
+        // Check on every request, without caching: locking an account or revoking
+        // a session must reject access tokens already issued to another device/IP.
+        return session is not null && session.RevokedAt is null &&
+               session.ExpiresAt > DateTimeOffset.UtcNow && session.LockedAt is null &&
+               (string.Equals(session.Status, "active", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(session.Status, "pending", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool TryGetSingleGuidClaim(ClaimsPrincipal principal, string name, out Guid value)
+    {
+        value = Guid.Empty;
+        var claims = principal.FindAll(name).ToArray();
+        return claims.Length == 1 && Guid.TryParse(claims[0].Value, out value) && value != Guid.Empty;
     }
 
     private ClaimsPrincipal ValidateToken(string token)

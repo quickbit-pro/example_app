@@ -209,7 +209,9 @@ void main() {
       (controller as _FakeActionController)
           .complete(const ActionResult(message: 'Account created'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('I will do this at sign in'));
+      expect(find.text('Account created'), findsOneWidget);
+      expect(find.text('I will do this at sign in'), findsNothing);
+      await tester.tap(find.text('Sign in'));
       await tester.pumpAndSettle();
     }
 

@@ -51,6 +51,7 @@ public class ReferralPostgresTests
             {
                 await db.Database.MigrateAsync();await db.Database.MigrateAsync();
                 Assert.True(await db.CompanyInstallations.AnyAsync(x=>x.Slug=="default"));
+                await SignupEmailTestSeed.Prepare(db, "concurrent@example.test");
             }
             Guid? attemptKey=null;
             if(sharedAttempt)
@@ -62,7 +63,7 @@ public class ReferralPostgresTests
             var creates=0;var journalObserved=false;
             var proxy=new Proxy(async path=>
             {
-                if(path!="/api/v2/users")return;
+                if(path!="/api/v2/users/self-registration")return;
                 Interlocked.Increment(ref creates);
                 await using var db=Db(cs);
                 journalObserved=await db.ReferralSignupAttempts.AnyAsync(x=>x.State=="CREATING");
@@ -70,7 +71,7 @@ public class ReferralPostgresTests
             });
             await using(var first=Db(cs)) await using(var second=Db(cs))
             {
-                var request=new SignupRequestDto{RegistrationAttemptId=attemptKey,Email="concurrent@example.test",Password="Safe-test-password!27",ReferralCode="FRIEND1",ReferralAccepted=true};
+                var request=new SignupRequestDto{RegistrationAttemptId=attemptKey,Email="concurrent@example.test",EmailVerificationCode=SignupEmailTestSeed.Code,Password="Safe-test-password!27",ReferralCode="FRIEND1",ReferralAccepted=true};
                 var replies=await Task.WhenAll(Controller(first,proxy).Signup(request,default),Controller(second,proxy).Signup(request,default));
                 Assert.Contains(replies,r=>(r.Result as ObjectResult)?.StatusCode==201);
                 Assert.Equal(1,creates);Assert.True(journalObserved);
@@ -110,14 +111,16 @@ public class ReferralPostgresTests
     private static NeoBankingDbContext Db(string cs)=>new(new DbContextOptionsBuilder<NeoBankingDbContext>().UseNpgsql(cs).Options);
     private static AuthController Controller(NeoBankingDbContext db,IProxyHoppaRequestUseCase proxy)=>new(db,new PasswordHasher<ApplicationUser>(),proxy,
         Options.Create(new JwtOptions{Issuer="test",Audience="test",SigningKey=new string('t',40)}),
-        Options.Create(new CompanyOptions{Features=new CompanyFeatureOptions{ReferralsEnabled=true}}),Options.Create(new EmailOptions()),null!,new LoginAttemptTracker(),NullLogger<AuthController>.Instance)
+        Options.Create(new CompanyOptions{Features=new CompanyFeatureOptions{ReferralsEnabled=true,EqualsMoneyEnabled=false}}),Options.Create(new EmailOptions()),null!,new LoginAttemptTracker(),NullLogger<AuthController>.Instance)
         {ControllerContext=new(){HttpContext=new DefaultHttpContext()}};
     private sealed class Proxy(Func<string,Task> before):IProxyHoppaRequestUseCase
     {
         public async Task<ApplicationResult<JsonElement?>> ExecuteAsync<T>(ProxyHoppaRequestCommand<T> command,CancellationToken ct)
         {
             await before(command.UpstreamPath);
-            return ApplicationResult<JsonElement?>.Success(JsonSerializer.Deserialize<JsonElement>(command.UpstreamPath=="/api/v2/users"?"{\"id\":777}":"{\"valid\":true}"));
+            if (command.UpstreamPath == "/api/v2/users/registration-policy")
+                return ApplicationResult<JsonElement?>.Success(JsonSerializer.Deserialize<JsonElement>("""{"companyId":1,"allowsSelfRegistration":true,"requireExternalWallet":false,"needsReferralCode":false,"referralCodeOptional":true,"referralProgramEnabled":true,"blockedCountries":[]}"""));
+            return ApplicationResult<JsonElement?>.Success(JsonSerializer.Deserialize<JsonElement>(command.UpstreamPath=="/api/v2/users/self-registration"?"{\"id\":\"00000000-0000-7000-8000-000000000777\"}":"{\"valid\":true}"));
         }
     }
     private sealed class Client:IHoppaClient

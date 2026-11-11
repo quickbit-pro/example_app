@@ -34,6 +34,7 @@ if (builder.Environment.IsDevelopment())
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<CompanyOptions>(builder.Configuration.GetSection(CompanyOptions.SectionName));
+builder.Services.AddScoped<CompanyRegistrationPolicy>();
 builder.Services.AddNeoBankingApplication();
 builder.Services.AddNeoBankingInfrastructure(builder.Configuration);
 builder.Services.AddCors(options =>
@@ -90,6 +91,13 @@ builder.Services.AddSingleton<LoginAttemptTracker>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    // Dedicated signup quotas use the authenticated proxy boundary, never a supplied forwarding chain.
+    options.AddPolicy("signup-code", context => RateLimitPartition.GetFixedWindowLimiter(
+        NeoBanking.Infrastructure.Hoppa.TrustedClientAddress.Resolve(context)?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
+    options.AddPolicy("signup", context => RateLimitPartition.GetFixedWindowLimiter(
+        NeoBanking.Infrastructure.Hoppa.TrustedClientAddress.Resolve(context)?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
     options.AddPolicy(RateLimitPolicies.Auth, context =>
         RateLimitPartition.GetFixedWindowLimiter(
             ClientAddress(context),

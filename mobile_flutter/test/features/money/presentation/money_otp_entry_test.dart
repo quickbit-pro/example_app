@@ -87,6 +87,7 @@ const _budgets = [
     subtitle: 'Equals Money',
     metadata: {
       'id': 'b1',
+      'budgetId': 'budget-1',
       'name': 'Account balance',
       'provider': 'EqualsMoney',
       'balances': [
@@ -130,6 +131,7 @@ class _FakeBankingApi extends MobileBankingApi {
   _FakeBankingApi() : super(Dio());
 
   final verifiedCodes = <String>[];
+  final payoutRequests = <Map<String, Object?>>[];
   var payoutsConfirmed = 0;
   var payeesConfirmed = 0;
 
@@ -140,15 +142,16 @@ class _FakeBankingApi extends MobileBankingApi {
     required String sourceCurrency,
     required String targetCurrency,
     String? lastQuoteId,
+    String? balanceId,
   }) async =>
       PayoutQuote(
         id: 'q-1',
         quoteRequestId: 'qr-1',
-        sourceAmount: amount,
+        sourceAmount: sourceCurrency == targetCurrency ? amount : amount / 1.25,
         sourceCurrency: sourceCurrency,
         targetAmount: amount,
         targetCurrency: targetCurrency,
-        exchangeRate: 1,
+        exchangeRate: sourceCurrency == targetCurrency ? 1 : 1.25,
         fee: 0.5,
         expiresAt: DateTime.now().add(const Duration(minutes: 5)),
       );
@@ -162,8 +165,16 @@ class _FakeBankingApi extends MobileBankingApi {
     String? balanceId,
     String? memo,
     String? reason,
-  }) async =>
-      const PayoutCheck(id: 'chk-1', pass: true);
+  }) async {
+    payoutRequests.add({
+      'step': 'check',
+      'payeeId': payeeId,
+      'amount': amount,
+      'currency': currency,
+      'balanceId': balanceId,
+    });
+    return const PayoutCheck(id: 'chk-1', pass: true);
+  }
 
   @override
   Future<PayoutOtpInitiation> initiatePayoutOtp({
@@ -175,12 +186,21 @@ class _FakeBankingApi extends MobileBankingApi {
     String? quoteRequestId,
 
     String? fromCurrency,
-  }) async =>
-      const PayoutOtpInitiation(
+  }) async {
+    payoutRequests.add({
+      'step': 'initiate',
+      'payeeId': payeeId,
+      'amount': amount,
+      'currency': currency,
+      'balanceId': balanceId,
+      'fromCurrency': fromCurrency,
+    });
+    return const PayoutOtpInitiation(
         success: true,
         verificationToken: 'tok-payout',
         message: 'Code sent.',
       );
+  }
 
   @override
   Future<OtpVerification> verifyPayoutOtp({
@@ -206,6 +226,14 @@ class _FakeBankingApi extends MobileBankingApi {
 
     String? fromCurrency,
   }) async {
+    payoutRequests.add({
+      'step': 'confirm',
+      'payeeId': payeeId,
+      'amount': amount,
+      'currency': currency,
+      'balanceId': balanceId,
+      'fromCurrency': fromCurrency,
+    });
     payoutsConfirmed++;
   }
 
@@ -267,6 +295,7 @@ Widget _host({
   required AppBranding branding,
   required Brightness brightness,
   BankPayeeDraft? draft,
+  Payee payee = _payee,
 }) {
   final themes = buildAppThemes(branding);
   final router = GoRouter(
@@ -293,7 +322,7 @@ Widget _host({
       accountsProvider.overrideWith((ref) async => const [_equalsAccount]),
       equalsBankingInfoProvider.overrideWith((ref) async => const []),
       budgetsProvider.overrideWith((ref) async => _budgets),
-      payeesProvider.overrideWith((ref) async => const [_payee]),
+      payeesProvider.overrideWith((ref) async => [payee]),
       hoppaWalletAssetsProvider.overrideWith((ref) async => const []),
       hoppaWalletAddressesProvider.overrideWith((ref) async => const []),
       hoppaWalletBalancesProvider.overrideWith((ref) async => const []),
@@ -316,12 +345,14 @@ Future<void> _pump(
   required MoneyTab tab,
   required AppBranding branding,
   required Brightness brightness,
+  Payee payee = _payee,
 }) async {
   tester.view.physicalSize = const Size(375, _tall);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
-    _host(api: api, tab: tab, branding: branding, brightness: brightness),
+    _host(api: api, tab: tab, branding: branding, brightness: brightness,
+        payee: payee),
   );
   await tester.pumpAndSettle();
   // The white-label money screen already overflows by 27 px at 375 on open,
@@ -402,6 +433,43 @@ void main() {
   ];
 
   group('Payout confirmation', () {
+    testWidgets('keeps recipient currency and selected budget through FX approval',
+        (tester) async {
+      final api = _FakeBankingApi();
+      await _pump(tester,
+          api: api,
+          tab: MoneyTab.pay,
+          branding: _exampleBranding,
+          brightness: Brightness.light,
+          payee: const Payee(
+            id: 'gbp-payee',
+            name: 'GBP recipient',
+            accountReference: '12345678',
+            currency: 'GBP',
+            status: 'active',
+          ));
+
+      await _enter(tester, 'Amount', '10');
+      await _enter(tester, 'Reference', 'FX payment');
+      await _tap(tester, 'Show fee');
+      await _tap(tester, 'Send OTP code');
+      await _commitWith(tester, '12345678', 'Confirm payment');
+
+      expect(api.payoutRequests, [
+        for (final step in ['check', 'initiate', 'confirm'])
+          {
+            'step': step,
+            'payeeId': 'gbp-payee',
+            'amount': 10.0,
+            'currency': 'GBP',
+            'balanceId': 'budget-1',
+            if (step != 'check') 'fromCurrency': 'EUR',
+          },
+      ]);
+      expect(api.payoutsConfirmed, 1);
+      expect(tester.takeException(), isNull);
+    });
+
     for (final (name, branding, brightness) in variants) {
       testWidgets('takes eight cells and confirms on the eighth ($name)',
           (tester) async {

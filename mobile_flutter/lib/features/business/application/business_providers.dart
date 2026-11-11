@@ -1,12 +1,43 @@
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/auth_token_provider.dart';
 import '../../banking/application/banking_providers.dart';
+import 'business_draft.dart';
+
+final businessWorkflowProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
+  ref.watch(authSessionGenerationProvider);
+  return ref.watch(mobileBankingApiProvider).getBusinessWorkflow();
+});
 
 final businessOnboardingStatusProvider =
-    FutureProvider<Map<String, dynamic>>((ref) {
-  return ref.watch(mobileBankingApiProvider).getBusinessOnboardingStatus();
+    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final api = ref.watch(mobileBankingApiProvider);
+  final workflow = await ref.watch(businessWorkflowProvider.future);
+  final state = workflow['state'];
+  try {
+    if (state == 'SUBMITTED') {
+      final status = await api.getBusinessOnboardingStatus();
+      return {
+        ...status,
+        'status': status['status'] ?? status['Status'] ?? 'SUBMITTED',
+      };
+    }
+    if (state == 'DRAFT' || state == 'INFORMATION_REQUIRED') {
+      final draft = await api.getBusinessCompliance();
+      if (draft['application'] is Map) {
+        return {'status': 'DRAFT'};
+      }
+      throw StateError('The saved business details could not be read.');
+    }
+  } on DioException catch (error) {
+    if (error.response?.statusCode != 404) rethrow;
+    if (state == 'SUBMITTED') return {'status': 'SUBMITTED'};
+  }
+  return const {};
 });
 
 final businessOnboardingOptionsProvider =
@@ -115,27 +146,7 @@ class BusinessFormController extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
 
-  Future<void> submit({
-    required String legalName,
-    required String registrationNumber,
-    required String country,
-    required String activity,
-  }) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => ref.read(mobileBankingApiProvider).submitBusinessProfile(
-            legalName: legalName,
-            registrationNumber: registrationNumber,
-            country: country,
-            activity: activity,
-          ),
-    );
-    ref.invalidate(dashboardProvider);
-    ref.invalidate(onboardingProvider);
-    ref.invalidate(businessOnboardingStatusProvider);
-  }
-
-  Future<void> submitDirectEqualsBusiness({
+  Future<void> saveDraftAndEvidence({
     required List<Map<String, Object?>> associatedPeople,
     required Map<String, Object?> application,
     BusinessDocumentUpload? proofOfFormation,
@@ -146,47 +157,22 @@ class BusinessFormController extends AsyncNotifier<void> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final api = ref.read(mobileBankingApiProvider);
-      final uniquePeople = <Map<String, Object?>>[];
-      final uniquePersonIndexes = <String, int>{};
-      final rolePersonIndexes = <int>[];
-      for (final person in associatedPeople) {
-        final identityKey = _associatedPersonIdentityKey(person);
-        final uniqueIndex = uniquePersonIndexes.putIfAbsent(identityKey, () {
-          uniquePeople.add(person);
-          return uniquePeople.length - 1;
-        });
-        rolePersonIndexes.add(uniqueIndex);
+      final draft = await api.saveBusinessDraft(
+        localBusinessDraft(application, associatedPeople),
+      );
+      final people = draft['associatedPeople'] ?? draft['AssociatedPeople'];
+      if (people is! List || people.length != associatedPeople.length) {
+        throw StateError('The draft did not return all saved people.');
       }
-      final peopleResponse =
-          await api.createBusinessAssociatedPeople(uniquePeople);
-      final createdPeople = _extractCreatedPeople(peopleResponse);
       final personIds = [
-        for (final person in createdPeople)
+        for (final person in people.whereType<Map>())
           (person['id'] ?? person['Id'] ?? '').toString(),
       ];
-
-      if (personIds.length != uniquePeople.length ||
-          personIds.any((id) => id.isEmpty)) {
-        throw StateError('Failed to create EqualsMoney associated people.');
+      if (personIds.length != associatedPeople.length ||
+          personIds.any((id) => id.isEmpty) ||
+          personIds.toSet().length != personIds.length) {
+        throw StateError('The draft did not return valid person references.');
       }
-
-      await api.submitDirectEqualsBusinessApplication({
-        ...application,
-        'associatedPeople': [
-          for (var i = 0; i < associatedPeople.length; i++)
-            {
-              'associatedPersonId': personIds[rolePersonIndexes[i]],
-              'associationType':
-                  associatedPeople[i]['associationType']?.toString() ??
-                      'APPLICANT',
-              if (associatedPeople[i]['jobTitle'] != null)
-                'jobTitle': associatedPeople[i]['jobTitle'],
-              if (associatedPeople[i]['ownershipPercentage'] != null)
-                'ownershipPercentage': associatedPeople[i]
-                    ['ownershipPercentage'],
-            },
-        ],
-      });
 
       if (proofOfFormation != null) {
         await api.uploadBusinessOnboardingDocument(
@@ -205,28 +191,21 @@ class BusinessFormController extends AsyncNotifier<void> {
         );
       }
 
-      for (var uniqueIndex = 0; uniqueIndex < personIds.length; uniqueIndex++) {
-        BusinessDocumentUpload? identityDocument;
-        BusinessDocumentUpload? addressDocument;
-        for (var roleIndex = 0;
-            roleIndex < rolePersonIndexes.length;
-            roleIndex++) {
-          if (rolePersonIndexes[roleIndex] != uniqueIndex) continue;
-          if (identityDocument == null &&
-              roleIndex < identityDocuments.length) {
-            identityDocument = identityDocuments[roleIndex];
-          }
-          if (addressDocument == null && roleIndex < addressDocuments.length) {
-            addressDocument = addressDocuments[roleIndex];
-          }
-        }
+      final identities =
+          associatedPeople.map(_associatedPersonIdentityKey).toList();
+      final identityEvidence =
+          _evidenceByIdentity(identities, identityDocuments);
+      final addressEvidence = _evidenceByIdentity(identities, addressDocuments);
+      for (var index = 0; index < personIds.length; index++) {
+        final identityDocument = identityEvidence[identities[index]];
+        final addressDocument = addressEvidence[identities[index]];
         if (identityDocument != null) {
           await api.uploadBusinessOnboardingDocument(
             purpose: 'PROOF_OF_IDENTITY',
             path: identityDocument.path,
             bytes: identityDocument.bytes,
             fileName: identityDocument.name,
-            associatedPersonId: personIds[uniqueIndex],
+            associatedPersonId: personIds[index],
           );
         }
         if (addressDocument != null) {
@@ -235,17 +214,32 @@ class BusinessFormController extends AsyncNotifier<void> {
             path: addressDocument.path,
             bytes: addressDocument.bytes,
             fileName: addressDocument.name,
-            associatedPersonId: personIds[uniqueIndex],
+            associatedPersonId: personIds[index],
           );
         }
       }
-
-      // Compliance is completed on the next screen before submission.
     });
     ref.invalidate(dashboardProvider);
     ref.invalidate(onboardingProvider);
     ref.invalidate(businessOnboardingStatusProvider);
   }
+}
+
+// A person holding multiple roles has one draft record per role.
+Map<String, BusinessDocumentUpload> _evidenceByIdentity(
+  List<String> identities,
+  List<BusinessDocumentUpload?> evidence,
+) {
+  final result = <String, BusinessDocumentUpload>{};
+  for (var index = 0;
+      index < identities.length && index < evidence.length;
+      index++) {
+    final document = evidence[index];
+    if (document != null) {
+      result.putIfAbsent(identities[index], () => document);
+    }
+  }
+  return result;
 }
 
 String _associatedPersonIdentityKey(Map<String, Object?> person) {
@@ -257,20 +251,4 @@ String _associatedPersonIdentityKey(Map<String, Object?> person) {
     normalized('dateOfBirth'),
     normalized('emailAddress'),
   ].join('|');
-}
-
-List<Map<String, dynamic>> _extractCreatedPeople(Map<String, dynamic> json) {
-  final value =
-      json['associatedPeople'] ?? json['AssociatedPeople'] ?? json['data'];
-  if (value is List) {
-    return value
-        .whereType<Map>()
-        .map((item) => Map<String, dynamic>.from(item))
-        .toList();
-  }
-  if (json['id'] != null || json['Id'] != null) {
-    return [json];
-  }
-
-  return const [];
 }

@@ -85,12 +85,15 @@ sequenceDiagram
 
     App->>Api: Request with Authorization: Bearer <jwt>
     Api->>Auth: Validate issuer, audience, expiry, signing key
+    Auth->>Auth: Check live local account, tenant and refresh session
     Auth->>Controller: Attach user claims and roles
     Controller->>Controller: Enforce role_user or role_admin policy
     Controller-->>App: JSON result or RFC 7807 problem response
 ```
 
 Mobile endpoints use `AuthorizationPolicyNames.User`. Admin endpoints use `AuthorizationPolicyNames.Admin`.
+
+Normal bearer tokens require one valid `local_user_id`, `company_installation_id`, and `sid` claim. Each request checks the matching stored session and account. Locked accounts, revoked or expired sessions, and unfinished signup placeholders cannot authenticate. Refresh rotation invalidates the previous access token; clients must use the replacement token returned with the new session. The separately signed dashboard support bridge retains its own authentication scheme.
 
 The mobile API resolves the Hoppa user id from one of these JWT claims:
 
@@ -287,7 +290,7 @@ Typical mobile route groups:
 | --- | --- | --- |
 | Personal onboarding | `/api/v1/mobile/onboarding` | `/api/v2/users/{userId}/onboarding/*` |
 | KYC and SumSub | `/api/v1/mobile/kyc` | `/api/v2/users/{userId}/kyc/*`, `/api/v2/users/{userId}/sumsub/*` |
-| Business onboarding | `/api/v1/mobile/business-onboarding` | `/api/v2/business/onboarding/*` |
+| Equals Money business onboarding | `/api/v1/mobile/business-onboarding` | Workflow, local KYB draft and evidence, and due diligence routes listed below |
 | Company configuration | `/api/v1/mobile/config` | Local tenant-safe feature and branding projection |
 | Referrals and vouchers | `/api/v1/mobile/rewards` | `/api/v2/users/{userId}/referrals/*`, `/api/v2/vouchers/*` |
 | Banking, balances, budgets, payees | `/api/v1/mobile/banking` | `/api/v2/banking/*`, `/api/v2/banking/users/{userId}/*` |
@@ -297,6 +300,33 @@ Typical mobile route groups:
 | Transfers and crypto movement | `/api/v1/mobile/transfers` | `/api/v2/transfers/*` |
 | Wallets and assets | `/api/v1/mobile/wallets`, `/api/v1/mobile/assets` | `/api/v2/users/{userId}/wallets`, `/api/v2/users/{userId}/assets` |
 | Transactions | `/api/v1/mobile/transactions` | `/api/v2/transactions/*` |
+
+## Equals Money business onboarding
+
+Use a staging company with Equals Money enabled and an eligible business tier. The mobile app signs up with `accountType: business`. Server-to-server integrations create a business user with `POST /api/v2/users` and `AccountType: business`. Keep the returned Hoppa user ID. The sample backend takes that ID from the authenticated session and sends it as `?userId=` with the company's `x-api-key` on user-scoped upstream calls.
+
+The mobile paths below are relative to `/api/v1/mobile/business-onboarding`.
+
+| Step | Mobile backend | Hoppa API |
+| --- | --- | --- |
+| Read current workflow state, eligible tiers and payments | `GET /workflow` | `GET /api/v2/business-onboarding` |
+| Select a tier returned by the workflow | `POST /workflow/tier` | `POST /api/v2/business-onboarding/tier` with `TierId` as an integer |
+| Complete the initial payment if the workflow requires it | `POST /workflow/payments/{paymentId}/checkout` | `POST /api/v2/business-onboarding/payments/{paymentId}/checkout` with `TermsAccepted: true` after the user accepts the terms |
+| Load allowed values for the KYB form | `GET /options` | `GET /api/v2/business/onboarding/options` |
+| Save company details and associated people together | `POST /workflow/draft` | `POST /api/v2/dashboard/kyb/submit` with an `AssociatedPeople` array in the draft |
+| Upload each required document | `POST /documents` or `POST /associated-people/{associatedPersonId}/documents` | `POST /api/v2/dashboard/kyb/documents` with multipart `File`, `Purpose`, and `AssociatedPersonId` for a person's document |
+| Read and complete the due diligence checklist | `GET /compliance`, `POST /compliance/requirements`, `POST /compliance/draft`, `POST /compliance` | Corresponding `/api/v2/business/onboarding/compliance` operations |
+| Request assessment | `POST /workflow/assess` | `POST /api/v2/business-onboarding/assess` |
+| Track progress and any additional payment | `GET /workflow` | `GET /api/v2/business-onboarding` |
+| Read the provider application after submission | `GET /application` | `GET /api/v2/business/onboarding/application` |
+
+After checkout, read the workflow again and wait for Hoppa to confirm payment. The draft response returns `DRAFT` and local associated person IDs. Upload `PROOF_OF_FORMATION` for the business and `PROOF_OF_IDENTITY` and `PROOF_OF_ADDRESS` against each person's returned ID. Use the compliance requirements for any additional evidence. Read `GET /compliance` to reload the saved draft, evidence and due diligence details after closing the app. If an edited person receives a new ID after you save, upload their evidence against the new ID.
+
+The upstream assessment response is HTTP `202` with `status: ASSESSMENT_PENDING`. Hoppa submits the application to Equals Money after its risk checks, any required manual review and payment. If the workflow shows an outstanding balance, use its payment ID with the same checkout route and refresh the workflow afterward. `SUBMITTED` confirms delivery to Equals Money. Provider approval is a later status.
+
+The previous direct POST calls under `/api/v2/business/onboarding` for creating associated people, creating and submitting an application, and uploading its documents return `409 BUSINESS_WORKFLOW_REQUIRED`. The table gives the routes to use for new applications.
+
+For a staging check, run through the table with a new test business, synthetic data and test documents. Confirm the draft returns local IDs before evidence upload and that the assessment request returns `ASSESSMENT_PENDING`. Verify provider delivery by waiting for `SUBMITTED` and reading the provider application.
 
 ## Admin Implementation Order
 
@@ -405,10 +435,14 @@ The backend sends three customer emails through an admin-editable template layer
 | Template key | Trigger | Backend endpoint(s) |
 | --- | --- | --- |
 | `password_reset` | Customer taps "Forgot password" | `POST /api/v1/mobile/auth/password/forgot` then `POST /api/v1/mobile/auth/password/reset` |
-| `email_verification` | Account created via signup | `POST /api/v1/mobile/auth/signup` sends it; `POST /api/v1/mobile/auth/email/verify` confirms, `POST /api/v1/mobile/auth/email/resend` re-issues |
+| `email_verification` | Signup email proof, or confirmation for an existing account | `POST /api/v1/mobile/auth/signup/email-code` requests signup proof; `POST /api/v1/mobile/auth/signup` consumes `emailVerificationCode`. Existing accounts use `POST /api/v1/mobile/auth/email/verify` and `POST /api/v1/mobile/auth/email/resend`. |
 | `account_connected` | Existing Hoppa account connected by email code or QR transfer | `POST /api/v1/mobile/auth/account-claim/complete`, `POST /api/v1/mobile/auth/account-link/complete` |
 
-Codes are six digits, hashed at rest (`user_verification_codes`), expire after `Email:PasswordResetCodeMinutes` / `Email:VerificationCodeMinutes`, allow five wrong attempts, and re-issue at most once per `Email:ResendCooldownSeconds`. "Request a code" endpoints always answer `202` so accounts cannot be enumerated. A successful password reset revokes every refresh session for the user.
+Signup must verify email before creating any upstream user. Request a code with the email address, then submit the signup details and `emailVerificationCode` together. The request creates only a local `pending_signup` placeholder: it has no password, login identity, provider account, or session. Signup codes are six digits, expire after ten minutes, allow five failed attempts, and can be consumed only once. Resends have a sixty-second cooldown and a maximum of three codes per email per hour; separate per-instance IP limits apply to code requests and signup submissions. Existing or unavailable accounts receive the same generic accepted response when registration is available. Invalid requests, unavailable registration, and rate limits return their corresponding error status.
+
+Other codes are hashed at rest (`user_verification_codes`), expire after `Email:PasswordResetCodeMinutes` / `Email:VerificationCodeMinutes`, allow five wrong attempts, and re-issue at most once per `Email:ResendCooldownSeconds`. A successful password reset revokes every refresh session for the user.
+
+Deploy the backend and updated clients together. Older clients that omit signup email proof cannot register. The configured upstream API must expose `/api/v2/users/registration-policy` and `/api/v2/users/self-registration`; unavailable or malformed policy responses fail closed. Signup must include the selected residence `countryCode` and any required `referralCode`. The server validates the authoritative company policy before consuming the email proof and creating the upstream account.
 
 Configuration (`Email` section):
 
@@ -434,7 +468,7 @@ Configuration (`Email` section):
 
 Admin editing: the **Email templates** page in `admin_vue` (`/email-templates`, backed by `/api/v1/admin/email-templates`) lets operators change the subject, HTML body, and plain-text body per template, toggle a template off, restore the built-in default, preview with sample data, send a test email, and review recent deliveries. Templates use `{{placeholder}}` tokens; the backend rejects unknown placeholders and requires `{{code}}` in the two code-based templates. Placeholder values are HTML-escaped inside the HTML body. Company values (`appName`, `companyName`, `supportEmail`, `brandColor`) come from the `Company` configuration section.
 
-The Flutter app does not yet expose the forgot-password, email-confirmation, or resend screens; wire them to the endpoints above.
+The Flutter signup flow requests the code and collects it before account creation, and supports retry and resend without persisting the password. Existing password-recovery and email-confirmation flows retain their separate endpoints.
 
 ### Editing templates in the admin panel
 

@@ -6,39 +6,96 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/core/models/banking_models.dart';
 import 'package:mobile_flutter/features/banking/data/mobile_banking_api.dart';
+import 'package:mobile_flutter/features/business/application/business_draft.dart';
 
 void main() {
-  test('business tax IDs and multi-role links survive the backend payload mapping', () async {
+  test('saves a local business draft with full people and roles', () async {
     final dio = Dio();
     dio.httpClientAdapter = _RecordingAdapter((options, body) {
+      expect(options.path, '/api/v1/mobile/business-onboarding/workflow/draft');
       final payload = jsonDecode(body) as Map<String, dynamic>;
-      if (options.path.endsWith('associated-people')) {
-        expect(payload['People'][0]['taxId'], 'PERSON-TAX');
-        expect(payload['People'][0]['address']['region'], 'Kyiv');
-        return ResponseBody.fromString('[{"id":"person-1"}]', 200, headers: {Headers.contentTypeHeader: [Headers.jsonContentType]});
-      }
-      expect(payload['TaxId'], 'BUSINESS-TAX');
-      expect(payload['AssociatedPeople'], hasLength(3));
-      expect(payload['AssociatedPeople'][2]['OwnershipPercentage'], 0);
-      return ResponseBody.fromString('{"id":"draft-1"}', 200, headers: {Headers.contentTypeHeader: [Headers.jsonContentType]});
+      expect(payload['taxId'], 'BUSINESS-TAX');
+      expect(payload['industry'], {'main': 'INFORMATION_AND_COMMUNICATION'});
+      expect(payload['registeredAddress']['country'], 'GB');
+      expect(payload['contactEmail'], 'alex@example.test');
+      final people = payload['associatedPeople'] as List;
+      expect(people.map((person) => person['associationType']), [
+        'APPLICANT',
+        'DIRECTOR',
+        'ULTIMATE_BENEFICIAL_OWNER',
+      ]);
+      expect(people.first['taxId'], 'PERSON-TAX');
+      expect(people.first['address'], {
+        'addressLine1': 'Main Street',
+        'addressLine2': null,
+        'buildingNumber': '1',
+        'city': 'Kyiv',
+        'region': 'Kyiv',
+        'postcode': '01001',
+        'country': 'UA',
+      });
+      expect(people.last['ownershipPercentage'], 0);
+      return ResponseBody.fromString(
+        '{"success":true,"status":"DRAFT","associatedPeople":[{"id":"1"},{"id":"2"},{"id":"3"}]}',
+        200,
+        headers: {Headers.contentTypeHeader: [Headers.jsonContentType]},
+      );
     });
-    final api = MobileBankingApi(dio);
-    await api.createBusinessAssociatedPeople([{'firstName':'Alex','taxId':'PERSON-TAX','address':{'addressLine1':'Main street','region':'Kyiv','countryCode':'UA'}}]);
-    await api.submitDirectEqualsBusinessApplication({'taxId':'BUSINESS-TAX','associatedPeople':[
-      {'associatedPersonId':'person-1','associationType':'APPLICANT'},
-      {'associatedPersonId':'person-1','associationType':'DIRECTOR'},
-      {'associatedPersonId':'person-1','associationType':'ULTIMATE_BENEFICIAL_OWNER','ownershipPercentage':0},
-    ]});
+    final person = {
+      'firstName': 'Alex',
+      'lastName': 'Smith',
+      'emailAddress': 'alex@example.test',
+      'taxId': 'PERSON-TAX',
+      'nationalities': ['UA'],
+      'addresses': [
+        {
+          'streetName': 'Main Street',
+          'buildingNumber': '1',
+          'city': 'Kyiv',
+          'region': 'Kyiv',
+          'postcode': '01001',
+          'countryCode': 'UA',
+        },
+      ],
+    };
+    final draft = localBusinessDraft({
+      'type': 'PRIVATE_COMPANY',
+      'taxId': 'BUSINESS-TAX',
+      'industry': {'main': 'INFORMATION_AND_COMMUNICATION'},
+      'addresses': [
+        {'addressType': 'REGISTERED', 'countryCode': 'GB'},
+      ],
+    }, [
+      {...person, 'associationType': 'APPLICANT'},
+      {...person, 'associationType': 'DIRECTOR'},
+      {
+        ...person,
+        'associationType': 'ULTIMATE_BENEFICIAL_OWNER',
+        'ownershipPercentage': 0,
+      },
+    ]);
+    final response = await MobileBankingApi(dio).saveBusinessDraft(draft);
+    expect(response['status'], 'DRAFT');
   });
 
-  test('business uploads retain the internal compliance evidence reference', () async {
+  test('business uploads return the local evidence reference', () async {
     final dio = Dio();
-    dio.httpClientAdapter = _RecordingAdapter((options, body) => ResponseBody.fromString(
-      '{"id":"external-document","complianceDocumentId":42}', 200,
-      headers: {Headers.contentTypeHeader: [Headers.jsonContentType]}));
-    final response = await MobileBankingApi(dio).uploadBusinessOnboardingDocument(purpose: 'PROOF_OF_FORMATION', bytes: Uint8List.fromList([1]), fileName: 'formation.pdf');
-    expect(response['complianceDocumentId'], 42);
-    expect(response['id'], 'external-document');
+    dio.httpClientAdapter = _RecordingAdapter((options, body) {
+      expect(options.path,
+          '/api/v1/mobile/business-onboarding/associated-people/7/documents');
+      return ResponseBody.fromString(
+        '{"success":true,"documentId":42}',
+        200,
+        headers: {Headers.contentTypeHeader: [Headers.jsonContentType]},
+      );
+    });
+    final response = await MobileBankingApi(dio).uploadBusinessOnboardingDocument(
+      purpose: 'PROOF_OF_IDENTITY',
+      bytes: Uint8List.fromList([1]),
+      fileName: 'identity.pdf',
+      associatedPersonId: '7',
+    );
+    expect(response['documentId'], 42);
   });
 
   test(
@@ -473,53 +530,6 @@ void main() {
     expect(accounts.single.currencyBalances.single.minorUnits, 0);
   });
 
-  test('maps associated people to the EqualsMoney public API contract',
-      () async {
-    final dio = Dio();
-    dio.httpClientAdapter = _RecordingAdapter((options, body) {
-      expect(
-          options.path, '/api/v1/mobile/business-onboarding/associated-people');
-      final payload = jsonDecode(body) as Map<String, dynamic>;
-      final person = (payload['People'] as List).single as Map<String, dynamic>;
-      expect(person['associationType'], isNull);
-      expect(person['address']['addressLine1'], '1 Sandbox Way');
-      expect(person['address']['townCity'], 'London');
-      expect(person['address']['countryCode'], 'GB');
-      return ResponseBody.fromString(
-        jsonEncode([
-          {'id': 'person_123'},
-        ]),
-        200,
-        headers: {
-          Headers.contentTypeHeader: [Headers.jsonContentType],
-        },
-      );
-    });
-
-    final response =
-        await MobileBankingApi(dio).createBusinessAssociatedPeople([
-      {
-        'firstName': 'Rok',
-        'lastName': 'Kogovsek',
-        'dateOfBirth': '1990-04-12',
-        'emailAddress': 'owner@example.test',
-        'nationalities': ['GB'],
-        'associationType': 'APPLICANT',
-        'addresses': [
-          {
-            'streetName': 'Sandbox Way',
-            'buildingNumber': '1',
-            'postcode': 'EC1A 1BB',
-            'city': 'London',
-            'countryCode': 'GB',
-          },
-        ],
-      },
-    ]);
-
-    expect((response['associatedPeople'] as List).single['id'], 'person_123');
-  });
-
   test('adds back-only tier artwork to a card that already has a front',
       () async {
     final dio = Dio();
@@ -659,64 +669,22 @@ void main() {
     expect(cards.single.network, 'MasterCard');
   });
 
-  test('maps the mobile business form to the EqualsMoney application schema',
-      () async {
+  test('a business assessment requires a queued response', () async {
     final dio = Dio();
+    var attempts = 0;
     dio.httpClientAdapter = _RecordingAdapter((options, body) {
-      expect(options.path, '/api/v1/mobile/business-onboarding/application');
-      final payload = jsonDecode(body) as Map<String, dynamic>;
-      expect(payload['BusinessType'], 'PRIVATE_COMPANY');
-      expect(payload['IndustryMain'], 'INFORMATION_AND_COMMUNICATION');
-      expect(payload['IndustrySub'], 'SOFTWARE_DESIGN_AND_MAINTENANCE');
-      expect(payload['RequestedFeatures'], ['PAYMENTS']);
-      expect(payload['Addresses'][0]['AddressType'], 'REGISTERED');
-      expect(
-          payload['AssociatedPeople'][0]['AssociatedPersonId'], 'person_123');
-      expect(payload['AssociatedPeople'][0]['OwnershipPercentage'], 100);
-      expect(payload['type'], isNull);
-      expect(payload['industry'], isNull);
+      expect(options.path, '/api/v1/mobile/business-onboarding/workflow/assess');
+      expect(options.method, 'POST');
+      attempts++;
       return ResponseBody.fromString(
-        jsonEncode({'id': 'application_123'}),
-        200,
-        headers: {
-          Headers.contentTypeHeader: [Headers.jsonContentType],
-        },
+        attempts == 1 ? '{}' : '{"status":"ASSESSMENT_PENDING"}',
+        attempts == 1 ? 200 : 202,
+        headers: {Headers.contentTypeHeader: [Headers.jsonContentType]},
       );
     });
-
-    await MobileBankingApi(dio).submitDirectEqualsBusinessApplication({
-      'market': 'UK',
-      'type': 'PRIVATE_COMPANY',
-      'countryOfIncorporation': 'GB',
-      'registeredName': 'Albion Sandbox Software Ltd',
-      'businessOverview': 'Sandbox software services.',
-      'industry': {
-        'main': 'INFORMATION_AND_COMMUNICATION',
-        'sub': 'SOFTWARE_DESIGN_AND_MAINTENANCE',
-      },
-      'employeeCount': 'ONE_TO_TEN',
-      'incorporationDate': '2022-06-15',
-      'featureInformation': {
-        'requestedFeatures': ['PAYMENTS'],
-      },
-      'addresses': [
-        {
-          'addressType': 'REGISTERED',
-          'streetName': 'Sandbox Way',
-          'buildingNumber': '1',
-          'postcode': 'EC1A 1BB',
-          'city': 'London',
-          'countryCode': 'GB',
-        },
-      ],
-      'associatedPeople': [
-        {
-          'associatedPersonId': 'person_123',
-          'associationType': 'ULTIMATE_BENEFICIAL_OWNER',
-          'ownershipPercentage': 100.0,
-        },
-      ],
-    });
+    final api = MobileBankingApi(dio);
+    await expectLater(api.requestBusinessAssessment(), throwsStateError);
+    await api.requestBusinessAssessment();
   });
 
   test('uploads browser-selected business documents from bytes', () async {
@@ -724,12 +692,17 @@ void main() {
     dio.httpClientAdapter = _RecordingAdapter((options, body) {
       expect(
         options.path,
-        '/api/v1/mobile/business-onboarding/application/documents',
+        '/api/v1/mobile/business-onboarding/documents',
       );
       expect(body, contains('PROOF_OF_FORMATION'));
       expect(body, contains('formation.pdf'));
       expect(body, contains('PDF'));
-      return ResponseBody.fromString('', 204);
+      expect(body, contains('application/pdf'));
+      return ResponseBody.fromString(
+        '{"success":true,"documentId":42}',
+        200,
+        headers: {Headers.contentTypeHeader: [Headers.jsonContentType]},
+      );
     });
 
     await MobileBankingApi(dio).uploadBusinessOnboardingDocument(

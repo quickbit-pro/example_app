@@ -1,7 +1,9 @@
 import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/routes.dart';
 import '../../../brands/example/example.dart';
 import '../../../core/models/banking_models.dart';
 import '../../../core/models/platform_models.dart';
@@ -56,7 +58,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
     ]);
   }
 
-  // -- the six creation flows, shared by both brands ------------------------
+  // -- payment actions, shared by both brands ------------------------------
 
   void _createPayment() => _showPaymentForm(
         context,
@@ -102,20 +104,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
         ),
       );
 
-  void _createPayout() => _showPaymentForm(
-        context,
-        ref,
-        title: context.tr('Create payout'),
-        primaryLabel: 'Create payout',
-        icon: Icons.outbox,
-        referenceLabel: 'Destination address',
-        defaultReference: '',
-        currencies: const ['USDC', 'USDT', 'BTC', 'ETH', 'EUR'],
-        submit: (api, form) => api.createPayout(
-          destination: form.reference,
-          amount: form.money,
-        ),
-      );
+  void _sendPayment() => context.go(AppRoutes.pay);
 
   void _withdraw() => _showPaymentForm(
         context,
@@ -198,9 +187,9 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
             ),
             PlatformActionRow(
               icon: Icons.outbox_outlined,
-              label: context.tr('Create payout'),
-              description: context.tr('Send funds to an external address'),
-              onPressed: (context, ref) => _createPayout(),
+              label: context.tr('Send payment'),
+              description: context.tr('Use Money to send a payment'),
+              onPressed: (context, ref) => _sendPayment(),
             ),
             PlatformActionRow(
               icon: Icons.account_balance_wallet_outlined,
@@ -329,7 +318,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
     );
   }
 
-  // -- every other brand: the pre-Example tree, unchanged --------------------
+  // -- every other brand --------------------------------------------------
 
   Widget _legacyBody() {
     final payments = ref.watch(paymentsProvider);
@@ -343,7 +332,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
           onCreatePayment: _createPayment,
           onCreateMandate: _createMandate,
           onRequestPayment: _requestPayment,
-          onCreatePayout: _createPayout,
+          onSendPayment: _sendPayment,
           onWithdraw: _withdraw,
           onWithdrawalFee: _withdrawalFee,
         ),
@@ -428,7 +417,7 @@ class _ActionGrid extends StatelessWidget {
     required this.onCreatePayment,
     required this.onCreateMandate,
     required this.onRequestPayment,
-    required this.onCreatePayout,
+    required this.onSendPayment,
     required this.onWithdraw,
     required this.onWithdrawalFee,
   });
@@ -436,7 +425,7 @@ class _ActionGrid extends StatelessWidget {
   final VoidCallback onCreatePayment;
   final VoidCallback onCreateMandate;
   final VoidCallback onRequestPayment;
-  final VoidCallback onCreatePayout;
+  final VoidCallback onSendPayment;
   final VoidCallback onWithdraw;
   final VoidCallback onWithdrawalFee;
 
@@ -467,8 +456,8 @@ class _ActionGrid extends StatelessWidget {
         ),
         _ActionTile(
           icon: Icons.outbox,
-          label: context.tr('Create payout'),
-          onPressed: onCreatePayout,
+          label: context.tr('Send payment'),
+          onPressed: onSendPayment,
         ),
         _ActionTile(
           icon: Icons.account_balance_wallet_outlined,

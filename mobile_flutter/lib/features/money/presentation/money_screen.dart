@@ -25,6 +25,7 @@ import '../../platform/presentation/onboarding_banking_screen.dart';
 import '../../wallets/domain/wallet_models.dart';
 import '../../wallets/presentation/wallets_screen.dart';
 import '../domain/payment_balance_options.dart';
+import '../domain/payout_quote_validation.dart';
 import 'accounts_hub_header.dart';
 import '../../wallets/presentation/exchange_panel.dart';
 import '../domain/bank_payee_draft.dart';
@@ -1701,11 +1702,14 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
   PayoutQuote? _quote;
   PayoutCheck? _check;
   String _verificationToken = '';
+  String _payoutPayeeId = '';
+  String _payoutBalanceId = '';
   String _errorMessage = '';
   bool _loading = false;
   Map<String, dynamic>? _paymentSummary;
   bool _otpSent = false;
   Timer? _quoteRefreshTimer;
+  int _quoteRequest = 0;
 
   @override
   void dispose() {
@@ -2063,6 +2067,7 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
       return;
     }
 
+    _quoteRequest++;
     try {
       setState(() {
         _loading = true;
@@ -2076,14 +2081,25 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
             showErrors: true,
           );
       final api = ref.read(mobileBankingApiProvider);
-      final amount = _amountValue();
+      final quotedRequest = _quoteRequest;
+      final amount = quote.targetAmount;
+      final fundingError = payoutFundingError(quote, selectedAccount);
+      if (fundingError != null) {
+        setState(() => _errorMessage = fundingError);
+        return;
+      }
+      final balanceId = selectedAccount.budgetId.isNotEmpty
+          ? selectedAccount.budgetId
+          : selectedAccount.id;
       final check = await api.checkPayout(
         payeeId: selectedPayee.id,
         quotationId: quote.id,
         amount: amount,
-        currency: _currency!,
+        currency: quote.targetCurrency,
+        balanceId: balanceId,
         memo: _referenceController.text.trim(),
       );
+      if (!mounted || quotedRequest != _quoteRequest) return;
       if (!check.pass) {
         setState(() {
           _check = check;
@@ -2100,10 +2116,11 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
         quoteRequestId: quote.quoteRequestId,
         payeeId: selectedPayee.id,
         amount: amount,
-        currency: _currency!,
-        balanceId: selectedAccount.id,
+        currency: quote.targetCurrency,
+        balanceId: balanceId,
         fromCurrency: quote.sourceCurrency,
       );
+      if (!mounted || quotedRequest != _quoteRequest) return;
 
       if (!otp.success || otp.verificationToken.isEmpty) {
         throw StateError(
@@ -2116,6 +2133,8 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
         _paymentSummary = otp.paymentSummary;
         _check = check;
         _verificationToken = otp.verificationToken;
+        _payoutPayeeId = selectedPayee.id;
+        _payoutBalanceId = balanceId;
         _otpSent = true;
         _otpController.clear();
       });
@@ -2136,23 +2155,12 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
       return;
     }
     if (_verificationToken.isEmpty ||
-        _payeeKey == null ||
-        _accountKey == null) {
+        _payoutPayeeId.isEmpty ||
+        _payoutBalanceId.isEmpty) {
       setState(
           () => _errorMessage = 'Request a new OTP code before confirming.');
       return;
     }
-
-    final accounts = ref.read(accountsProvider).valueOrNull ?? const [];
-    final payees = ref.read(payeesProvider).valueOrNull ?? const [];
-    if (accounts.isEmpty || payees.isEmpty) {
-      setState(
-          () => _errorMessage = 'Accounts or payees are no longer available.');
-      return;
-    }
-    final selectedAccount =
-        _selectedAccountEntry(_accountOptions(accounts)).account;
-    final selectedPayee = _selectedPayeeEntry(_payeeOptions(payees)).payee;
 
     try {
       setState(() {
@@ -2182,10 +2190,10 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
         checkId: _check?.id ?? '',
         quoteRequestId: latestQuote.quoteRequestId,
         verificationToken: verifiedToken,
-        payeeId: selectedPayee.id,
-        amount: _amountValue(),
-        currency: _currency!,
-        balanceId: selectedAccount.id,
+        payeeId: _payoutPayeeId,
+        amount: latestQuote.targetAmount,
+        currency: latestQuote.targetCurrency,
+        balanceId: _payoutBalanceId,
         fromCurrency: latestQuote.sourceCurrency,
       );
 
@@ -2251,14 +2259,28 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
     AccountBalance selectedAccount, {
     required bool showErrors,
   }) async {
+    final request = ++_quoteRequest;
+    final amount = _amountValue();
+    final targetCurrency = fallbackText(selectedPayee.currency, _currency!);
     final quote = await ref.read(mobileBankingApiProvider).createPayoutQuote(
           payeeId: selectedPayee.id,
-          amount: _amountValue(),
+          amount: amount,
           sourceCurrency: _currency!,
-          targetCurrency: fallbackText(selectedPayee.currency, _currency!),
+          targetCurrency: targetCurrency,
           lastQuoteId: _quote?.id,
+          balanceId: selectedAccount.budgetId.isNotEmpty
+              ? selectedAccount.budgetId
+              : selectedAccount.id,
         );
 
+    if (request != _quoteRequest) {
+      throw StateError('The payment details changed. Request a new quote.');
+    }
+    if (!payoutQuoteMatches(quote, amount: amount, currency: targetCurrency)) {
+      if (mounted && !_otpSent) setState(_resetPayoutState);
+      throw StateError(
+          'The bank did not quote the requested recipient amount. Request a new quote.');
+    }
     if (mounted && !_otpSent) {
       setState(() {
         _quote = quote;
@@ -2277,7 +2299,7 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
   ) {
     _quoteRefreshTimer?.cancel();
     _quoteRefreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      if (!mounted || _quote == null) {
+      if (!mounted || _loading || _quote == null) {
         return;
       }
       _refreshQuoteSilently(selectedPayee, selectedAccount);
@@ -2299,10 +2321,13 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
 
   void _resetPayoutState() {
     _quoteRefreshTimer?.cancel();
+    _quoteRequest++;
     _quote = null;
     _paymentSummary = null;
     _check = null;
     _verificationToken = '';
+    _payoutPayeeId = '';
+    _payoutBalanceId = '';
     _errorMessage = '';
     _otpSent = false;
     _otpController.clear();
@@ -2473,6 +2498,7 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
   String _payeeErrorMessage = '';
   String _payeeStatusMessage = '';
   bool _payeeOtpSent = false;
+  bool _payeeOtpLocked = false;
   bool _payeeLoading = false;
   bool _clearingPayeeForm = false;
   bool _showPayeeForm = false;
@@ -2949,14 +2975,16 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
                       : Icons.person_add_alt,
                   loading: _payeeLoading,
                   onPressed: _payeeLoading ||
-                          (_payeeOtpSent && !_payeeCheckAllowsConfirm)
+                          (_payeeOtpSent &&
+                              (_payeeOtpLocked || !_payeeCheckAllowsConfirm))
                       ? null
                       : (_payeeOtpSent ? _confirmPayee : _startPayeeOtp),
                 )
               else
                 FilledButton.icon(
                   onPressed: _payeeLoading ||
-                          (_payeeOtpSent && !_payeeCheckAllowsConfirm)
+                          (_payeeOtpSent &&
+                              (_payeeOtpLocked || !_payeeCheckAllowsConfirm))
                       ? null
                       : (_payeeOtpSent ? _confirmPayee : _startPayeeOtp),
                   icon: Icon(_payeeOtpSent
@@ -3130,7 +3158,7 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
   }
 
   Future<void> _confirmPayee() async {
-    if (!_payeeCheckAllowsConfirm) return;
+    if (_payeeOtpLocked || !_payeeCheckAllowsConfirm) return;
     final otpCode = _payeeOtpController.text.trim();
     if (otpCode.length != 8) {
       setState(() => _payeeErrorMessage = 'Enter the full 8-digit OTP code.');
@@ -3153,6 +3181,7 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
                 otpCode: otpCode,
               );
       if (!verification.success) {
+        _payeeOtpLocked = verification.isLocked;
         throw StateError(
           verification.message.isEmpty
               ? 'The OTP code was not accepted.'
@@ -3173,7 +3202,9 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
         setState(_clearPayeeForm);
       }
     } catch (error) {
-      setState(() => _payeeErrorMessage = friendlyErrorMessage(error));
+      if (mounted) {
+        setState(() => _payeeErrorMessage = friendlyErrorMessage(error));
+      }
     } finally {
       if (mounted) {
         setState(() => _payeeLoading = false);
@@ -3202,7 +3233,9 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
       if (!mounted) {
         return;
       }
+      _payeeOtpController.clear();
       setState(() {
+        _payeeOtpLocked = false;
         _payeeStatusMessage =
             result.message.isEmpty ? 'OTP code resent.' : result.message;
       });
@@ -3225,6 +3258,7 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
   }
 
   void _resetPayeeVerification() {
+    _payeeOtpLocked = false;
     _payeeNameCheck = null;
     _payeeCheckAcknowledged = false;
     _payeeVerificationToken = '';
@@ -3821,7 +3855,7 @@ class _PayoutQuoteCard extends StatelessWidget {
                   '${paymentSummary!['totalDebit']} ${paymentSummary!['debitCurrency']}'),
         ] else ...[
           _QuoteRow(
-            label: context.tr('Sending'),
+            label: context.tr('Debit before fees'),
             value:
                 '${quote.sourceCurrency} ${quote.sourceAmount.toStringAsFixed(2)}',
           ),
@@ -3831,6 +3865,11 @@ class _PayoutQuoteCard extends StatelessWidget {
                 '${quote.targetCurrency} ${quote.targetAmount.toStringAsFixed(2)}',
           ),
           _QuoteRow(label: context.tr('Fee'), value: quote.feeLabel),
+          _QuoteRow(
+            label: context.tr('Total debit'),
+            value:
+                payoutTotalDebit(quote)?.formatted ?? context.tr('Unavailable'),
+          ),
           _QuoteRow(label: context.tr('Rate'), value: quote.rateLabel),
         ],
         if (expiresAt != null && !(otpSent && paymentSummary != null))

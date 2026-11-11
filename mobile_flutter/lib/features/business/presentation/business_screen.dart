@@ -13,19 +13,28 @@ import '../../../app/shell/banking_shell.dart';
 import '../../../core/models/equals_money.dart';
 import '../../../core/widgets/app_states.dart';
 import '../../../shared/widgets/additional_information_dialog.dart';
+import '../../../shared/widgets/app_progress_indicator.dart';
 import '../../../shared/widgets/searchable_multi_select_dropdown.dart';
 import '../../platform/application/platform_providers.dart';
 import '../application/business_providers.dart';
-import '../../../shared/widgets/app_progress_indicator.dart';
+import 'business_gate.dart';
 
-class BusinessScreen extends ConsumerStatefulWidget {
+class BusinessScreen extends StatelessWidget {
   const BusinessScreen({super.key});
 
   @override
-  ConsumerState<BusinessScreen> createState() => _BusinessScreenState();
+  Widget build(BuildContext context) =>
+      const BusinessGate(child: _BusinessDraftScreen());
 }
 
-class _BusinessScreenState extends ConsumerState<BusinessScreen> {
+class _BusinessDraftScreen extends ConsumerStatefulWidget {
+  const _BusinessDraftScreen();
+
+  @override
+  ConsumerState<_BusinessDraftScreen> createState() => _BusinessScreenState();
+}
+
+class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
   final _formKey = GlobalKey<FormState>();
   final _registeredNameController = TextEditingController();
   final _tradingNameController = TextEditingController();
@@ -64,7 +73,6 @@ class _BusinessScreenState extends ConsumerState<BusinessScreen> {
   final _applicantCityController = TextEditingController();
   final _applicantRegionController = TextEditingController();
 
-  String _market = 'UK';
   String _industryMain = '';
   String _industrySub = '';
   String _businessType = 'PRIVATE_COMPANY';
@@ -146,6 +154,8 @@ class _BusinessScreenState extends ConsumerState<BusinessScreen> {
     final isExample = context.isExampleTheme;
     final state = ref.watch(businessFormControllerProvider);
     final onboardingStatus = ref.watch(businessOnboardingStatusProvider);
+    final workflow = ref.watch(businessWorkflowProvider).valueOrNull;
+    final workflowSubmitted = workflow?['state'] == 'SUBMITTED';
     final onboardingOptions = ref.watch(businessOnboardingOptionsProvider);
     final industries = onboardingOptions.valueOrNull?.industries ?? const [];
     final selectedIndustry = industries
@@ -165,26 +175,13 @@ class _BusinessScreenState extends ConsumerState<BusinessScreen> {
             .map((industry) => industry.label)
             .firstOrNull ??
         _label(key);
-    final submitted = onboardingStatus.valueOrNull != null &&
-        _businessApplicationSubmitted(onboardingStatus.valueOrNull!);
-
-    final hasApplication = onboardingStatus.valueOrNull != null &&
-        _businessApplicationExists(onboardingStatus.valueOrNull!);
-
-    ref.listen(businessFormControllerProvider, (previous, next) {
-      // The notifier's first build also resolves from loading; only react to
-      // a submission that the user actually started.
-      if (previous?.isLoading != true || previous?.hasValue != true) return;
-      next.whenOrNull(
-        data: (_) => ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.tr('Business application saved'))),
-        ),
-        error: (error, stackTrace) =>
-            ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyErrorMessage(error))),
-        ),
-      );
-    });
+    final status = onboardingStatus.valueOrNull;
+    final submitted = status != null && _businessApplicationSubmitted(status);
+    final showDraftForm = !workflowSubmitted &&
+        !onboardingStatus.isLoading &&
+        !onboardingStatus.hasError &&
+        status != null &&
+        !_businessApplicationExists(status);
 
     final desktop = isExample &&
         MediaQuery.sizeOf(context).width >= ExampleBreakpoints.desktop;
@@ -192,7 +189,7 @@ class _BusinessScreenState extends ConsumerState<BusinessScreen> {
       appBar: AppBar(
         centerTitle: isExample && !desktop,
         title: Text(context.tr('Business onboarding')),
-        actions: desktop && !hasApplication
+        actions: desktop && showDraftForm
             ? [
                 Padding(
                   padding: const EdgeInsets.only(right: AppSpacing.sm),
@@ -227,30 +224,43 @@ class _BusinessScreenState extends ConsumerState<BusinessScreen> {
             isExample ? 110 : 16,
           ),
           children: [
+            if ((workflow?['state'], workflow?['message'])
+                case ('INFORMATION_REQUIRED', final String message))
+              Text(message),
             onboardingStatus.when(
+              skipLoadingOnRefresh: false,
               data: (status) => _BusinessProviderStatus(
                 status: status,
-                onUpload: (document) =>
-                    _uploadRequestedBusinessDocument(document),
+                onUpload: _uploadRequestedBusinessDocument,
                 onOpenAction: _openBusinessActionUrl,
               ),
-              // Example keeps the top of the form still while the status
-              // query settles; a Material bar there is a jump, not news.
-              loading: () => isExample
-                  ? const SizedBox.shrink()
-                  : const LinearProgressIndicator(),
-              error: (error, stackTrace) => const SizedBox.shrink(),
+              loading: () => const LinearProgressIndicator(),
+              error: (error, _) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(friendlyErrorMessage(error)),
+                  TextButton(
+                    onPressed: () =>
+                        ref.invalidate(businessOnboardingStatusProvider),
+                    child: Text(context.tr('Refresh status')),
+                  ),
+                ],
+              ),
             ),
-            if (onboardingStatus.valueOrNull != null &&
-                _businessApplicationResumable(onboardingStatus.valueOrNull!))
+            if (!workflowSubmitted &&
+                !onboardingStatus.isLoading &&
+                !onboardingStatus.hasError &&
+                status != null &&
+                _businessApplicationResumable(status))
               FilledButton(
-                  onPressed: _complianceBusy ? null : _completeCompliance,
-                  child: const Text('Resume due diligence and submission')),
+                onPressed: _complianceBusy ? null : _completeCompliance,
+                child: Text(context.tr('Resume due diligence and submission')),
+              ),
             if (submitted) ...[
               const SizedBox(height: 16),
               const _BusinessSubmittedNotice(),
             ],
-            if (!hasApplication) ...[
+            if (showDraftForm) ...[
               _BusinessProgress(currentSection: _currentSection),
               const SizedBox(height: 16),
               if (_currentSection == 0)
@@ -287,12 +297,6 @@ class _BusinessScreenState extends ConsumerState<BusinessScreen> {
                         ],
                       )
                     else ...[
-                      _Dropdown(
-                        label: context.tr('Market'),
-                        value: _market,
-                        options: const ['UK', 'EU'],
-                        onChanged: (value) => setState(() => _market = value),
-                      ),
                       _Dropdown(
                         label: context.tr('Business type'),
                         value: _businessType,
@@ -343,12 +347,6 @@ class _BusinessScreenState extends ConsumerState<BusinessScreen> {
                       Text(
                         context.tr('ADDITIONAL BUSINESS INFORMATION'),
                         style: ExampleTextStyles.label(context),
-                      ),
-                      _Dropdown(
-                        label: context.tr('Market'),
-                        value: _market,
-                        options: const ['UK', 'EU'],
-                        onChanged: (value) => setState(() => _market = value),
                       ),
                     ],
                     _Field(
@@ -791,7 +789,7 @@ class _BusinessScreenState extends ConsumerState<BusinessScreen> {
                                 child: AppProgressIndicator(strokeWidth: 2),
                               )
                             : const Icon(Icons.verified_user_outlined),
-                        label: Text(context.tr('Submit application')),
+                        label: Text(context.tr('Save and continue')),
                       ),
                   ],
                 ),
@@ -800,7 +798,7 @@ class _BusinessScreenState extends ConsumerState<BusinessScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: isExample && !hasApplication
+      bottomNavigationBar: isExample && showDraftForm
           ? _buildExampleBusinessActions(state.isLoading)
           : null,
     );
@@ -924,14 +922,14 @@ class _BusinessScreenState extends ConsumerState<BusinessScreen> {
                   Expanded(
                     // Loading holds the silhouette, the width and the label's
                     // position and swaps the text for a centred ring. The
-                    // previous spinner collapsed "Submit application" to an
+                    // previous spinner collapsed the final action label to an
                     // 18 px dot, which read as the button having been
                     // replaced rather than as the same button working — and
                     // said nothing at all to a screen reader.
                     child: ExampleGlassButton(
                       label: _currentSection < 4
                           ? context.tr('Continue')
-                          : context.tr('Submit application'),
+                          : context.tr('Save and continue'),
                       loading: loading && _currentSection == 4,
                       onPressed: loading
                           ? null
@@ -1442,7 +1440,6 @@ class _BusinessScreenState extends ConsumerState<BusinessScreen> {
     };
 
     final application = _compactMap({
-      'market': _market,
       'type': _businessType,
       'countryOfIncorporation': _countryOfIncorporation,
       'regionOfIncorporation': _incorporationRegionController.text.trim(),
@@ -1488,7 +1485,7 @@ class _BusinessScreenState extends ConsumerState<BusinessScreen> {
 
     await ref
         .read(businessFormControllerProvider.notifier)
-        .submitDirectEqualsBusiness(
+        .saveDraftAndEvidence(
       associatedPeople: associatedPeople,
       application: application,
       proofOfFormation: proofOfFormation,
@@ -1526,9 +1523,17 @@ class _BusinessScreenState extends ConsumerState<BusinessScreen> {
       final completed =
           await Navigator.of(context).push<bool>(MaterialPageRoute(
               builder: (_) => EqualsComplianceScreen(
-                    saveApplication: (application) async { await api.submitDirectEqualsBusinessApplication(application); },
+                    saveApplication: (application) async {
+                      await api.saveBusinessDraft(application);
+                    },
                     uploadPerson: (personId, purpose, file) async {
-                      await api.uploadBusinessOnboardingDocument(purpose: purpose, path: file.path, bytes: file.bytes, fileName: file.name, associatedPersonId: personId);
+                      await api.uploadBusinessOnboardingDocument(
+                        purpose: purpose,
+                        path: file.path,
+                        bytes: file.bytes,
+                        fileName: file.name,
+                        associatedPersonId: personId,
+                      );
                     },
                     load: api.getBusinessCompliance,
                     call: api.businessCompliance,
@@ -1538,17 +1543,15 @@ class _BusinessScreenState extends ConsumerState<BusinessScreen> {
                           path: file.path,
                           bytes: file.bytes,
                           fileName: file.name);
-                      return (result['complianceDocumentId'] as num?)
-                              ?.toInt() ??
-                          0;
+                      final id = result['documentId'] ??
+                          result['DocumentId'] ??
+                          result['complianceDocumentId'];
+                      return int.tryParse(id.toString()) ?? 0;
                     },
                   )));
       if (completed == true) {
-        await api.submitDirectEqualsBusinessApplicationForReview();
-        ref.invalidate(businessOnboardingStatusProvider);
-        if (mounted) {
-          _showValidationMessage('Application submitted to Equals Money for review.');
-        }
+        await api.requestBusinessAssessment();
+        if (mounted) ref.invalidate(businessWorkflowProvider);
       }
     } catch (error) {
       if (mounted) _showValidationMessage(complianceError(error));

@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Options;
 using NeoBanking.Api.Company;
 using NeoBanking.Application.Common;
-using NeoBanking.Application.DTOs.Onboarding;
 using NeoBanking.Application.Security;
 using NeoBanking.Application.UseCases.Hoppa;
 using NeoBanking.Infrastructure.Persistence;
@@ -46,8 +45,27 @@ public sealed class MobileBusinessOnboardingController : ApiControllerBase, IAct
     }
 
     [HttpGet("status")]
+    [HttpGet("workflow")]
+    public Task<ActionResult<JsonElement?>> GetWorkflow(CancellationToken cancellationToken) =>
+        ForwardWorkflowAsync<object?>(HttpMethod.Get, "/api/v2/business-onboarding", null, cancellationToken);
+
+    [HttpPost("workflow/tier")]
+    public Task<ActionResult<JsonElement?>> SelectTier([FromBody] BusinessTierRequest request, CancellationToken cancellationToken) =>
+        ForwardWorkflowAsync(HttpMethod.Post, "/api/v2/business-onboarding/tier", request, cancellationToken);
+
+    [HttpPost("workflow/payments/{paymentId:guid}/checkout")]
+    public Task<ActionResult<JsonElement?>> Checkout(Guid paymentId, [FromBody] BusinessCheckoutRequest request, CancellationToken cancellationToken) =>
+        ForwardWorkflowAsync(HttpMethod.Post, $"/api/v2/business-onboarding/payments/{paymentId:D}/checkout", request, cancellationToken);
+
+    [HttpPost("workflow/draft")]
+    public Task<ActionResult<JsonElement?>> SaveDraft([FromBody] JsonElement request, CancellationToken cancellationToken) =>
+        ForwardWorkflowAsync(HttpMethod.Post, "/api/v2/dashboard/kyb/submit", request, cancellationToken);
+
+    public sealed record BusinessTierRequest(int TierId);
+    public sealed record BusinessCheckoutRequest(bool TermsAccepted);
+
     [HttpGet("application")]
-    public async Task<ActionResult<JsonElement?>> GetStatus(CancellationToken cancellationToken)
+    public async Task<ActionResult<JsonElement?>> GetApplication(CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var userId))
         {
@@ -57,7 +75,7 @@ public sealed class MobileBusinessOnboardingController : ApiControllerBase, IAct
         return ToActionResult(await SendBusinessRequestAsync<object?>(
             userId,
             HttpMethod.Get,
-            "application",
+            "/api/v2/business/onboarding/application",
             null,
             "mobile.kyb.status.failed",
             "We could not load business onboarding status.",
@@ -68,7 +86,7 @@ public sealed class MobileBusinessOnboardingController : ApiControllerBase, IAct
     public async Task<ActionResult<JsonElement?>> GetCompliance(CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var userId)) return MissingIdentity<JsonElement?>();
-        return ToActionResult(await SendBusinessRequestAsync<object?>(userId, HttpMethod.Get, "compliance", null,
+        return ToActionResult(await SendBusinessRequestAsync<object?>(userId, HttpMethod.Get, "/api/v2/business/onboarding/compliance", null,
             "mobile.kyb.compliance.failed", "We could not load due diligence progress.", cancellationToken));
     }
 
@@ -78,8 +96,12 @@ public sealed class MobileBusinessOnboardingController : ApiControllerBase, IAct
     public async Task<ActionResult<JsonElement?>> SaveCompliance([FromBody] JsonElement request, CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var userId)) return MissingIdentity<JsonElement?>();
-        var path = Request.Path.Value!.EndsWith("/requirements") ? "compliance/requirements"
-            : Request.Path.Value.EndsWith("/draft") ? "compliance/draft" : "compliance";
+        var requestedPath = Request.Path.Value?.TrimEnd('/') ?? "";
+        var path = requestedPath.EndsWith("/requirements", StringComparison.OrdinalIgnoreCase)
+            ? "/api/v2/business/onboarding/compliance/requirements"
+            : requestedPath.EndsWith("/draft", StringComparison.OrdinalIgnoreCase)
+                ? "/api/v2/business/onboarding/compliance/draft"
+                : "/api/v2/business/onboarding/compliance";
         return ToActionResult(await SendBusinessRequestAsync(userId, HttpMethod.Post, path, request,
             "mobile.kyb.compliance.failed", "Review the due diligence checklist.", cancellationToken));
     }
@@ -95,51 +117,10 @@ public sealed class MobileBusinessOnboardingController : ApiControllerBase, IAct
         return ToActionResult(await SendBusinessRequestAsync<object?>(
             userId,
             HttpMethod.Get,
-            "options",
+            "/api/v2/business/onboarding/options",
             null,
             "mobile.kyb.options.failed",
             "We could not load business onboarding options.",
-            cancellationToken));
-    }
-
-    [HttpPost("start")]
-    [HttpPost("application")]
-    public async Task<ActionResult<JsonElement?>> Start(
-        [FromBody] JsonElement request,
-        CancellationToken cancellationToken)
-    {
-        if (!TryGetCurrentUserId(out var userId))
-        {
-            return MissingIdentity<JsonElement?>();
-        }
-
-        return ToActionResult(await SendBusinessRequestAsync(
-            userId,
-            HttpMethod.Post,
-            "application",
-            request,
-            "mobile.kyb.start.failed",
-            "We could not start business onboarding.",
-            cancellationToken));
-    }
-
-    [HttpPatch("profile")]
-    public async Task<ActionResult<JsonElement?>> UpdateProfile(
-        [FromBody] JsonElement request,
-        CancellationToken cancellationToken)
-    {
-        if (!TryGetCurrentUserId(out var userId))
-        {
-            return MissingIdentity<JsonElement?>();
-        }
-
-        return ToActionResult(await SendBusinessRequestAsync(
-            userId,
-            HttpMethod.Post,
-            "application",
-            request,
-            "mobile.kyb.profile.update.failed",
-            "We could not update business profile.",
             cancellationToken));
     }
 
@@ -154,31 +135,10 @@ public sealed class MobileBusinessOnboardingController : ApiControllerBase, IAct
         return ToActionResult(await SendBusinessRequestAsync<object?>(
             userId,
             HttpMethod.Get,
-            "associated-people",
+            "/api/v2/business/onboarding/associated-people",
             null,
             "mobile.kyb.associated_people.list.failed",
             "We could not list associated people.",
-            cancellationToken));
-    }
-
-    [HttpPost("beneficial-owners")]
-    [HttpPost("associated-people")]
-    public async Task<ActionResult<JsonElement?>> UpsertBeneficialOwner(
-        [FromBody] JsonElement request,
-        CancellationToken cancellationToken)
-    {
-        if (!TryGetCurrentUserId(out var userId))
-        {
-            return MissingIdentity<JsonElement?>();
-        }
-
-        return ToActionResult(await SendBusinessRequestAsync(
-            userId,
-            HttpMethod.Post,
-            "associated-people",
-            request,
-            "mobile.kyb.beneficial_owners.upsert.failed",
-            "We could not upsert beneficial owner.",
             cancellationToken));
     }
 
@@ -198,7 +158,7 @@ public sealed class MobileBusinessOnboardingController : ApiControllerBase, IAct
         return ToActionResult(await SendBusinessRequestAsync(
             userId,
             HttpMethod.Post,
-            "application/documents",
+            "/api/v2/dashboard/kyb/documents",
             form,
             "mobile.kyb.documents.submit.failed",
             "We could not submit business document.",
@@ -207,6 +167,7 @@ public sealed class MobileBusinessOnboardingController : ApiControllerBase, IAct
 
     [HttpPost("submit")]
     [HttpPost("application/submit")]
+    [HttpPost("workflow/assess")]
     public async Task<ActionResult<JsonElement?>> SubmitApplication(CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var userId))
@@ -214,14 +175,15 @@ public sealed class MobileBusinessOnboardingController : ApiControllerBase, IAct
             return MissingIdentity<JsonElement?>();
         }
 
-        return ToActionResult(await SendBusinessRequestAsync<object?>(
+        var result = await SendBusinessRequestAsync<object?>(
             userId,
             HttpMethod.Post,
-            "application/submit",
+            "/api/v2/business-onboarding/assess",
             null,
             "mobile.kyb.submit.failed",
-            "We could not submit business onboarding application.",
-            cancellationToken));
+            "We could not request assessment for your business application.",
+            cancellationToken);
+        return result.IsSuccess ? Accepted(value: result.Value) : ToActionResult(result);
     }
 
     [HttpPost("associated-people/{associatedPersonId}/documents")]
@@ -236,21 +198,33 @@ public sealed class MobileBusinessOnboardingController : ApiControllerBase, IAct
         }
 
         using var form = BuildDocumentForm(request);
+        form.Add(new StringContent(associatedPersonId), "AssociatedPersonId");
 
         return ToActionResult(await SendBusinessRequestAsync(
             userId,
             HttpMethod.Post,
-            $"associated-people/{Segment(associatedPersonId)}/documents",
+            "/api/v2/dashboard/kyb/documents",
             form,
             "mobile.kyb.associated_people.documents.submit.failed",
             "We could not submit associated person document.",
             cancellationToken));
     }
 
+    private async Task<ActionResult<JsonElement?>> ForwardWorkflowAsync<TRequest>(
+        HttpMethod method,
+        string upstreamPath,
+        TRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var userId)) return MissingIdentity<JsonElement?>();
+        return ToActionResult(await SendBusinessRequestAsync(userId, method, upstreamPath, request,
+            "mobile.kyb.workflow.failed", "We could not continue business onboarding.", cancellationToken));
+    }
+
     private async Task<ApplicationResult<JsonElement?>> SendBusinessRequestAsync<TRequest>(
         string userId,
         HttpMethod method,
-        string relativePath,
+        string upstreamPath,
         TRequest? request,
         string failureCode,
         string failureMessage,
@@ -269,12 +243,10 @@ public sealed class MobileBusinessOnboardingController : ApiControllerBase, IAct
             new ProxyHoppaRequestCommand<TRequest>
             {
                 Method = method,
-                UpstreamPath = $"/api/v2/business/onboarding/{relativePath}",
-                Query = new Dictionary<string, string?>
-                {
-                    ["userId"] = userId
-                },
+                UpstreamPath = upstreamPath,
+                Query = Query(("userId", userId)),
                 Request = request,
+                SuppressPayloadLogging = true,
                 FailureCode = failureCode,
                 FailureMessage = failureMessage
             },
@@ -286,18 +258,19 @@ public sealed class MobileBusinessOnboardingController : ApiControllerBase, IAct
                 using var document = JsonDocument.Parse(detail);
                 var root = document.RootElement;
                 if (root.ValueKind != JsonValueKind.Object) return result;
-                if (root.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Array)
+                var code = GetString(root, "code", "Code", "error") ?? failureCode;
+                var message = GetString(root, "message", "Message");
+                if ((root.TryGetProperty("errors", out var errors) || root.TryGetProperty("Errors", out errors)) &&
+                    errors.ValueKind == JsonValueKind.Array)
                 {
                     var messages = errors.EnumerateArray().Where(e => e.ValueKind == JsonValueKind.String).Select(e => e.GetString()!).ToArray();
                     if (messages.Length > 0) return ApplicationResult<JsonElement?>.Failure(new ApplicationError(
-                        root.TryGetProperty("code", out var code) ? code.GetString() ?? failureCode : failureCode,
-                        "Review the business onboarding details.", result.Error.StatusCode, string.Join("\n", messages),
+                        code, message ?? "Review the business onboarding details.", result.Error.StatusCode, string.Join("\n", messages),
                         new Dictionary<string, string[]> { ["compliance"] = messages }));
                 }
-                if (root.TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.String)
+                if (message is not null)
                     return ApplicationResult<JsonElement?>.Failure(new ApplicationError(
-                        root.TryGetProperty("code", out var code) ? code.GetString() ?? failureCode : failureCode,
-                        message.GetString()!, result.Error.StatusCode, message.GetString()));
+                        code, message, result.Error.StatusCode, message));
             }
             catch (JsonException) { }
         }
@@ -335,6 +308,7 @@ public sealed class MobileBusinessOnboardingController : ApiControllerBase, IAct
             {
                 Method = HttpMethod.Get,
                 UpstreamPath = $"/api/v2/users/{Segment(hoppaUserId)}",
+                SuppressPayloadLogging = true,
                 FailureCode = "mobile.kyb.user.failed",
                 FailureMessage = "We could not load user account type."
             },

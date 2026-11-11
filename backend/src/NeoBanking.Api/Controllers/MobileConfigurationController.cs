@@ -7,14 +7,17 @@ namespace NeoBanking.Api.Controllers;
 
 [AllowAnonymous]
 [Route("api/v1/mobile/config")]
-public sealed class MobileConfigurationController(IOptions<CompanyOptions> options, DashboardLegalSettings? legalSettings = null) : ApiControllerBase
+public sealed class MobileConfigurationController(IOptions<CompanyOptions> options, CompanyRegistrationPolicy registrationPolicy,
+    DashboardLegalSettings? legalSettings = null) : ApiControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<object>> Get(CancellationToken ct = default)
     {
+        Response.Headers.CacheControl = "no-store";
         var company = options.Value;
         var branding = legalSettings is null ? company.Branding : await legalSettings.GetAsync(ct);
-        var referralMode = NormalizeReferralMode(company.Features.ReferralRegistrationMode);
+        var registration = await registrationPolicy.GetAsync(ct);
+        var referralMode = registration.ReferralRequired ? "required" : "optional";
 
         return Ok(new
         {
@@ -39,10 +42,19 @@ public sealed class MobileConfigurationController(IOptions<CompanyOptions> optio
                 branding.EqualsRegulatoryDisclaimerUk,
                 branding.EqualsRegulatoryRegionDefault
             },
+            registration = new
+            {
+                registration.Available,
+                registration.AllowsSelfRegistration,
+                registration.RequireExternalWallet,
+                registration.ReferralRequired,
+                referralCodesEnabled = registration.ReferralsEnabled,
+                registration.BlockedCountries
+            },
             features = new
             {
                 referralsEnabled = company.Features.ReferralsEnabled,
-                referralRegistrationMode = company.Features.ReferralsEnabled ? referralMode : "disabled",
+                referralRegistrationMode = company.Features.ReferralsEnabled && registration.Available ? referralMode : "disabled",
                 vouchersEnabled = company.Features.VouchersEnabled,
                 existingAccountClaimEnabled = company.Features.ExistingAccountClaimEnabled,
                 boomFiExchangeEnabled = company.Features.BoomFiExchangeEnabled,
@@ -54,10 +66,4 @@ public sealed class MobileConfigurationController(IOptions<CompanyOptions> optio
         });
     }
 
-    private static string NormalizeReferralMode(string? value)
-    {
-        return string.Equals(value?.Trim(), "required", StringComparison.OrdinalIgnoreCase)
-            ? "required"
-            : "optional";
-    }
 }

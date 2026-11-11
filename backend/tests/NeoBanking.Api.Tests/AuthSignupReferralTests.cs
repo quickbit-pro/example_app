@@ -131,9 +131,9 @@ public sealed class AuthSignupReferralTests
         var response=await controller.Signup(AcceptedRequest(attempt,"LINK"),default);
         Assert.Equal(409,Assert.IsType<ObjectResult>(response.Result).StatusCode);
         Assert.Equal("CREATION_UNCERTAIN",(await db.ReferralSignupAttempts.SingleAsync()).State);
-        Assert.Empty(await db.Users.ToListAsync());
+        Assert.Equal("pending_signup", (await db.Users.SingleAsync()).Status);
         await controller.Signup(AcceptedRequest(attempt,"LINK"),default);
-        Assert.Single(proxy.Requests,x=>x.Path=="/api/v2/users");
+        Assert.Single(proxy.Requests,x=>x.Path=="/api/v2/users/self-registration");
     }
 
     [Fact]
@@ -156,7 +156,7 @@ public sealed class AuthSignupReferralTests
     }
     private static SignupRequestDto AcceptedRequest(Guid attempt,string source) => new()
     {
-        Email="new-member@example.test",Password=Password,FirstName="New",LastName="Member",ReferralCode="FRIEND1",
+        Email="new-member@example.test",Password=Password,EmailVerificationCode=SignupEmailTestSeed.Code,FirstName="New",LastName="Member",ReferralCode="FRIEND1",
         ReferralSource=source,ReferralAccepted=true,RegistrationAttemptId=attempt,
         ReferralQuoteId=Guid.Parse("22222222-2222-2222-2222-222222222222"),ReferralTermsHash="terms-hash",ReferralPolicyHash="policy-hash"
     };
@@ -262,6 +262,7 @@ public sealed class AuthSignupReferralTests
     {
         Email = "new-member@example.test",
         Password = Password,
+        EmailVerificationCode = SignupEmailTestSeed.Code,
         FirstName = "New",
         LastName = "Member",
         ReferralCode = referralCode,
@@ -277,13 +278,14 @@ public sealed class AuthSignupReferralTests
     {
         db.CompanyInstallations.Add(new CompanyInstallation { Slug = "default", DisplayName = "Test", LegalName = "Test" });
         await db.SaveChangesAsync();
+        await SignupEmailTestSeed.Prepare(db, "new-member@example.test");
     }
 
     private static AuthController CreateController(NeoBankingDbContext db, RecordingProxy proxy)
     {
         var controller = new AuthController(db, new PasswordHasher<ApplicationUser>(), proxy,
             Options.Create(new JwtOptions { Issuer = "test", Audience = "test", SigningKey = "test-only-signing-key-with-at-least-32-characters" }),
-            Options.Create(new CompanyOptions { Features = new CompanyFeatureOptions { ReferralsEnabled = true } }),
+            Options.Create(new CompanyOptions { Features = new CompanyFeatureOptions { ReferralsEnabled = true, EqualsMoneyEnabled = false } }),
             Options.Create(new EmailOptions { RequireVerifiedEmailForLogin = false }),
             null!, new LoginAttemptTracker(), NullLogger<AuthController>.Instance);
         controller.ControllerContext = new() { HttpContext = new DefaultHttpContext() };
@@ -318,13 +320,14 @@ public sealed class AuthSignupReferralTests
                 return Task.FromResult(ApplicationResult<JsonElement?>.Failure(CheckReferralError));
             }
 
-            if(command.UpstreamPath=="/api/v2/users" && CreateThrows) throw new HttpRequestException("lost response");
+            if(command.UpstreamPath=="/api/v2/users/self-registration" && CreateThrows) throw new HttpRequestException("lost response");
             var json = command.UpstreamPath switch
             {
+                "/api/v2/users/registration-policy" => """{"companyId":1,"allowsSelfRegistration":true,"requireExternalWallet":false,"needsReferralCode":false,"referralCodeOptional":true,"referralProgramEnabled":true,"blockedCountries":[]}""",
                 "/api/v2/referral-attribution-quotes" => JsonSerializer.Serialize(new {quoteId="22222222-2222-2222-2222-222222222222",termsHash="terms-hash",policyHash="policy-hash",expiresAt=DateTimeOffset.UtcNow.AddMinutes(15)}),
                 "/api/v2/users/check-referral" => CheckReferralBody ??
                     """{"valid":true,"kind":"PERSONAL","inviterDisplayName":"Alex","provider":"INTERLACE","welcomeAmount":3,"welcomeCurrency":"USD","termsVersion":2}""",
-                "/api/v2/users" => """{"id":777,"email":"new-member@example.test"}""",
+                "/api/v2/users/self-registration" => """{"id":777,"email":"new-member@example.test"}""",
                 _ => """{"ok":true}"""
             };
             using var document = JsonDocument.Parse(json);

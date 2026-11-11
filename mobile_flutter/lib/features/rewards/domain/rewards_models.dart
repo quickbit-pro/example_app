@@ -27,11 +27,18 @@ class MobileTenantConfig {
     this.equalsGeneralTermsUrl,
     this.equalsTermsVersion,
     this.legalDocumentsFromDashboard = false,
+    this.registrationPolicyAvailable = true,
+    this.allowsSelfRegistration = true,
+    this.requireExternalWallet = false,
+    this.blockedRegistrationCountries = const [],
+    this.registrationReferralRequired,
+    this.registrationReferralCodesEnabled,
   });
 
   factory MobileTenantConfig.fromJson(Map<String, dynamic> json) {
     final company = _map(json['company']);
     final features = _map(json['features']);
+    final registration = _map(json['registration']);
     return MobileTenantConfig(
       companyName: _text(company['name']) ?? 'Your company',
       brandName: _text(company['brandName']) ??
@@ -71,6 +78,28 @@ class MobileTenantConfig {
       equalsTermsVersion: _text(company['equalsTermsVersion']),
       legalDocumentsFromDashboard:
           _bool(company['legalDocumentsFromDashboard']),
+      // Older installations did not expose registration policy. The current
+      // server always sends an explicit availability flag and enforces the
+      // authoritative policy again when accepting signup.
+      registrationPolicyAvailable:
+          registration.isEmpty || _bool(registration['available']),
+      allowsSelfRegistration:
+          registration.isEmpty || _bool(registration['allowsSelfRegistration']),
+      requireExternalWallet: _bool(registration['requireExternalWallet']),
+      registrationReferralRequired: registration['referralRequired'] is bool
+          ? registration['referralRequired'] as bool
+          : null,
+      registrationReferralCodesEnabled:
+          registration['referralCodesEnabled'] is bool
+              ? registration['referralCodesEnabled'] as bool
+              : null,
+      blockedRegistrationCountries: registration['blockedCountries'] is List
+          ? (registration['blockedCountries'] as List)
+              .map((value) => value.toString().trim().toUpperCase())
+              .where((value) => RegExp(r'^[A-Z]{2}$').hasMatch(value))
+              .toSet()
+              .toList(growable: false)
+          : const [],
     );
   }
 
@@ -105,9 +134,29 @@ class MobileTenantConfig {
   final String? equalsGeneralTermsUrl;
   final String? equalsTermsVersion;
   final bool legalDocumentsFromDashboard;
+  final bool registrationPolicyAvailable;
+  final bool allowsSelfRegistration;
+  final bool requireExternalWallet;
+  final List<String> blockedRegistrationCountries;
+  final bool? registrationReferralRequired;
+  final bool? registrationReferralCodesEnabled;
+
+  /// Signup access codes are independent of the in-app referral rewards gate.
+  bool get signupReferralCodesEnabled =>
+      registrationReferralCodesEnabled ?? referralsEnabled;
+
+  bool get signupAvailable =>
+      registrationPolicyAvailable && allowsSelfRegistration;
+
+  bool isRegistrationCountryAllowed(String? code) {
+    final normalized = code?.trim().toUpperCase() ?? '';
+    return RegExp(r'^[A-Z]{2}$').hasMatch(normalized) &&
+        !blockedRegistrationCountries.contains(normalized);
+  }
 
   bool get referralRequired =>
-      referralsEnabled && referralRegistrationMode == 'required';
+      registrationReferralRequired ??
+      (referralsEnabled && referralRegistrationMode == 'required');
 }
 
 class RewardsSnapshot {

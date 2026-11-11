@@ -58,15 +58,25 @@ class _FakeApi extends MobilePlatformApi {
   final bool emailQueued;
 
   final submittedPhones = <String?>[];
+  final submittedCodes = <String?>[];
+  final requestedCodeEmails = <String>[];
+
+  @override
+  Future<void> requestSignupEmailCode(String email) async {
+    requestedCodeEmails.add(email);
+  }
 
   @override
   Future<ActionResult> signUp({
     required String email,
     required String password,
+    String? emailVerificationCode,
     required String firstName,
     required String lastName,
     required String accountType,
     String? phone,
+    String? countryCode,
+    String? externalWalletAddress,
     String? referralCode,
     String? referralSource,
     String? invitationToken,
@@ -83,6 +93,7 @@ class _FakeApi extends MobilePlatformApi {
     String? installationToken,
   }) async {
     submittedPhones.add(phone);
+    submittedCodes.add(emailVerificationCode);
     return ActionResult(
         message: 'Account created',
         metadata: {'verificationEmailSent': emailQueued});
@@ -333,7 +344,7 @@ void main() {
 
   for (final emailQueued in [true, false]) {
     testWidgets(
-        'signup submits E.164 and shows email queue status=$emailQueued',
+        'signup verifies email before submitting E.164 (legacy queue flag=$emailQueued)',
         (tester) async {
       final api = _FakeApi(emailQueued: emailQueued);
       await _pump(tester, api: api, example: false);
@@ -363,13 +374,21 @@ void main() {
       await tester.tap(create.hitTestable());
       await _settle(tester);
 
+      expect(api.requestedCodeEmails, hasLength(1));
+      expect(api.submittedPhones, isEmpty);
+      expect(find.text('Confirm your email'), findsOneWidget);
+      await tester.enterText(
+        find.byWidgetPredicate((widget) => widget is EditableText &&
+            widget.autofillHints?.contains(AutofillHints.oneTimeCode) == true),
+        '123456',
+      );
+      await tester.tap(find.text('Confirm email').hitTestable());
+      await _settle(tester);
       expect(api.submittedPhones, ['+4915123456789']);
-      expect(find.text('Resend confirmation email'), findsOneWidget);
-      expect(find.textContaining('We emailed'), findsNothing);
-      expect(find.textContaining('we could not request a confirmation email'),
-          emailQueued ? findsNothing : findsOneWidget);
-      expect(find.textContaining('Delivery can take a few minutes.'),
-          emailQueued ? findsOneWidget : findsNothing);
+      expect(api.submittedCodes, ['123456']);
+      expect(find.text('Account created'), findsOneWidget);
+      expect(find.textContaining('is confirmed. Sign in to continue.'), findsOneWidget);
+      expect(find.text('Resend confirmation email'), findsNothing);
     });
   }
 

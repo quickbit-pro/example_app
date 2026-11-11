@@ -558,6 +558,7 @@ List<Override> _overrides() => [
           ),
         ],
       ),
+      businessWorkflowProvider.overrideWith((ref) async => {'state': 'DRAFT'}),
       businessOnboardingStatusProvider.overrideWith((ref) async => const {}),
       businessOnboardingOptionsProvider.overrideWith(
         (ref) async => const BusinessOnboardingOptions(industries: []),

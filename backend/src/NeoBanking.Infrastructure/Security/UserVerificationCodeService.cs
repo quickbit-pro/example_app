@@ -125,6 +125,51 @@ public sealed class UserVerificationCodeService(NeoBankingDbContext dbContext, T
             : VerificationCodeOutcome.Invalid;
     }
 
+    /// <summary>
+    /// Consumes signup proof with a database compare-and-set. Concurrent requests
+    /// cannot reuse a valid code or lose failed-attempt increments. This method
+    /// persists its result before any external account creation is permitted.
+    /// </summary>
+    public async Task<VerificationCodeOutcome> VerifyAndConsumeAsync(
+        Guid userId, string purpose, string code, CancellationToken cancellationToken)
+    {
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
+        for (var retry = 0; retry < DefaultMaxAttempts + 1; retry++)
+        {
+            var candidate = await dbContext.UserVerificationCodes.AsNoTracking()
+                .Where(x => x.UserId == userId && x.Purpose == purpose && x.ConsumedAt == null)
+                .OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync(cancellationToken);
+            if (candidate is null) return VerificationCodeOutcome.NotFound;
+            if (candidate.ExpiresAt <= now) return VerificationCodeOutcome.Expired;
+            if (candidate.AttemptCount >= candidate.MaxAttempts) return VerificationCodeOutcome.Locked;
+            var expected = Encoding.ASCII.GetBytes(candidate.CodeHash);
+            var actual = Encoding.ASCII.GetBytes(Hash(userId, purpose, code.Trim()));
+            var valid = expected.Length == actual.Length && CryptographicOperations.FixedTimeEquals(expected, actual);
+            if (dbContext.Database.IsRelational())
+            {
+                var current = dbContext.UserVerificationCodes.Where(x => x.Id == candidate.Id && x.ConsumedAt == null &&
+                    x.AttemptCount == candidate.AttemptCount && x.AttemptCount < x.MaxAttempts && x.ExpiresAt > now);
+                var changed = valid
+                    ? await current.ExecuteUpdateAsync(set => set.SetProperty(x => x.ConsumedAt, now).SetProperty(x => x.UpdatedAt, now), cancellationToken)
+                    : await current.ExecuteUpdateAsync(set => set.SetProperty(x => x.AttemptCount, x => x.AttemptCount + 1).SetProperty(x => x.UpdatedAt, now), cancellationToken);
+                if (changed == 0) continue;
+            }
+            else
+            {
+                // The nonrelational branch supports the in-memory unit-test provider.
+                var tracked = await dbContext.UserVerificationCodes.SingleAsync(x => x.Id == candidate.Id, cancellationToken);
+                if (tracked.ConsumedAt is not null || tracked.AttemptCount != candidate.AttemptCount) continue;
+                tracked.UpdatedAt = now;
+                if (valid) tracked.ConsumedAt = now;
+                else tracked.AttemptCount++;
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+            return valid ? VerificationCodeOutcome.Valid
+                : candidate.AttemptCount + 1 >= candidate.MaxAttempts ? VerificationCodeOutcome.Locked : VerificationCodeOutcome.Invalid;
+        }
+        return VerificationCodeOutcome.Locked;
+    }
+
     public static bool LooksLikeCode(string? code)
     {
         return code is { Length: CodeLength } && code.All(char.IsAsciiDigit);

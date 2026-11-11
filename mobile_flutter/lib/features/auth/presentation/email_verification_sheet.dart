@@ -19,6 +19,8 @@ Future<bool> showEmailVerificationSheet(
   BuildContext context, {
   required String email,
   bool sendCodeFirst = false,
+  Future<void> Function(String code)? onVerifyCode,
+  Future<void> Function()? onResendCode,
 }) async {
   if (context.isExampleTheme) {
     return await showExampleSheet<bool>(
@@ -26,6 +28,8 @@ Future<bool> showEmailVerificationSheet(
           builder: (_) => _EmailVerificationSheet(
             email: email,
             sendCodeFirst: sendCodeFirst,
+            onVerifyCode: onVerifyCode,
+            onResendCode: onResendCode,
           ),
         ) ??
         false;
@@ -38,7 +42,12 @@ Future<bool> showEmailVerificationSheet(
     builder: (_) => FractionallySizedBox(
       heightFactor: .93,
       child:
-          _EmailVerificationSheet(email: email, sendCodeFirst: sendCodeFirst),
+          _EmailVerificationSheet(
+            email: email,
+            sendCodeFirst: sendCodeFirst,
+            onVerifyCode: onVerifyCode,
+            onResendCode: onResendCode,
+          ),
     ),
   );
   return verified ?? false;
@@ -48,10 +57,14 @@ class _EmailVerificationSheet extends ConsumerStatefulWidget {
   const _EmailVerificationSheet({
     required this.email,
     required this.sendCodeFirst,
+    this.onVerifyCode,
+    this.onResendCode,
   });
 
   final String email;
   final bool sendCodeFirst;
+  final Future<void> Function(String code)? onVerifyCode;
+  final Future<void> Function()? onResendCode;
 
   @override
   ConsumerState<_EmailVerificationSheet> createState() =>
@@ -91,9 +104,13 @@ class _EmailVerificationSheetState
       _error = null;
     });
     try {
-      await ref
-          .read(authApiProvider)
-          .verifyEmail(email: widget.email, code: code);
+      if (widget.onVerifyCode case final verify?) {
+        await verify(code);
+      } else {
+        await ref
+            .read(authApiProvider)
+            .verifyEmail(email: widget.email, code: code);
+      }
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (error) {
@@ -110,7 +127,11 @@ class _EmailVerificationSheetState
       _error = null;
     });
     try {
-      await ref.read(authApiProvider).resendEmailVerification(widget.email);
+      if (widget.onResendCode case final resend?) {
+        await resend();
+      } else {
+        await ref.read(authApiProvider).resendEmailVerification(widget.email);
+      }
       if (!mounted) return;
       setState(() => _resent = !silent);
     } catch (error) {

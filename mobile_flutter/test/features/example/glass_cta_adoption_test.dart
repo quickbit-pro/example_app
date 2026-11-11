@@ -246,6 +246,9 @@ List<Override> _moneyOverrides() => [
     ];
 
 List<Override> _businessOverrides({required bool submitted}) => [
+      businessWorkflowProvider.overrideWith(
+        (ref) async => {'state': submitted ? 'SUBMITTED' : 'DRAFT'},
+      ),
       businessOnboardingStatusProvider.overrideWith(
         (ref) async => <String, dynamic>{
           'status': submitted ? 'in_review' : 'not_started',

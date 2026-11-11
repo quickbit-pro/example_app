@@ -32,6 +32,8 @@ public sealed class HoppaFlowLoggingMiddleware(
         "quoteToken", "quote_token",
         "quoteReceipt", "quote_receipt", "referralQuoteReceipt", "referral_quote_receipt",
         "password",
+        "code", "otp", "otpCode",
+        "emailVerificationCode", "email_verification_code",
         "currentPassword",
         "newPassword",
         "adminPassword",

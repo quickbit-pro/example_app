@@ -15,6 +15,7 @@ public sealed class HoppaClient : IHoppaClient
     private static readonly HashSet<string> SensitiveJsonProperties = new(StringComparer.OrdinalIgnoreCase)
     {
         "password",
+        "emailVerificationCode", "email_verification_code",
         "adminPassword",
         "uboIdNumber",
         "uboDob",

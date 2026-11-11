@@ -55,6 +55,20 @@ public sealed class AuthEmailNotifier(
         return true;
     }
 
+    public async Task<bool> SendSignupEmailVerificationAsync(ApplicationUser user, string purpose, CancellationToken cancellationToken)
+    {
+        var issued = await verificationCodes.IssueAsync(user, purpose, TimeSpan.FromMinutes(10), TimeSpan.FromSeconds(60), cancellationToken);
+        if (issued is null) return false;
+        var message = await outbox.EnqueueAsync(new EmailRequest(user.CompanyInstallationId, user.Id, user.Email, user.DisplayName,
+            EmailTemplateCatalog.EmailVerification, new Dictionary<string, string>
+            {
+                ["code"] = issued.Code,
+                ["expiresMinutes"] = "10"
+            }, EmailOutbox.SerializeMetadata(new { purpose })), cancellationToken);
+        if (message is null) throw new InvalidOperationException("Signup verification email could not be queued.");
+        return true;
+    }
+
     public async Task<bool> SendPasswordResetAsync(ApplicationUser user, CancellationToken cancellationToken)
     {
         var issued = await verificationCodes.IssueAsync(
