@@ -2024,6 +2024,7 @@ class _ExampleStepActions extends StatelessWidget {
         final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
         if (constraints.maxWidth < _stackBelow || scale > 1.3) {
           return Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               primary,
