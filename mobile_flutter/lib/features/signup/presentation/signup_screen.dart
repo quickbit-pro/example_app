@@ -60,6 +60,7 @@ class SignupScreen extends ConsumerStatefulWidget {
 class _SignupScreenState extends ConsumerState<SignupScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
+  final _stepScrollController = ScrollController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -296,6 +297,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
 
   @override
   void dispose() {
+    _stepScrollController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
@@ -314,7 +316,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   void _goToStep(int step) {
     final target = step.clamp(0, 4);
     if (target == _currentStep) return;
+    FocusScope.of(context).unfocus();
     setState(() => _currentStep = target);
+    // Reset after layout so the previous step's offset cannot hide the form.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_stepScrollController.hasClients) return;
+      _stepScrollController.jumpTo(0);
+    });
     if (!context.isExampleTheme || ExampleMotion.reduced(context)) {
       _stepEnter.value = 1;
     } else {
@@ -939,6 +947,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                         flex: 6,
                         child: Center(
                           child: SingleChildScrollView(
+                            controller: _stepScrollController,
                             padding: const EdgeInsets.symmetric(
                               horizontal: AppSpacing.xl,
                               vertical: AppSpacing.xxl,
@@ -1014,6 +1023,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                     constraints: const BoxConstraints(maxWidth: 430),
                     child: form(
                       SingleChildScrollView(
+                        controller: _stepScrollController,
                         keyboardDismissBehavior:
                             ScrollViewKeyboardDismissBehavior.onDrag,
                         padding: const EdgeInsets.fromLTRB(
