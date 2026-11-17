@@ -162,7 +162,9 @@ builder.Services.AddTransactionalEmailDispatcher();
 
 NeoBanking.Api.Documents.DocumentServices.Add(builder.Services, builder.Configuration);
 
+NeoBanking.Api.LegacyPlatformContract.Verify();
 var app = builder.Build();
+app.MapGet("/health/contract", () => Results.Ok(NeoBanking.Api.LegacyPlatformContract.Describe())).AllowAnonymous();
 
 // The API listens on loopback behind nginx, which sets X-Forwarded-For; key
 // throttling on the first hop so all customers do not share one bucket.

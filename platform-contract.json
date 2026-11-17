@@ -1,0 +1,7 @@
+{
+  "family": "legacy-int-v1",
+  "repository": "quickbit-pro/example_app",
+  "targets": [
+    "demo"
+  ]
+}
