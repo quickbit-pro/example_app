@@ -32,8 +32,8 @@ const overview = BoomFiExchangeOverview(
           currency: 'USDC',
           amount: 500,
           pendingAmount: 0,
-          chainId: 42161,
-          chainName: 'Arbitrum',
+          chainId: 137,
+          chainName: 'Polygon',
           tokenAddress: 'token'),
     ],
     settlementAccounts: [],
@@ -49,7 +49,7 @@ const budget = PlatformResource(
 const wallet = HoppaWalletAsset(
     symbol: 'USDC',
     name: 'USDC',
-    network: 'Arbitrum',
+    network: 'Polygon',
     amount: 10,
     fiatValue: 10,
     address: '0x123',
@@ -279,7 +279,7 @@ void main() {
     await tester.tap(find.text('Confirm and fund'));
     await tester.pumpAndSettle();
     expect(api.funds, 1);
-    expect(api.fundingRequest?['chainId'], 42161);
+    expect(api.fundingRequest?['chainId'], 137);
     expect(api.fundingRequest?['destinationAddress'], wallet.address);
   });
   testWidgets('disabled outflows allow quotes but never confirmation',

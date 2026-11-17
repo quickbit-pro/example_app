@@ -230,7 +230,7 @@ class ExchangeAccountTransferActions extends ConsumerWidget {
         return 'No Crypto card transfer network matches an available ZBX crypto account yet.';
       }
       if (funding && !overview.fiatFundingCurrencies.contains('EUR')) { return 'ZBX has not provided EUR bank funding details for this account yet.'; }
-      if (funding && fundingWallets.isEmpty) { return 'An Arbitrum receiving address and matching exchange account are needed for this transfer.'; }
+      if (funding && fundingWallets.isEmpty) { return 'A Polygon receiving address and matching exchange account are needed for this transfer.'; }
       return null;
     }
     final fundReason = unavailable(funding: true);
@@ -335,7 +335,7 @@ class _ReadyExchangePanel extends ConsumerWidget {
         return 'No Crypto card transfer network matches an available ZBX crypto account yet.';
       }
       if (funding && !overview.fiatFundingCurrencies.contains('EUR')) { return 'ZBX has not provided EUR bank funding details for this account yet.'; }
-      if (funding && fundingWallets.isEmpty) { return 'An Arbitrum receiving address and matching exchange account are needed for this transfer.'; }
+      if (funding && fundingWallets.isEmpty) { return 'A Polygon receiving address and matching exchange account are needed for this transfer.'; }
       return null;
     }
     final fundReason = unavailable(funding: true);

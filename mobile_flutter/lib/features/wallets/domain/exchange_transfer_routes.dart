@@ -2,8 +2,8 @@ import '../../../core/models/platform_models.dart';
 import 'wallet_models.dart';
 
 const exchangeDefaultChainId = 137;
-// Equals Money funding is delivered to the Interlace Arbitrum address.
-const exchangeFundingChainId = 42161;
+// Use Polygon until BoomFi confirms the EUR-to-USDC route on Arbitrum One.
+const exchangeFundingChainId = 137;
 
 int exchangeChainId(String network) {
   final n = network.trim().toLowerCase();

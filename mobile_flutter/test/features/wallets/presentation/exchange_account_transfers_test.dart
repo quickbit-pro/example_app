@@ -223,7 +223,8 @@ void main() {
         await tap(tester, 'Get quote');
         if (funding) {
           expect(api.destination?.currency, currency);
-          expect(api.destination?.chainId, 42161);
+          expect(api.destination?.chainId, 137);
+          expect(api.destination?.accountId, restricted ? 2 : 5);
         } else {
           expect(api.sellRequest?['currency'], currency);
           expect(api.sellRequest?['chainId'], 137);
@@ -271,13 +272,13 @@ void main() {
     await tester.enterText(find.byType(TextField).first, '40');
     await tap(tester, 'Get quote');
     expect(api.source?.accountId, 3);
-    expect(api.destination?.chainId, 42161);
+    expect(api.destination?.chainId, 137);
     expect(api.submissions, 0);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('Equals needs EUR; conversion refreshes the balance before the Arbitrum quote', (tester) async {
+  testWidgets('Equals needs EUR; conversion refreshes the balance before the Polygon quote', (tester) async {
     final api = TransferApi();
     var converted = false;
     await host(tester, api, euros: 0,
@@ -294,7 +295,7 @@ void main() {
     expect(find.text('From'), findsNothing);
     await tap(tester, 'Get quote');
     expect(api.source?.currency, 'EUR');
-    expect(api.destination?.chainId, 42161);
+    expect(api.destination?.chainId, 137);
     expect(api.submissions, 0);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
@@ -309,24 +310,24 @@ void main() {
     expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Crypto card to Fiat account')).onPressed, isNotNull);
   });
 
-  test('Equals funding requires Arbitrum and its exact receiving address', () {
+  test('Equals funding requires Polygon and its exact receiving address', () {
     final choices = exchangeTransferCurrencyRoutes([
       wallet('MATIC', address: '0xpolygon'),
       wallet('ARB', address: '0xarbitrum'),
     ], canTrade: (_) => true, requiredChainId: exchangeFundingChainId);
-    expect(choices.single.address, '0xarbitrum');
-    expect(exchangeChainId(choices.single.network), 42161);
-    expect(exchangeTransferCurrencyRoutes([wallet('MATIC', address: '0xpolygon')],
+    expect(choices.single.address, '0xpolygon');
+    expect(exchangeChainId(choices.single.network), 137);
+    expect(exchangeTransferCurrencyRoutes([wallet('ARB', address: '0xarbitrum')],
       canTrade: (_) => true, requiredChainId: exchangeFundingChainId), isEmpty);
   });
 
-  testWidgets('funding never falls back to Polygon when Arbitrum is unavailable', (tester) async {
+  testWidgets('funding never falls back to Arbitrum when Polygon is unavailable', (tester) async {
     final api = TransferApi();
     await host(tester, api, addressFuture: Future.value([
-      wallet('MATIC', address: '0xpolygon'),
+      wallet('ARB', address: '0xarbitrum'),
     ]));
     expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Fiat account to Crypto card')).onPressed, isNull);
-    expect(find.textContaining('An Arbitrum receiving address'), findsOneWidget);
+    expect(find.textContaining('A Polygon receiving address'), findsOneWidget);
     expect(api.submissions, 0);
     await tester.pumpWidget(const SizedBox());
   });

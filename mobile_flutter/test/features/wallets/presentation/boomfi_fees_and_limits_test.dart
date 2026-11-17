@@ -67,7 +67,7 @@ Future<void> mount(WidgetTester tester, FeesApi api, ExchangeFlow flow) async {
   addTearDown(tester.view.reset);
   final receivingWallet = HoppaWalletAsset(
     symbol: wallet.symbol, name: wallet.name,
-    network: flow == ExchangeFlow.fund ? 'Arbitrum' : wallet.network,
+    network: flow == ExchangeFlow.fund ? 'Polygon' : wallet.network,
     walletId: wallet.walletId, amount: wallet.amount, fiatValue: wallet.fiatValue,
     address: wallet.address, tint: wallet.tint);
   final overview = BoomFiExchangeOverview.fromJson({
@@ -81,7 +81,7 @@ Future<void> mount(WidgetTester tester, FeesApi api, ExchangeFlow flow) async {
           'account_id': 20,
           'currency': 'USDC',
           'amount': '200',
-          'chain': {'id': flow == ExchangeFlow.fund ? 42161 : 1, 'name': flow == ExchangeFlow.fund ? 'Arbitrum' : 'Ethereum'},
+          'chain': {'id': flow == ExchangeFlow.fund ? 137 : 1, 'name': flow == ExchangeFlow.fund ? 'Polygon' : 'Ethereum'},
           'fees_and_limits': {
             'min_deposit': '99',
             'min_withdraw': '5',
