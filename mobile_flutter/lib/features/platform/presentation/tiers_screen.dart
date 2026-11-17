@@ -1395,7 +1395,8 @@ int? tierIdOf(PlatformResource? tier) {
       ]) ??
       (tier.id.trim().isEmpty || tier.id == 'item' ? null : tier.id);
 
-  return value == null ? null : int.tryParse(value);
+  final id = value == null ? null : int.tryParse(value);
+  return id != null && id > 0 ? id : null;
 }
 
 List<String> tierDetailsOf(PlatformResource tier) {

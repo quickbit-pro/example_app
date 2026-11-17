@@ -5,6 +5,7 @@ abstract final class AppRoutes {
   static const accountClaim = '/account-claim';
   static const onboarding = '/onboarding';
   static const accountSetup = '/setup';
+  static const chooseTier = '/setup/tier';
   static const home = '/home';
   static const accounts = '/accounts';
   static const money = '/money';

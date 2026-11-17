@@ -9,6 +9,10 @@ final mobileBankingApiProvider = Provider<MobileBankingApi>((ref) {
   return MobileBankingApi(ref.watch(dioProvider));
 });
 
+final bankingProfileProvider = FutureProvider.autoDispose<UserProfile>((ref) {
+  return ref.watch(mobileBankingApiProvider).getProfile();
+});
+
 final dashboardProvider = FutureProvider<DashboardSnapshot>((ref) {
   return ref.watch(mobileBankingApiProvider).getDashboard();
 });

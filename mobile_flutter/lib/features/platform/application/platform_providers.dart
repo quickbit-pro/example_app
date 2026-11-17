@@ -238,7 +238,7 @@ final currentTierProvider = FutureProvider<PlatformResource?>((ref) async {
   final currentTierId = _tierId(current);
   if (currentTierId == null) return null;
   try {
-    final tiers = await ref.watch(tiersProvider.future);
+    final tiers = await ref.read(tiersProvider.future);
     for (final tier in tiers) {
       if (_tierId(tier) == currentTierId) return tier;
     }
@@ -464,7 +464,8 @@ int? _tierId(PlatformResource tier) {
       ]) ??
       (tier.id.trim().isEmpty || tier.id == 'item' ? null : tier.id);
 
-  return value == null ? null : int.tryParse(value);
+  final id = value == null ? null : int.tryParse(value);
+  return id != null && id > 0 ? id : null;
 }
 
 String? _textValue(Map<String, dynamic> json, List<String> keys) {

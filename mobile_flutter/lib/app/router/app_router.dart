@@ -10,6 +10,7 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/account_claim_screen.dart';
 import '../../features/auth/presentation/onboarding_screen.dart';
 import '../../features/onboarding/presentation/account_setup_screen.dart';
+import '../../features/onboarding/presentation/required_tier_screen.dart';
 import '../../features/business/presentation/business_screen.dart';
 import '../../features/cards/presentation/card_detail_screen.dart';
 import '../../features/cards/presentation/card_transactions_screen.dart';
@@ -51,12 +52,26 @@ import 'app_back_navigation.dart';
 /// (for example the browser KYC dialog started from a controller).
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
+final _requiresTierProvider = Provider<bool>((ref) {
+  final auth = ref.watch(authControllerProvider);
+  final token = ref.watch(authTokenProvider);
+  if (auth.isLoading ||
+      auth.valueOrNull?.isAuthenticated != true ||
+      token == null ||
+      token.isEmpty) {
+    return false;
+  }
+
+  return ref.watch(currentTierProvider).asData?.value == null;
+});
+
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = _RouterRefreshNotifier();
   ref
     ..onDispose(refreshNotifier.dispose)
     ..listen(authControllerProvider, (_, __) => refreshNotifier.refresh())
-    ..listen(authTokenProvider, (_, __) => refreshNotifier.refresh());
+    ..listen(authTokenProvider, (_, __) => refreshNotifier.refresh())
+    ..listen(_requiresTierProvider, (_, __) => refreshNotifier.refresh());
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
@@ -89,6 +104,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.accountSetup,
         builder: (context, state) => const AccountSetupScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.chooseTier,
+        builder: (context, state) => const RequiredTierScreen(),
       ),
       ShellRoute(
         builder: (context, state, child) => HomeRefreshOnNavigation(
@@ -356,14 +375,25 @@ String? _authRedirect(Ref ref, GoRouterState state) {
     return '${AppRoutes.login}?from=$from';
   }
 
-  if (isAuthenticated &&
-      path.startsWith(AppRoutes.money) &&
+  if (!isAuthenticated) return null;
+
+  final requiresTier = ref.read(_requiresTierProvider);
+  final choosingTier = path == AppRoutes.chooseTier;
+  if (requiresTier && choosingTier) return null;
+  if (requiresTier && !isAuthRoute) {
+    return Uri(
+      path: AppRoutes.chooseTier,
+      queryParameters: {'from': state.uri.toString()},
+    ).toString();
+  }
+
+  if (path.startsWith(AppRoutes.money) &&
       ref.read(mobileTenantConfigProvider).valueOrNull?.equalsMoneyEnabled ==
           false) {
     return AppRoutes.walletAssets;
   }
 
-  if (isAuthenticated && isAuthRoute) {
+  if (isAuthRoute || choosingTier) {
     final from = state.uri.queryParameters['from'];
     if (from == null || from.isEmpty || from == AppRoutes.login) {
       return AppRoutes.home;
@@ -373,7 +403,9 @@ String? _authRedirect(Ref ref, GoRouterState state) {
     if (target == null ||
         target.hasScheme ||
         target.hasAuthority ||
-        target.path == AppRoutes.login) {
+        !target.path.startsWith('/') ||
+        target.path == AppRoutes.login ||
+        (choosingTier && target.path == AppRoutes.chooseTier)) {
       return AppRoutes.home;
     }
 

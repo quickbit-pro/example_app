@@ -6,11 +6,19 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/widgets/app_states.dart';
+import '../../auth/application/auth_providers.dart';
+import '../../platform/application/platform_providers.dart';
 import '../../banking/application/banking_providers.dart';
 import '../application/business_providers.dart';
 
 class BusinessGate extends ConsumerStatefulWidget {
-  const BusinessGate({required this.child, super.key});
+  const BusinessGate({
+    required this.child,
+    this.tierSelectionOnly = false,
+    super.key,
+  });
+
+  final bool tierSelectionOnly;
 
   final Widget child;
 
@@ -40,7 +48,10 @@ class _BusinessGateState extends ConsumerState<BusinessGate>
     if (state == AppLifecycleState.resumed && !_busy) _refresh();
   }
 
-  void _refresh() => ref.invalidate(businessWorkflowProvider);
+  void _refresh() {
+    ref.invalidate(businessWorkflowProvider);
+    if (widget.tierSelectionOnly) ref.invalidate(currentTierProvider);
+  }
 
   Future<void> _run(Future<void> Function() action) async {
     if (_busy) return;
@@ -100,6 +111,12 @@ class _BusinessGateState extends ConsumerState<BusinessGate>
           error: (error, _) => _page(Text(friendlyErrorMessage(error))),
           data: (workflow) {
             final state = workflow['state'];
+            if (widget.tierSelectionOnly && state != 'SELECT_TIER') {
+              if (state == 'SUBMITTED' && workflow['selectedTierId'] == null) {
+                return widget.child;
+              }
+              return _page(Text(context.tr('Could not check your tier')));
+            }
             if (const {'DRAFT', 'INFORMATION_REQUIRED', 'SUBMITTED'}
                 .contains(state)) {
               return widget.child;
@@ -130,8 +147,19 @@ class _BusinessGateState extends ConsumerState<BusinessGate>
         );
   }
 
+  Widget _signOutButton() => TextButton(
+        onPressed: _busy
+            ? null
+            : () => ref.read(authControllerProvider.notifier).logout(),
+        child: Text(context.tr('Sign out')),
+      );
+
   Widget _page(Widget content) => Scaffold(
-        appBar: AppBar(title: Text(context.tr('Business onboarding'))),
+        appBar: AppBar(title: Text(context.tr('Business onboarding')),
+            automaticallyImplyLeading: !widget.tierSelectionOnly,
+            actions: [
+              if (widget.tierSelectionOnly) _signOutButton(),
+            ]),
         body: ListView(
           padding: const EdgeInsets.all(20),
           children: [
