@@ -31,6 +31,21 @@ public sealed class EmailOptions
     /// </summary>
     public bool RequireVerifiedEmailForLogin { get; init; }
 
+    /// <summary>
+    /// When true, sign-up rejects addresses at throwaway mailbox providers
+    /// (mailinator and the like), using the list bundled with the API.
+    /// </summary>
+    public bool BlockDisposableSignupDomains { get; init; } = true;
+
+    /// <summary>Comma-separated domains rejected at sign-up in addition to the bundled list.</summary>
+    public string BlockedSignupDomains { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Comma-separated domains that may sign up even though they are on the list,
+    /// for a legitimate provider that was listed by mistake. Normally empty.
+    /// </summary>
+    public string AllowedSignupDomains { get; init; } = string.Empty;
+
     public SendGridOptions SendGrid { get; init; } = new();
 
     public bool IsSendGrid => string.Equals(Provider?.Trim(), "sendgrid", StringComparison.OrdinalIgnoreCase);

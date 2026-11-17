@@ -158,6 +158,7 @@ class ReferralQuotedBoost {
 /// signup attempt. Transport failures and unknown provider results never do.
 bool canRestartReferralSignup(String? code) => const {
       'auth.signup_required_fields',
+      'auth.signup.email_domain_blocked',
       'auth.password.weak',
       'auth.signup.business_disabled',
       'auth.referral.required',

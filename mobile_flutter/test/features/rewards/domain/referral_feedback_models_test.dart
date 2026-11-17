@@ -72,6 +72,8 @@ void main() {
 
   test('only explicit pre-creation rejection releases the frozen attempt', () {
     expect(canRestartReferralSignup('auth.password.weak'), isTrue);
+    expect(
+        canRestartReferralSignup('auth.signup.email_domain_blocked'), isTrue);
     expect(canRestartReferralSignup('auth.referral.validation_failed'), isTrue);
     for (final reason in [
       null,

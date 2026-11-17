@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using NeoBanking.Api.Auth;
 using NeoBanking.Api.Company;
 using NeoBanking.Application.DTOs.Auth;
 using NeoBanking.Domain.Entities;
@@ -17,6 +18,7 @@ public sealed partial class AuthController
     // account or session, and therefore cannot authenticate or perform banking actions.
     [AllowAnonymous]
     [EnableRateLimiting("signup-code")]
+    [RequireAppOrigin]
     [HttpPost("~/api/v1/mobile/auth/signup/email-code")]
     public async Task<ActionResult<object>> RequestSignupEmailCode(
         [FromBody] SignupEmailCodeRequestDto request, CancellationToken cancellationToken)
@@ -25,6 +27,10 @@ public sealed partial class AuthController
         if (string.IsNullOrWhiteSpace(email) || email.Length > 320 ||
             !MailAddress.TryCreate(email, out var address) || address.Address != email)
             return BadRequest(new { code = "auth.signup.email_required", message = "Enter a valid email address." });
+
+        // Refuse throwaway inboxes before a placeholder is stored or a code is sent.
+        if (BlockedEmailDomains.IsBlocked(email, emailOptions.Value))
+            return BadRequest(new { code = "auth.signup.email_domain_blocked", message = "Registration is not allowed with this email provider. Use a different email address." });
 
         var registration = await (registrationPolicy ?? new CompanyRegistrationPolicy(proxyHoppa, companyOptions)).GetAsync(cancellationToken);
         if (!registration.Available || !registration.AllowsSelfRegistration)

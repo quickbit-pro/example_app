@@ -41,6 +41,7 @@ public sealed partial class AuthController(
 
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.Auth)]
+    [RequireAppOrigin]
     [HttpPost("login")]
     [HttpPost("~/api/v1/mobile/auth/login")]
     public async Task<ActionResult<AuthTokenResponseDto>> Login([FromBody] LoginRequestDto request, CancellationToken cancellationToken)
@@ -124,6 +125,7 @@ public sealed partial class AuthController(
     /// <summary>Second step of sign-in for accounts with 2FA: the challenge from login plus a TOTP or recovery code.</summary>
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.Auth)]
+    [RequireAppOrigin]
     [HttpPost("login/2fa")]
     [HttpPost("~/api/v1/mobile/auth/login/2fa")]
     public async Task<ActionResult<AuthTokenResponseDto>> CompleteTwoFactorLogin(
@@ -178,6 +180,7 @@ public sealed partial class AuthController(
 
     [AllowAnonymous]
     [EnableRateLimiting("signup")]
+    [RequireAppOrigin]
     [HttpPost("~/api/v1/mobile/auth/signup")]
     public async Task<ActionResult<object>> Signup([FromBody] SignupRequestDto request, CancellationToken cancellationToken)
     {
@@ -193,6 +196,19 @@ public sealed partial class AuthController(
                     "auth.signup_required_fields",
                     "Email and password are required.",
                     StatusCodes.Status400BadRequest)));
+        }
+
+        // Before anything is created here or with the provider: throwaway inboxes never
+        // become customers, and every one would otherwise leave an upstream account behind.
+        if (BlockedEmailDomains.IsBlocked(email, emailOptions.Value))
+        {
+            logger.LogInformation(
+                "Signup rejected for blocked email domain {EmailDomain}.",
+                BlockedEmailDomains.DomainOf(email));
+            return ToActionResult<object>(ApplicationResult<object>.Failure(new ApplicationError(
+                "auth.signup.email_domain_blocked",
+                "Registration is not allowed with this email provider. Use a different email address.",
+                StatusCodes.Status400BadRequest)));
         }
 
         var passwordError = ValidatePassword(request.Password);
@@ -533,6 +549,7 @@ public sealed partial class AuthController(
 
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.Auth)]
+    [RequireAppOrigin]
     [HttpPost("~/api/v1/mobile/auth/account-claim/challenges")]
     [HttpPost("account-claim/challenges")]
     public async Task<ActionResult<AccountClaimChallengeResponseDto>> CreateAccountClaimChallenge(
@@ -591,6 +608,7 @@ public sealed partial class AuthController(
     }
 
     [AllowAnonymous]
+    [RequireAppOrigin]
     [HttpPost("~/api/v1/mobile/auth/account-claim/complete")]
     [HttpPost("account-claim/complete")]
     public async Task<ActionResult<object>> CompleteAccountClaim(

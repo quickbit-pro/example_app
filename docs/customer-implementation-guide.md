@@ -457,6 +457,9 @@ Configuration (`Email` section):
   "PasswordResetCodeMinutes": 15,
   "ResendCooldownSeconds": 60,
   "RequireVerifiedEmailForLogin": false,
+  "BlockDisposableSignupDomains": true,
+  "BlockedSignupDomains": "",
+  "AllowedSignupDomains": "",
   "SendGrid": { "ApiKey": "<secret>", "Host": null, "SandboxMode": false }
 }
 ```
@@ -464,6 +467,8 @@ Configuration (`Email` section):
 - `Provider` is `sendgrid`, `log` (writes the rendered email to the application log; use for local development), or `disabled`.
 - Keep the SendGrid key out of committed files: set `Email__SendGrid__ApiKey` in the deployment environment.
 - `RequireVerifiedEmailForLogin` blocks sign-in for customers whose email is unconfirmed. Admins are exempt, and the migration that added the flag marks all pre-existing users as verified.
+- `BlockDisposableSignupDomains` makes sign-up reject throwaway mailbox providers (mailinator and about 10,000 others, the list the Hoppa platform uses, bundled as `Auth/blocked-email-domains.txt`) with `auth.signup.email_domain_blocked` before anything is created. Subdomains are covered. `BlockedSignupDomains` adds comma-separated domains; `AllowedSignupDomains` exempts a legitimate provider that is listed by mistake; it is normally empty.
+- Related sign-up protection, set outside the `Email` section: `"AppOrigin": { "RequireOnAuth": true, "AllowNativeApps": true }` makes sign-in, sign-up and account-claim answer `403 auth.app_origin_required` unless the call comes from an origin in `Cors:AllowedOrigins` (or the API's own host), which turns away curl and similar scripts. Switch it on for live installations and leave it off where test tooling signs in. `AllowNativeApps` lets the native Flutter builds through, since they send no Origin; set it to `false` when only the web app ships. A script can forge the header, so this filters casual automation and is not authentication.
 - Emails are written to the `email_messages` outbox and delivered by the `EmailDispatcher` hosted service with exponential back-off, mirroring push notifications.
 
 Admin editing: the **Email templates** page in `admin_vue` (`/email-templates`, backed by `/api/v1/admin/email-templates`) lets operators change the subject, HTML body, and plain-text body per template, toggle a template off, restore the built-in default, preview with sample data, send a test email, and review recent deliveries. Templates use `{{placeholder}}` tokens; the backend rejects unknown placeholders and requires `{{code}}` in the two code-based templates. Placeholder values are HTML-escaped inside the HTML body. Company values (`appName`, `companyName`, `supportEmail`, `brandColor`) come from the `Company` configuration section.

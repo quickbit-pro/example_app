@@ -27,5 +27,6 @@
     <Content Update="appsettings.Local.json" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
   </ItemGroup>
 
+  <ItemGroup><EmbeddedResource Include="Auth/blocked-email-domains.txt" /></ItemGroup>
   <ItemGroup><EmbeddedResource Include="Statements/Fonts/*.ttf" /></ItemGroup>
 </Project>

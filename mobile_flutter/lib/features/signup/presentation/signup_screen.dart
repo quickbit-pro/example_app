@@ -1560,7 +1560,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
         },
       );
     } catch (error) {
-      if (mounted) _message(_signupErrorMessage(error));
+      if (mounted) {
+        _message(_signupErrorMessage(error));
+        final data = error is DioException ? error.response?.data : null;
+        // The address has to change, so take the customer back to it.
+        if (data is Map &&
+            (data['code'] ?? data['Code']) ==
+                'auth.signup.email_domain_blocked') {
+          _goToStep(1);
+        }
+      }
     } finally {
       if (mounted) {
         setState(() {
