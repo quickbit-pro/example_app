@@ -24,6 +24,9 @@ void main() {
               File('assets/l10n/${language.code}.json').readAsStringSync())
           as Map<String, dynamic>;
       expect(messages.keys.toSet(), english.keys.toSet());
+      for (final name in const ['Ethereum (ERC20)', 'Tron (TRC20)', 'Polygon', 'Arbitrum', 'Equals Money']) {
+        expect(messages[name], name, reason: '${language.code}: $name');
+      }
       for (final entry in messages.entries) {
         expect(entry.value, isA<String>(), reason: entry.key);
         expect((entry.value as String).trim(), isNotEmpty, reason: entry.key);

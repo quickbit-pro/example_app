@@ -300,43 +300,48 @@ class ExamplePaymentCard extends StatelessWidget {
                               : compact
                                   ? 15
                                   : 32),
-                    if (!compact) ...[
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: .12),
-                          borderRadius: BorderRadius.circular(
-                              context.brandShape.radius(99)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 5,
-                              height: 5,
-                              decoration: BoxDecoration(
-                                color: statusColor,
-                                shape: BoxShape.circle,
-                              ),
+                    if (!compact)
+                      Expanded(
+                        child: Align(
+                          alignment: AlignmentDirectional.centerEnd,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 4,
                             ),
-                            const SizedBox(width: 5),
-                            Text(
-                              context.tr(statusLabel),
-                              style: TextStyle(
-                                color: statusColor,
-                                fontSize: (compact ? 9 : 11) *
-                                    context.brandDesign.typographyScale,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: .12),
+                              borderRadius: BorderRadius.circular(
+                                  context.brandShape.radius(99)),
                             ),
-                          ],
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 5,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: statusColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Flexible(
+                                  child: Text(
+                                    context.tr(statusLabel),
+                                    style: TextStyle(
+                                      color: statusColor,
+                                      fontSize: (compact ? 9 : 11) *
+                                          context.brandDesign.typographyScale,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                    ],
                   ],
                 ),
                 const Spacer(),
