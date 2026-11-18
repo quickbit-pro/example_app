@@ -45,7 +45,7 @@ Future<void> openCryptoSend(
   } catch (error) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(friendlyErrorMessage(error))),
+      SnackBar(content: Text(context.tr(friendlyErrorMessage(error)))),
     );
   }
 }
@@ -116,7 +116,7 @@ Future<void> openCryptoDeposit(BuildContext context, WidgetRef ref) async {
   } catch (error) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(friendlyErrorMessage(error))),
+      SnackBar(content: Text(context.tr(friendlyErrorMessage(error)))),
     );
   }
 }

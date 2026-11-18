@@ -22,9 +22,18 @@ class _ActivityTurn {
 
 class _AssistantSpendingPanelState extends ConsumerState<AssistantSpendingPanel>
     with WidgetsBindingObserver {
-  final _question = TextEditingController(
-      text:
-          'Summarise all my account activity: money in, money out, transfers and fees.');
+  final _question = TextEditingController();
+  bool _initialQuestionSet = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialQuestionSet) {
+      _initialQuestionSet = true;
+      _question.text = context.tr('Summarise all my account activity: money in, money out, transfers and fees.');
+    }
+  }
+
   final _scroll = ScrollController();
   final _overviewScroll = ScrollController();
   final _turns = <_ActivityTurn>[];
@@ -114,10 +123,10 @@ class _AssistantSpendingPanelState extends ConsumerState<AssistantSpendingPanel>
       if (!mounted || epoch != _epoch || cancel.isCancelled) return;
       final status = error is DioException ? error.response?.statusCode : null;
       setState(() => _error = status == 429
-          ? 'Your Ask AI limit has been reached. Try again later.'
+          ? context.tr('Your Ask AI limit has been reached. Try again later.')
           : status == 400
-              ? 'Check your question and remove any card numbers, passwords or security codes.'
-              : 'We could not verify complete account activity. Try a shorter period or view Activity.');
+              ? context.tr('Check your question and remove any card numbers, passwords or security codes.')
+              : context.tr('We could not verify complete account activity. Try a shorter period or view Activity.'));
     } finally {
       if (mounted && epoch == _epoch) setState(() => _busy = false);
     }
@@ -464,7 +473,7 @@ class _AssistantSpendingPanelState extends ConsumerState<AssistantSpendingPanel>
         const SizedBox(height: 16),
         Text(context.tr('Recorded account activity'),
             style: theme.textTheme.titleMedium),
-        Text('${summary.from} – ${summary.to} · UTC'),
+        Text(context.tr('{p0} – {p1} · UTC', {'p0': summary.from, 'p1': summary.to})),
         for (final currency in summary.activity)
           Card(
               child: Padding(

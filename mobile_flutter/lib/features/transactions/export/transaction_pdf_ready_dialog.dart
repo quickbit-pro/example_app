@@ -92,7 +92,7 @@ class _TransactionPdfReadyDialogState extends State<TransactionPdfReadyDialog> {
               ]),
               if (_message != null) ...[
                 const SizedBox(height: 16),
-                Semantics(liveRegion: true, child: Text(_message!)),
+                Semantics(liveRegion: true, child: Text(context.tr(_message!))),
               ],
             ],
           ),

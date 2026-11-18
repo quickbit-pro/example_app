@@ -341,7 +341,7 @@ class _SandboxFundTestCardState extends ConsumerState<_SandboxFundTestCard> {
                     expand: false,
                     sheen: false,
                     loading: _isSubmitting,
-                    loadingSemanticsLabel: 'Funding test balance',
+                    loadingSemanticsLabel: context.tr('Funding test balance'),
                     onPressed: _isSubmitting || selectedAccount == null
                         ? null
                         : () => _submit(context, selectedAccount),
@@ -423,7 +423,7 @@ class _SandboxFundTestCardState extends ConsumerState<_SandboxFundTestCard> {
     } catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyErrorMessage(error))),
+          SnackBar(content: Text(context.tr(friendlyErrorMessage(error)))),
         );
       }
     } finally {
@@ -527,7 +527,7 @@ class _EqualsBudgetAccountCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  fallbackText(budget.title, 'Fiat budget'),
+                  fallbackText(budget.title, context.tr('Fiat budget')),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
@@ -709,7 +709,7 @@ void _showEqualsBudgetDetails(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
           children: [
             Text(
-              fallbackText(budget.title, 'Fiat budget'),
+              fallbackText(budget.title, context.tr('Fiat budget')),
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
@@ -901,7 +901,7 @@ class _EqualsAccountCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      fallbackText(account.name, 'Account'),
+                      fallbackText(account.name, context.tr('Account')),
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
@@ -1047,7 +1047,7 @@ class _StatusChip extends StatelessWidget {
     }
     return Chip(
       visualDensity: VisualDensity.compact,
-      label: Text(label),
+      label: Text(context.tr(label)),
     );
   }
 }
@@ -1153,7 +1153,8 @@ class _DetailRow extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: Theme.of(context).textTheme.labelMedium),
+            Text(context.tr(label),
+                style: Theme.of(context).textTheme.labelMedium),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -1194,7 +1195,7 @@ class _DetailRow extends StatelessWidget {
           SizedBox(
             width: 128,
             child: Text(
-              label,
+              context.tr(label),
               style: Theme.of(context).textTheme.labelMedium,
             ),
           ),
@@ -1255,7 +1256,7 @@ class _DetailRow extends StatelessWidget {
           Expanded(
             flex: 4,
             child: Text(
-              label,
+              context.tr(label),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -2104,7 +2105,7 @@ class _ExampleAccountRow extends StatelessWidget {
                         )
                       else
                         Text(
-                          fallbackText(provider, 'Account'),
+                          fallbackText(provider, context.tr('Account')),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(

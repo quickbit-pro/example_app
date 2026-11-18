@@ -1,3 +1,4 @@
+import '../../../core/l10n/app_localizations.dart';
 import '../../../shared/widgets/equals_fee_schedule.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -150,7 +151,7 @@ class _PersonalOnboardingGateState extends ConsumerState<PersonalOnboardingGate>
     } catch (_) {
       if (mounted) {
         setState(
-            () => _error = 'Could not complete this step. Please try again.');
+            () => _error = context.tr('Could not complete this step. Please try again.'));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -184,7 +185,7 @@ class _PersonalOnboardingGateState extends ConsumerState<PersonalOnboardingGate>
       final tier = await showDialog<int>(
           context: context,
           builder: (context) => SimpleDialog(
-                  title: const Text('Choose your onboarding plan'),
+                  title: Text(context.tr('Choose your onboarding plan')),
                   children: [
                     for (final tier in tiers)
                       if (tierIdOf(tier) != null)
@@ -244,7 +245,7 @@ class _PersonalOnboardingGateState extends ConsumerState<PersonalOnboardingGate>
     final inviteStatus = _invite?['inviteStatus'];
     final newCode = _invite?['canRequestNewCode'] == true;
     return Scaffold(
-        appBar: AppBar(title: const Text('Complete account setup')),
+        appBar: AppBar(title: Text(context.tr('Complete account setup'))),
         body: SafeArea(
             child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
@@ -259,45 +260,42 @@ class _PersonalOnboardingGateState extends ConsumerState<PersonalOnboardingGate>
                                 Padding(
                                     padding: const EdgeInsets.symmetric(
                                         vertical: 16),
-                                    child: Text(_error!,
+                                    child: Text(context.tr(_error!),
                                         style: TextStyle(
                                             color: Theme.of(context)
                                                 .colorScheme
                                                 .error))),
                               if (_gate != null) ...[
                                 Text(
-                                    _confirming
+                                    context.tr(_confirming
                                         ? 'Confirming your payment'
-                                        : 'Onboarding payment',
+                                        : 'Onboarding payment'),
                                     style: Theme.of(context)
                                         .textTheme
                                         .headlineSmall),
                                 const SizedBox(height: 16),
-                                Text(_confirming
+                                Text(context.tr(_confirming
                                     ? 'We are waiting for payment confirmation. You do not need to pay again.'
-                                    : 'Review the fee and payment terms for your selected plan, then pay securely with Stripe.'),
+                                    : 'Review the fee and payment terms for your selected plan, then pay securely with Stripe.')),
                                 const SizedBox(height: 24),
                                 if (!_confirming)
                                   FilledButton(
                                       onPressed: _busy ? null : _pay,
-                                      child: const Text('Review payment')),
+                                      child: Text(context.tr('Review payment'))),
                                 const EqualsFeeScheduleButton(),
                               ] else if (_inviteRequired) ...[
-                                Text('Equals Money banking invite',
+                                Text(context.tr('Equals Money banking invite'),
                                     style: Theme.of(context)
                                         .textTheme
                                         .headlineSmall),
                                 const SizedBox(height: 16),
                                 if (inviteStatus == 'pending')
-                                  const Text(
-                                      'Your invite request is waiting for administrator approval. Your code will arrive by email.')
+                                  Text(context.tr('Your invite request is waiting for administrator approval. Your code will arrive by email.'))
                                 else if (inviteStatus == 'denied')
-                                  const Text(
-                                      'Your invite request was declined. Contact support for help.')
+                                  Text(context.tr('Your invite request was declined. Contact support for help.'))
                                 else if (inviteStatus == 'approved' &&
                                     !newCode) ...[
-                                  const Text(
-                                      'Enter the 8-character invite code from your email.'),
+                                  Text(context.tr('Enter the 8-character invite code from your email.')),
                                   const SizedBox(height: 16),
                                   TextField(
                                       controller: _code,
@@ -313,43 +311,40 @@ class _PersonalOnboardingGateState extends ConsumerState<PersonalOnboardingGate>
                                         LengthLimitingTextInputFormatter(8)
                                       ],
                                       onChanged: (_) => setState(() {}),
-                                      decoration: const InputDecoration(
-                                          labelText: 'Invite code')),
+                                      decoration: InputDecoration(
+                                          labelText: context.tr('Invite code'))),
                                   const SizedBox(height: 16),
                                   FilledButton(
                                       onPressed: _busy || _code.text.length != 8
                                           ? null
                                           : () => _inviteAction(true),
-                                      child: const Text('Verify invite code')),
+                                      child: Text(context.tr('Verify invite code'))),
                                 ] else ...[
-                                  Text(newCode
+                                  Text(context.tr(newCode
                                       ? 'Your code expired or reached its attempt limit. Request a new code.'
-                                      : 'Banking is available by invitation. Request access to continue.'),
+                                      : 'Banking is available by invitation. Request access to continue.')),
                                   const SizedBox(height: 24),
                                   FilledButton(
                                       onPressed: _busy
                                           ? null
                                           : () => _inviteAction(false),
-                                      child: Text(newCode
+                                      child: Text(context.tr(newCode
                                           ? 'Request new code'
-                                          : 'Request invite')),
+                                          : 'Request invite'))),
                                 ],
                               ] else if (_action == 'SELECT_TIER') ...[
-                                const Text(
-                                    'Choose a plan to continue onboarding.'),
+                                Text(context.tr('Choose a plan to continue onboarding.')),
                                 FilledButton(
                                     onPressed: _busy ? null : _choosePlan,
-                                    child: const Text('Choose plan')),
+                                    child: Text(context.tr('Choose plan'))),
                               ] else if (_action == 'VERIFY_EMAIL')
-                                const Text(
-                                    'Verify your email address before continuing.')
+                                Text(context.tr('Verify your email address before continuing.'))
                               else if (_action == 'CONTACT_SUPPORT')
-                                const Text(
-                                    'Your application needs a review. Contact support to continue.'),
+                                Text(context.tr('Your application needs a review. Contact support to continue.')),
                               const SizedBox(height: 16),
                               OutlinedButton(
                                   onPressed: _busy ? null : _refresh,
-                                  child: const Text('Check status')),
+                                  child: Text(context.tr('Check status'))),
                             ]))))));
   }
 }
@@ -368,7 +363,7 @@ class _TermsDialogState extends State<_TermsDialog> {
     final terms = onboardingObject(widget.checkout['terms']);
     final url = Uri.tryParse(terms['termsUrl']?.toString() ?? '');
     return AlertDialog(
-        title: Text('${terms['title'] ?? 'Payment terms'}'),
+        title: Text(terms['title']?.toString() ?? context.tr('Payment terms')),
         content: SizedBox(
             width: 520,
             child: SingleChildScrollView(
@@ -393,20 +388,20 @@ class _TermsDialogState extends State<_TermsDialog> {
                     TextButton(
                         onPressed: () => launchUrl(url!,
                             mode: LaunchMode.externalApplication),
-                        child: const Text('Read payment terms')),
+                        child: Text(context.tr('Read payment terms'))),
                   CheckboxListTile(
                       value: _accepted,
                       onChanged: (v) => setState(() => _accepted = v == true),
                       title: Text(
-                          '${terms['checkboxLabel'] ?? 'I accept these payment terms'}')),
+                          terms['checkboxLabel']?.toString() ?? context.tr('I accept these payment terms'))),
                 ]))),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('Cancel'))),
           FilledButton(
               onPressed: _accepted ? () => Navigator.pop(context, true) : null,
-              child: const Text('Continue to payment')),
+              child: Text(context.tr('Continue to payment'))),
         ]);
   }
 }

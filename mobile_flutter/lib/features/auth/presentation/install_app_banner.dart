@@ -77,7 +77,7 @@ class _InstallAppBannerState extends State<InstallAppBanner> {
             for (var i = 0; i < steps.length; i++)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Text('${i + 1}. ${steps[i]}'),
+                child: Text('${i + 1}. ${context.tr(steps[i])}'),
               ),
           ],
         ),

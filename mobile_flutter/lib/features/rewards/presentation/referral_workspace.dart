@@ -211,7 +211,7 @@ class _ReferralWorkspaceState extends ConsumerState<ReferralWorkspace> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(friendlyErrorMessage(error))),
+        SnackBar(content: Text(context.tr(friendlyErrorMessage(error)))),
       );
     } finally {
       if (mounted) setState(() => _sendingInvitation = false);
@@ -1579,7 +1579,7 @@ class _KpiTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              label,
+              context.tr(label),
               style: TextStyle(
                 fontSize: 12.5,
                 height: 1.3,
@@ -1840,7 +1840,7 @@ class _NavItem extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  label,
+                  context.tr(label),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

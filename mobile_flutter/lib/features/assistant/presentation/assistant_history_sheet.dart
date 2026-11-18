@@ -67,7 +67,7 @@ class _AssistantHistorySheetState extends State<AssistantHistorySheet> {
       if (removed) {
         _conversations = _conversations.where((item) => item.id != id).toList();
       } else {
-        _error = 'Could not delete this conversation. Please try again.';
+        _error = context.tr('Could not delete this conversation. Please try again.');
       }
     });
   }

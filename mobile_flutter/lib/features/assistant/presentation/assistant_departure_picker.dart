@@ -178,13 +178,13 @@ class _DepartureDialogState extends State<_DepartureDialog>
       if (!mounted || generation != _generation) return;
       setState(() => _error = switch (error) {
             AssistantLocationFailure.denied =>
-              'Location permission was not granted. Enter a departure city or airport.',
+              context.tr('Location permission was not granted. Enter a departure city or airport.'),
             AssistantLocationFailure.tooFar =>
-              'No suitable airport was found within 250 km. Enter your preferred departure.',
+              context.tr('No suitable airport was found within 250 km. Enter your preferred departure.'),
             AssistantLocationFailure.timedOut =>
-              'Location took too long. Enter a departure or try again.',
+              context.tr('Location took too long. Enter a departure or try again.'),
             _ =>
-              'Could not find your location. Enter a departure city or airport.',
+              context.tr('Could not find your location. Enter a departure city or airport.'),
           });
     } finally {
       if (mounted && generation == _generation) {
@@ -200,7 +200,7 @@ class _DepartureDialogState extends State<_DepartureDialog>
     final city = _city.text.trim();
     if (!isValidAssistantDepartureCity(city)) {
       setState(() =>
-          _error = 'Enter a city or airport name (up to 100 characters).');
+          _error = context.tr('Enter a city or airport name (up to 100 characters).'));
       return;
     }
     _cancel();

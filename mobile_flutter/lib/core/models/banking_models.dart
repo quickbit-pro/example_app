@@ -1561,6 +1561,24 @@ String _ledgerTransactionTypeLabel(String value) {
     };
   }
   if (normalized.isEmpty) return 'Transaction';
+  // Known provider types must resolve to catalogue keys. Generic title-casing
+  // produces English-only labels such as "Crypto Withdrawal". Match only
+  // explicit aliases so an unfamiliar provider type keeps its old fallback.
+  final compact = normalized.replaceAll(RegExp(r'[\s_-]+'), '');
+  const labels = {
+    'cryptowithdrawal': 'Withdrawal',
+    'withdrawal': 'Withdrawal',
+    'cryptodeposit': 'Deposit transaction',
+    'deposit': 'Deposit transaction',
+    'cardfee': 'Card fees',
+    'cardfees': 'Card fees',
+    'cardtopup': 'Top-up',
+    'topup': 'Top-up',
+    'banktransfer': 'Bank transfer',
+    'cryptoexchange': 'Exchange',
+  };
+  final knownLabel = labels[compact];
+  if (knownLabel != null) return knownLabel;
   return normalized
       .replaceAll(RegExp(r'[_-]+'), ' ')
       .split(RegExp(r'\s+'))

@@ -159,7 +159,7 @@ class _NewSupportTicketScreenState
             widget.complaint ? 'Make a complaint' : 'New support ticket'),
         body: _Page(children: [
           _Notice(widget.complaint
-              ? 'Your complaint and contact details will be passed to Equals Money with your account reference. Equals will assess the complaint and contact you. You can follow its forwarding status here.'
+              ? context.tr('Your complaint and contact details will be passed to Equals Money with your account reference. Equals will assess the complaint and contact you. You can follow its forwarding status here.')
               : _supportNotice),
           const SizedBox(height: 24),
           Form(
@@ -176,10 +176,10 @@ class _NewSupportTicketScreenState
                           labelText: context.tr('Subject'),
                           hintText: context.tr('What do you need help with?'),
                           border: const OutlineInputBorder()),
-                      validator: (value) =>
+                      validator: context.localizeValidator((value) =>
                           value == null || value.trim().isEmpty
                               ? 'Enter a subject.'
-                              : null,
+                              : null),
                     ),
                     const SizedBox(height: 20),
                     _MessageField(
@@ -196,7 +196,7 @@ class _NewSupportTicketScreenState
                     if (_error != null)
                       Padding(
                           padding: const EdgeInsets.only(top: 16),
-                          child: Text(friendlyErrorMessage(_error!),
+                          child: Text(context.tr(friendlyErrorMessage(_error!)),
                               style: TextStyle(
                                   color: Theme.of(context).colorScheme.error))),
                     const SizedBox(height: 24),
@@ -291,20 +291,20 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
               child: Chip(label: Text(detail.ticket.statusLabel))),
           const SizedBox(height: 16),
           _Notice(detail.ticket.status == 'resolved'
-              ? 'This ticket is resolved. If you still need help, submit a reply to reopen it.'
-              : 'Replies are not immediate. We’ll notify you in the app when support replies. You can also check back here.'),
+              ? context.tr('This ticket is resolved. If you still need help, submit a reply to reopen it.')
+              : context.tr('Replies are not immediate. We’ll notify you in the app when support replies. You can also check back here.')),
           if (detail.complaintForwarding != null) ...[
             const SizedBox(height: 16),
             _Notice(switch (detail.complaintForwarding!['status']) {
               'sent' =>
-                'Your complaint has been passed to Equals Money, who will contact you.',
+                context.tr('Your complaint has been passed to Equals Money, who will contact you.'),
               'staging_preview' =>
-                'Staging test: your complaint is recorded, but it has not been sent to Equals Money.',
+                context.tr('Staging test: your complaint is recorded, but it has not been sent to Equals Money.'),
               'failed' ||
               'held' =>
-                'Forwarding needs attention. Your complaint is saved and our team needs to follow up. You can also contact Equals Money directly from Help & legal → Complaints.',
+                context.tr('Forwarding needs attention. Your complaint is saved and our team needs to follow up. You can also contact Equals Money directly from Help & legal → Complaints.'),
               _ =>
-                'Your complaint is saved and queued to be forwarded to Equals Money.',
+                context.tr('Your complaint is saved and queued to be forwarded to Equals Money.'),
             }),
           ],
           const SizedBox(height: 24),
@@ -339,7 +339,7 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
           if (_error != null)
             Padding(
                 padding: const EdgeInsets.only(top: 12),
-                child: Text(friendlyErrorMessage(_error!),
+                child: Text(context.tr(friendlyErrorMessage(_error!)),
                     style:
                         TextStyle(color: Theme.of(context).colorScheme.error))),
           const SizedBox(height: 16),
@@ -421,11 +421,11 @@ class _MessageField extends StatelessWidget {
         maxLength: 8000,
         textCapitalization: TextCapitalization.sentences,
         decoration: InputDecoration(
-            labelText: label,
+            labelText: context.tr(label),
             alignLabelWithHint: true,
             border: const OutlineInputBorder()),
-        validator: (value) =>
-            value == null || value.trim().isEmpty ? 'Enter a message.' : null,
+        validator: context.localizeValidator((value) =>
+            value == null || value.trim().isEmpty ? 'Enter a message.' : null),
       );
 }
 
@@ -435,7 +435,8 @@ class _ErrorNotice extends StatelessWidget {
   final VoidCallback retry;
   @override
   Widget build(BuildContext context) => Column(children: [
-        Text(friendlyErrorMessage(error), textAlign: TextAlign.center),
+        Text(context.tr(friendlyErrorMessage(error)),
+            textAlign: TextAlign.center),
         const SizedBox(height: 12),
         OutlinedButton(onPressed: retry, child: Text(context.tr('Try again'))),
       ]);

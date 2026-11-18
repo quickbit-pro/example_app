@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -12,7 +13,7 @@ class MonthlyStatementButton extends StatelessWidget {
   const MonthlyStatementButton({super.key});
   @override
   Widget build(BuildContext context) => IconButton(
-      tooltip: 'Monthly statement with invoices',
+      tooltip: context.tr('Monthly statement with invoices'),
       icon: const Icon(Icons.inventory_2_outlined),
       onPressed: () => showDialog<void>(
           context: context, builder: (_) => const MonthlyStatementsDialog()));
@@ -63,7 +64,7 @@ class _MonthlyStatementsDialogState
       if (current) setState(() => jobs = result);
     } catch (_) {
       if (current) {
-        setState(() => error = 'Could not load exports. Try refreshing.');
+        setState(() => error = context.tr('Could not load exports. Try refreshing.'));
       }
     } finally {
       refreshing = false;
@@ -94,7 +95,7 @@ class _MonthlyStatementsDialogState
           final data = e is DioException ? e.response?.data : null;
           error = data is Map && data['title'] is String
               ? data['title'] as String
-              : 'Could not confirm the export. Retry to check the same request.';
+              : context.tr('Could not confirm the export. Retry to check the same request.');
           if (e is DioException &&
               [400, 403, 409, 429].contains(e.response?.statusCode)) {
             requestId = null;
@@ -127,7 +128,7 @@ class _MonthlyStatementsDialogState
     } catch (_) {
       if (current) {
         setState(() => error =
-            'Could not open the download. Refresh the list for a new link.');
+            context.tr('Could not open the download. Refresh the list for a new link.'));
       }
     }
   }
@@ -140,7 +141,7 @@ class _MonthlyStatementsDialogState
     final now = DateTime.now().toUtc();
     final locked = creating || requestId != null;
     return AlertDialog(
-        title: const Text('Monthly statement'),
+        title: Text(context.tr('Monthly statement')),
         content: SizedBox(
             width: 540,
             child: SingleChildScrollView(
@@ -148,8 +149,8 @@ class _MonthlyStatementsDialogState
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                  const Text(
-                      'Download a PDF and CSV statement with your invoices in one ZIP. All accounts and cards, for the selected calendar month (UTC).'),
+                  Text(context.tr(
+                      'Download a PDF and CSV statement with your invoices in one ZIP. All accounts and cards, for the selected calendar month (UTC).')),
                   const SizedBox(height: 18),
                   Row(children: [
                     Expanded(
@@ -157,7 +158,7 @@ class _MonthlyStatementsDialogState
                             isExpanded: true,
                             initialValue: year,
                             decoration:
-                                const InputDecoration(labelText: 'Year'),
+                                InputDecoration(labelText: context.tr('Year')),
                             items: [
                               for (var y = now.year; y >= 2000; y--)
                                 DropdownMenuItem(value: y, child: Text('$y'))
@@ -178,14 +179,14 @@ class _MonthlyStatementsDialogState
                             key: ValueKey('$year-$month'),
                             initialValue: month,
                             decoration:
-                                const InputDecoration(labelText: 'Month'),
+                                InputDecoration(labelText: context.tr('Month')),
                             items: [
                               for (var m = 1;
                                   m <= (year == now.year ? now.month : 12);
                                   m++)
                                 DropdownMenuItem(
                                     value: m,
-                                    child: Text(const [
+                                    child: Text(context.tr(const [
                                       'January',
                                       'February',
                                       'March',
@@ -198,20 +199,20 @@ class _MonthlyStatementsDialogState
                                       'October',
                                       'November',
                                       'December'
-                                    ][m - 1]))
+                                    ][m - 1])))
                             ],
                             onChanged: locked
                                 ? null
                                 : (value) => setState(() => month = value!))),
                   ]),
                   if (year == now.year && month == now.month)
-                    const Padding(
+                    Padding(
                         padding: EdgeInsets.only(top: 10),
-                        child: Text(
-                            'The current month includes transactions available when the export is prepared.')),
+                        child: Text(context.tr(
+                            'The current month includes transactions available when the export is prepared.'))),
                   const SizedBox(height: 14),
-                  const Text(
-                      'Invoices are numbered to match statement rows, for example 0012_Merchant_01.pdf. Original uploads stay unchanged.'),
+                  Text(context.tr(
+                      'Invoices are numbered to match statement rows, for example 0012_Merchant_01.pdf. Original uploads stay unchanged.')),
                   const SizedBox(height: 18),
                   FilledButton.icon(
                       onPressed: creating ||
@@ -220,29 +221,29 @@ class _MonthlyStatementsDialogState
                           : create,
                       icon: const Icon(Icons.archive_outlined),
                       label: Text(creating
-                          ? 'Requesting export…'
+                          ? context.tr('Requesting export…')
                           : requestId != null
-                              ? 'Retry export request'
-                              : 'Create monthly ZIP')),
+                              ? context.tr('Retry export request')
+                              : context.tr('Create monthly ZIP'))),
                   if (error != null)
                     Padding(
                         padding: const EdgeInsets.only(top: 12),
-                        child: Text(error!,
+                        child: Text(context.tr(error!),
                             style: TextStyle(
                                 color: Theme.of(context).colorScheme.error))),
                   const SizedBox(height: 24),
                   Row(children: [
-                    const Expanded(
-                        child: Text('Recent exports',
+                    Expanded(
+                        child: Text(context.tr('Recent exports'),
                             style: TextStyle(fontWeight: FontWeight.bold))),
                     IconButton(
-                        tooltip: 'Refresh exports',
+                        tooltip: context.tr('Refresh exports'),
                         onPressed: refresh,
                         icon: const Icon(Icons.refresh))
                   ]),
                   if (loading) const LinearProgressIndicator(),
                   if (!loading && jobs.isEmpty)
-                    const Text('Your monthly exports will appear here.'),
+                    Text(context.tr('Your monthly exports will appear here.')),
                   for (final job in jobs)
                     Padding(
                         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -257,37 +258,44 @@ class _MonthlyStatementsDialogState
                                 const LinearProgressIndicator(),
                                 const SizedBox(height: 6),
                                 Text(job.status == 'queued'
-                                    ? 'Queued for preparation'
-                                    : 'Preparing statement and invoices…'),
-                                const Text(
-                                    'You can close this popup and return later.')
+                                    ? context.tr('Queued for preparation')
+                                    : context.tr(
+                                        'Preparing statement and invoices…')),
+                                Text(context.tr(
+                                    'You can close this popup and return later.'))
                               ] else if (job.status == 'ready') ...[
-                                Text(
-                                    '${job.transactionCount} transactions · ${job.attachmentCount} invoices'),
+                                Text(context.tr(
+                                    '{p0} transactions · {p1} invoices', {
+                                  'p0': job.transactionCount,
+                                  'p1': job.attachmentCount
+                                })),
                                 Wrap(spacing: 8, children: [
                                   TextButton.icon(
                                       onPressed: () => download(job),
                                       icon: const Icon(Icons.download),
-                                      label: const Text('Download ZIP')),
+                                      label: Text(context.tr('Download ZIP'))),
                                   TextButton(
                                       onPressed: () =>
                                           download(job, copy: true),
-                                      child: const Text('Copy download link'))
+                                      child: Text(
+                                          context.tr('Copy download link')))
                                 ]),
-                                const Text(
-                                    'Download links are valid for 15 minutes. Refresh for a new link.',
+                                Text(
+                                    context.tr(
+                                        'Download links are valid for 15 minutes. Refresh for a new link.'),
                                     style: TextStyle(fontSize: 12))
                               ] else
                                 Text(job.error.isEmpty
-                                    ? 'Export failed. Create a new export to retry.'
-                                    : job.error),
+                                    ? context.tr(
+                                        'Export failed. Create a new export to retry.')
+                                    : context.tr(job.error)),
                               const Divider(),
                             ])),
                 ]))),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Close'))
+              child: Text(context.tr('Close')))
         ]);
   }
 }

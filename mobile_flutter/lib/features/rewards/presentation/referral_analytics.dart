@@ -274,7 +274,7 @@ class _JourneyStage extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xxs),
           Text(
-            label,
+            context.tr(label),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -288,8 +288,8 @@ class _JourneyStage extends StatelessWidget {
             height: _bar,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: ExampleInk.tint(context, ExampleColors.lavender,
-                    alpha: .18),
+                color:
+                    ExampleInk.tint(context, ExampleColors.lavender, alpha: .18),
                 borderRadius: radius,
               ),
               child: width <= 0
@@ -671,7 +671,7 @@ class _LegendSwatch extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Text(
-            label,
+            context.tr(label),
             style: TextStyle(
               fontSize: 12,
               color: ExampleInk.secondary(context),
@@ -702,7 +702,8 @@ class ReferralTopFriends extends StatelessWidget {
         for (final friend in friends)
           () {
             final stage = context.tr(friend.stage.label);
-            final earned = formatReferralAmount(analytics.currency, friend.earned);
+            final earned =
+                formatReferralAmount(analytics.currency, friend.earned);
             final qualifiedAt = friend.qualifiedAt;
             final subtitle = qualifiedAt == null
                 ? null

@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -41,7 +42,7 @@ class _TransactionInvoicesState extends ConsumerState<TransactionInvoices> {
       _busy = true;
       _message = null;
       _failed = false;
-      _stage = retry ? 'Saving invoice…' : 'Choose your invoice…';
+      _stage = retry ? context.tr('Saving invoice…') : context.tr('Choose your invoice…');
     });
     try {
       final file = retry
@@ -49,7 +50,7 @@ class _TransactionInvoicesState extends ConsumerState<TransactionInvoices> {
           : await ref.read(invoicePickerProvider).pick(camera: camera);
       if (!mounted || !_current(generation, transactionId)) return;
       if (file == null) {
-        setState(() => _message = 'No file selected.');
+        setState(() => _message = context.tr('No file selected.'));
         return;
       }
       if (!retry) {
@@ -59,19 +60,19 @@ class _TransactionInvoicesState extends ConsumerState<TransactionInvoices> {
       if (file.bytes.isEmpty || file.bytes.length > 10 * 1024 * 1024) {
         throw const FormatException('Choose an invoice up to 10 MB.');
       }
-      setState(() => _stage = 'Uploading invoice…');
+      setState(() => _stage = context.tr('Uploading invoice…'));
       final id = _uploadedId ??
           await ref
               .read(documentApiProvider)
               .upload(bytes: file.bytes, filename: file.filename);
       if (!mounted || !_current(generation, transactionId)) return;
       _uploadedId = id;
-      setState(() => _stage = 'Attaching to transaction…');
+      setState(() => _stage = context.tr('Attaching to transaction…'));
       await ref.read(transactionDocumentsApiProvider).attach(transactionId, id);
       if (!mounted || !_current(generation, transactionId)) return;
       ref.invalidate(transactionDocumentsProvider(transactionId));
       setState(() {
-        _message = 'Invoice saved.';
+        _message = context.tr('Invoice saved.');
         _pendingFile = null;
         _uploadedId = null;
       });
@@ -134,7 +135,7 @@ class _TransactionInvoicesState extends ConsumerState<TransactionInvoices> {
     } catch (_) {
       if (_current(generation, transactionId)) {
         setState(
-            () => _message = 'Could not open the invoice. Please try again.');
+            () => _message = context.tr('Could not open the invoice. Please try again.'));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -156,7 +157,7 @@ class _TransactionInvoicesState extends ConsumerState<TransactionInvoices> {
     } catch (_) {
       if (_current(generation, transactionId)) {
         setState(() =>
-            _message = 'Could not remove the attachment. Please try again.');
+            _message = context.tr('Could not remove the attachment. Please try again.'));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -201,13 +202,13 @@ class _TransactionInvoicesState extends ConsumerState<TransactionInvoices> {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                  Text('Invoices',
+                  Text(context.tr('Invoices'),
                       style: Theme.of(context)
                           .textTheme
                           .titleMedium
                           ?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 2),
-                  Text('Keep receipts with this transaction',
+                  Text(context.tr('Keep receipts with this transaction'),
                       style: TextStyle(
                           fontSize: 12, color: colors.onSurfaceVariant)),
                 ])),
@@ -216,11 +217,11 @@ class _TransactionInvoicesState extends ConsumerState<TransactionInvoices> {
             FilledButton.icon(
                 onPressed: _busy ? null : () => _upload(false),
                 icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text('Choose file')),
+                label: Text(context.tr('Choose file'))),
             OutlinedButton.icon(
                 onPressed: _busy ? null : () => _upload(true),
                 icon: const Icon(Icons.photo_camera_outlined, size: 18),
-                label: const Text('Take photo')),
+                label: Text(context.tr('Take photo'))),
           ]);
           return constraints.maxWidth >= 620
               ? Row(children: [
@@ -238,7 +239,7 @@ class _TransactionInvoicesState extends ConsumerState<TransactionInvoices> {
               size: 13, color: colors.onSurfaceVariant),
           const SizedBox(width: 5),
           Expanded(
-              child: Text('Private · Images or PDF · Up to 10 MB',
+              child: Text(context.tr('Private · Images or PDF · Up to 10 MB'),
                   style:
                       TextStyle(fontSize: 12, color: colors.onSurfaceVariant)))
         ]),
@@ -275,9 +276,9 @@ class _TransactionInvoicesState extends ConsumerState<TransactionInvoices> {
                           child: Semantics(
                               liveRegion: true,
                               child: Text(
-                                  _busy
+                                  context.tr(_busy
                                       ? (_stage ?? 'Please wait…')
-                                      : _message!,
+                                      : _message!),
                                   style: TextStyle(
                                       fontSize: 13,
                                       color: _failed
@@ -286,7 +287,7 @@ class _TransactionInvoicesState extends ConsumerState<TransactionInvoices> {
                       if (_failed && _pendingFile != null && !_busy)
                         TextButton(
                             onPressed: () => _upload(false, retry: true),
-                            child: const Text('Retry')),
+                            child: Text(context.tr('Retry'))),
                     ]),
                     if (_busy)
                       const Padding(
@@ -302,13 +303,13 @@ class _TransactionInvoicesState extends ConsumerState<TransactionInvoices> {
           error: (_, __) => TextButton(
               onPressed: () => ref.invalidate(
                   transactionDocumentsProvider(widget.transactionId)),
-              child: const Text('Could not load invoices. Retry')),
+              child: Text(context.tr('Could not load invoices. Retry'))),
           data: (rows) =>
               Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             if (rows.isEmpty && !_busy && !_failed)
               Padding(
                   padding: const EdgeInsets.only(top: 14),
-                  child: Text('No invoices attached yet.',
+                  child: Text(context.tr('No invoices attached yet.'),
                       style: TextStyle(
                           color: colors.onSurfaceVariant, fontSize: 13))),
             for (final document in rows)
@@ -338,11 +339,16 @@ class _TransactionInvoicesState extends ConsumerState<TransactionInvoices> {
                           style: const TextStyle(
                               fontWeight: FontWeight.w600, fontSize: 14)),
                       subtitle: Text(
-                          '${(document.byteLength / 1024).ceil()} KB · ${document.isPdf && !kIsWeb ? 'Save PDF' : 'Open invoice'}',
+                          context.tr('{p0} KB · {p1}', {
+                            'p0': (document.byteLength / 1024).ceil(),
+                            'p1': context.tr(document.isPdf && !kIsWeb
+                                ? 'Save PDF'
+                                : 'Open invoice')
+                          }),
                           style: const TextStyle(fontSize: 12)),
                       onTap: _busy ? null : () => _open(document),
                       trailing: IconButton(
-                          tooltip: 'Remove attachment',
+                          tooltip: context.tr('Remove attachment'),
                           onPressed: _busy ? null : () => _remove(document),
                           icon: Icon(Icons.close,
                               color: colors.onSurfaceVariant, size: 18)),
@@ -373,14 +379,15 @@ class _InvoicePhoto extends ConsumerWidget {
                   child: TextButton(
                       onPressed: () => ref.invalidate(
                           originalDocumentProvider(document.documentId)),
-                      child: const Text('Could not load invoice. Retry'))),
+                      child:
+                          Text(context.tr('Could not load invoice. Retry')))),
               data: (bytes) => Center(
                   child: InteractiveViewer(
                       minScale: .5,
                       maxScale: 5,
                       child: Image.memory(bytes,
-                          errorBuilder: (_, __, ___) => const Text(
-                              'This image could not be displayed.')))),
+                          errorBuilder: (_, __, ___) => Text(context
+                              .tr('This image could not be displayed.'))))),
             ),
       ));
 }

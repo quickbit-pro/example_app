@@ -106,6 +106,7 @@ List<LegalAgreementSpec> legalAgreementSpecs(
     ),
     LegalAgreementSpec(
       key: LegalAgreementKey.privacyAndTerms,
+      translationBrand: brand,
       title: 'I accept the Privacy Policy and Terms of Service',
       lead: 'Review the ',
       links: [
@@ -210,6 +211,7 @@ List<LegalAgreementSpec> cardOrderAgreementSpecs(
     ),
     LegalAgreementSpec(
       key: LegalAgreementKey.privacyAndTerms,
+      translationBrand: brand,
       title: 'I accept the Privacy Policy and Terms of Service',
       lead: 'Review the ',
       links: [
@@ -494,11 +496,21 @@ class _AgreementRowState extends State<_AgreementRow> {
 
   @override
   Widget build(BuildContext context) {
+    // Use a complete introductory sentence before the link list so translations
+    // are not forced into English word order. Consent specs remain unchanged.
+    final hasDocumentList = spec.lead == 'Review the ';
+    final introduction = spec.key == LegalAgreementKey.equalsTerms
+        ? context.tr('Review these documents before using multi-currency account services:')
+        : context.tr('Review these documents before proceeding:');
     final description = Text.rich(
       TextSpan(
         style: bodyStyle,
         children: [
-          TextSpan(text: spec.localizedCopy(context, spec.lead)),
+          TextSpan(
+            text: hasDocumentList
+                ? '${context.tr(introduction)} '
+                : spec.localizedCopy(context, spec.lead),
+          ),
           for (var index = 0; index < spec.links.length; index++) ...[
             if (index > 0)
               TextSpan(
@@ -506,7 +518,7 @@ class _AgreementRowState extends State<_AgreementRow> {
                     index == spec.links.length - 1 ? context.tr(' and ') : ', ',
               ),
             TextSpan(
-              text: spec.links[index].label,
+              text: spec.localizedCopy(context, spec.links[index].label),
               style: spec.links[index].url == null ? bodyStyle : linkStyle,
               recognizer: spec.links[index].url == null
                   ? null
@@ -514,7 +526,8 @@ class _AgreementRowState extends State<_AgreementRow> {
                     ..onTap = () => _open(context, spec.links[index].url!)),
             ),
           ],
-          if (spec.trail.isNotEmpty) TextSpan(text: context.tr(spec.trail)),
+          if (!hasDocumentList && spec.trail.isNotEmpty)
+            TextSpan(text: context.tr(spec.trail)),
         ],
       ),
     );

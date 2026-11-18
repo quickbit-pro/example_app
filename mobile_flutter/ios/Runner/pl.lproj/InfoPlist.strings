@@ -1,0 +1,6 @@
+"NSCameraUsageDescription" = "Aparat umożliwia fotografowanie faktur i dokumentów tożsamości do weryfikacji.";
+"NSFaceIDUsageDescription" = "Face ID pozwala odblokować aplikację i bezpiecznie się zalogować.";
+"NSMicrophoneUsageDescription" = "Stuknij ikonę mikrofonu, aby dyktować pytania w Ask AI. Mikrofon może też służyć do weryfikacji tożsamości przez wideo.";
+"NSSpeechRecognitionUsageDescription" = "Pytania dyktowane w Ask AI są zamieniane na tekst, który można edytować przed podjęciem decyzji o wysłaniu.";
+"NSPhotoLibraryUsageDescription" = "Dostęp do zdjęć pozwala wybrać faktury lub dokumenty tożsamości do przesłania.";
+"NSLocationWhenInUseUsageDescription" = "Ask AI używa lokalizacji, gdy wybierzesz wyszukiwanie pobliskiego lotniska wylotu. Współrzędne pozostają na urządzeniu. Lokalizacja może być też wymagana podczas weryfikacji tożsamości.";

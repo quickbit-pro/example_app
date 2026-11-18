@@ -1,3 +1,5 @@
+import 'package:mobile_flutter/shared/widgets/localized_disclosure.dart';
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'exchange_reference_data.dart';
@@ -82,7 +84,7 @@ class ExchangeTerms extends StatelessWidget {
             value: accepted,
             onChanged: enabled ? (v) => onChanged(v == true) : null,
             title: Text(
-                'I agree to the ZBX Terms of Business and Risk Disclosure and authorise this ${withdrawal ? 'withdrawal' : 'exchange'}.'),
+                context.tr(withdrawal ? 'I agree to the ZBX Terms of Business and Risk Disclosure and authorise this withdrawal.' : 'I agree to the ZBX Terms of Business and Risk Disclosure and authorise this exchange.')),
             controlAffinity: ListTileControlAffinity.leading),
         TextButton(
             onPressed: () => showDialog<void>(
@@ -90,16 +92,16 @@ class ExchangeTerms extends StatelessWidget {
                 builder: (context) =>
                     AlertDialog(
                         title:
-                            const Text('Crypto Exchange — Terms & Disclosures'),
+                            Text(context.tr('Crypto Exchange — Terms & Disclosures')),
                         content: const SingleChildScrollView(
-                            child: SelectableText(exchangeTerms)),
+                            child: LocalizedDisclosure(exchangeTerms)),
                         actions: [
                           TextButton(
                               onPressed: () => Navigator.pop(context),
-                              child: const Text('Back'))
+                              child: Text(context.tr('Back')))
                         ])),
             child:
-                const Text('View ZBX Terms of Business and Risk Disclosure')),
+                Text(context.tr('View ZBX Terms of Business and Risk Disclosure'))),
       ]);
 }
 
@@ -121,15 +123,15 @@ class ExchangeCountryField extends StatelessWidget {
         isExpanded: true,
         style: Theme.of(context).textTheme.bodyLarge,
         decoration: InputDecoration(
-            labelText: labelAbove ? null : label,
-            hintText: labelAbove ? 'Select a country' : null),
+            labelText: labelAbove ? null : context.tr(label),
+            hintText: labelAbove ? context.tr('Select a country') : null),
         items: exchangeCountries.entries
             .map((e) => DropdownMenuItem(
                 value: e.key,
-                child: Text(e.value, overflow: TextOverflow.ellipsis)))
+                child: Text(context.tr(e.value), overflow: TextOverflow.ellipsis)))
             .toList(),
         onChanged: enabled ? (v) => onChanged(v ?? '') : null,
-        validator: (v) => v == null ? 'Select a country' : null);
+        validator: (v) => v == null ? context.tr('Select a country') : null);
     return labelAbove ? ExchangeFieldLabel(label: label, child: field) : field;
   }
 }
@@ -225,10 +227,10 @@ class ExchangeBankFields extends StatelessWidget {
                 initialValue:
                     value['beneficiaryType']?.toString() ?? 'individual',
                 decoration: const InputDecoration(),
-                items: const [
-                  DropdownMenuItem(value: 'business', child: Text('Business')),
+                items: [
+                  DropdownMenuItem(value: 'business', child: Text(context.tr('Business'))),
                   DropdownMenuItem(
-                      value: 'individual', child: Text('Individual'))
+                      value: 'individual', child: Text(context.tr('Individual')))
                 ],
                 onChanged: enabled
                     ? (v) => onChanged({...value, 'beneficiaryType': v})

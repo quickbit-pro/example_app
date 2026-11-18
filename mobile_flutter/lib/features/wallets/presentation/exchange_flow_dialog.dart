@@ -152,7 +152,7 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
         for (final w in wallets.where((w) =>
             w.symbol.toUpperCase() == source?.currency &&
             exchangeChainId(w.network) == source?.chainId))
-          w.address: 'Crypto card · ${w.shortAddress}',
+          w.address: context.tr('Crypto card · {p0}', {'p0': w.shortAddress}),
       };
   bool get canSendToCard =>
       widget.flow == ExchangeFlow.convert &&
@@ -186,7 +186,7 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
       .toList();
   String payeeLabel(Payee p) {
     final iban = p.accountReference.replaceAll(' ', '');
-    return 'Saved bank recipient · ${p.name} · ${iban.substring(0, 2)}…${iban.substring(iban.length - 4)}';
+    return context.tr('Saved bank recipient · {p0} · {p1}…{p2}', {'p0': p.name, 'p1': iban.substring(0, 2), 'p2': iban.substring(iban.length - 4)});
   }
 
   String? get bankCurrency => widget.flow == ExchangeFlow.withdraw
@@ -230,16 +230,16 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
   String? inputLimitError() => source == null
       ? null
       : inputLimits?.validate(amount, source!.currency,
-          withdrawal: widget.flow == ExchangeFlow.withdraw);
+          withdrawal: widget.flow == ExchangeFlow.withdraw, translate: context.tr);
   String? deliveryLimitError(Map<String, dynamic>? value) {
     final limits = deliveryLimits;
     if (limits == null || !limits.hasWithdrawalLimits) { return null; }
     final received = exchangeText(value ?? {}, 'buy_amount');
     final currency = exchangeText(value ?? {}, 'buy_currency').toUpperCase();
     if (received.isEmpty || currency != destination?.currency) {
-      return 'The provider has not returned an amount to check against the withdrawal limits. Request a new quote.';
+      return context.tr('The provider has not returned an amount to check against the withdrawal limits. Request a new quote.');
     }
-    return limits.validate(received, currency, withdrawal: true);
+    return limits.validate(received, currency, withdrawal: true, translate: context.tr);
   }
 
   bool get locked => busy || review || submitted;
@@ -344,7 +344,7 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
               initialValue: selected?.key,
               isExpanded: true,
               decoration:
-                  const InputDecoration(hintText: 'No available account'),
+                  InputDecoration(hintText: context.tr('No available account')),
               items: choices
                   .map((b) => DropdownMenuItem(
                       value: b.key,
@@ -375,7 +375,7 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
     if (fundingBalanceRefreshFailed) return;
     final number = double.tryParse(amount.replaceAll(',', '.'));
     if (source == null || number == null || !number.isFinite || number <= 0) {
-      setState(() => error = 'Enter a valid amount and select an account.');
+      setState(() => error = context.tr('Enter a valid amount and select an account.'));
       return;
     }
     final limitError = inputLimitError();
@@ -384,38 +384,38 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
       return;
     }
     if (widget.flow != ExchangeFlow.fund && number > source!.amount) {
-      setState(() => error = 'Amount exceeds the available balance.');
+      setState(() => error = context.tr('Amount exceeds the available balance.'));
       return;
     }
     if (widget.flow == ExchangeFlow.fund &&
         number > (exchangeBudgetBalances(budget!)['EUR'] ?? 0)) {
       setState(() => error =
-          'Convert funds to EUR in this Fiat account before transferring, or enter an amount within your EUR balance.');
+          context.tr('Convert funds to EUR in this Fiat account before transferring, or enter an amount within your EUR balance.'));
       return;
     }
     if (canSendToCard && sendToCard && cardDestination == null) {
       setState(() => error =
-          'Select a currency and network supported by your payment card wallet.');
+          context.tr('Select a currency and network supported by your payment card wallet.'));
       return;
     }
     if (needsBank && bankChoice.startsWith('saved:') && savedBank == null) {
       setState(() => error =
-          'Select a saved bank account supporting the destination currency.');
+          context.tr('Select a saved bank account supporting the destination currency.'));
       return;
     }
     if (needsBank && savedBank == null && !exchangeBankComplete(bank)) {
       setState(() =>
-          error = 'Enter a valid IBAN and complete the bank destination.');
+          error = context.tr('Enter a valid IBAN and complete the bank destination.'));
       return;
     }
     if (widget.flow == ExchangeFlow.withdraw &&
         source!.isCrypto &&
         address.trim().isEmpty) {
-      setState(() => error = 'Enter or select a crypto destination.');
+      setState(() => error = context.tr('Enter or select a crypto destination.'));
       return;
     }
     if (widget.flow != ExchangeFlow.withdraw && destination == null) {
-      setState(() => error = 'No matching exchange destination is available.');
+      setState(() => error = context.tr('No matching exchange destination is available.'));
       return;
     }
     quoteRefreshTimer?.cancel();
@@ -468,7 +468,7 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          error = exchangeQuoteError(e, cardDelivery: canSendToCard && sendToCard);
+          error = exchangeQuoteError(e, cardDelivery: canSendToCard && sendToCard, translate: context.tr);
           if (refresh) {
             quoteRefreshFailed = true;
             accepted = false;
@@ -578,13 +578,13 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(exchangeText(result, 'message').isEmpty
-              ? 'Exchange request submitted'
+              ? context.tr('Exchange request submitted')
               : exchangeText(result, 'message'))));
     } catch (e) {
       if (mounted) {
         setState(() {
           error = submitted
-              ? 'The transfer outcome needs checking. Refresh transfers before sending again.'
+              ? context.tr('The transfer outcome needs checking. Refresh transfers before sending again.')
               : friendlyErrorMessage(e);
           if (widget.flow == ExchangeFlow.fund && !submitted) {
             // Preserve the key unless a returned terminal result proved no payment was sent.
@@ -608,22 +608,22 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
   @override
   Widget build(BuildContext context) {
     final inputFeeDetails = (inputLimits ?? const BoomFiFeesAndLimits()).descriptions(
-        source?.currency ?? '', withdrawal: widget.flow == ExchangeFlow.withdraw);
+        source?.currency ?? '', withdrawal: widget.flow == ExchangeFlow.withdraw, translate: context.tr);
     final deliveryFeeDetails = (deliveryLimits ?? const BoomFiFeesAndLimits()).descriptions(
-        destination?.currency ?? '', withdrawal: true);
+        destination?.currency ?? '', withdrawal: true, translate: context.tr);
 
     depositWallets = ref.watch(exchangeCardDepositAddressesProvider);
     if (widget.flow == ExchangeFlow.fund &&
         (budget == null || wallet == null)) {
       return AlertDialog(
-          title: const Text('Fiat to crypto'),
+          title: Text(context.tr('Fiat to crypto')),
           content: Text(budget == null
-              ? 'A Fiat account supporting EUR and Exchange EUR funding details are required.'
+              ? context.tr('A Fiat account supporting EUR and Exchange EUR funding details are required.')
               : depositWallets.isLoading
-                  ? 'Loading your Crypto card receiving networks…'
+                  ? context.tr('Loading your Crypto card receiving networks…')
                   : depositWallets.hasError
-                      ? 'Could not load your Crypto card receiving networks. Please retry.'
-                      : 'No Crypto card receiving address matches an available ZBX crypto network.'),
+                      ? context.tr('Could not load your Crypto card receiving networks. Please retry.')
+                      : context.tr('No Crypto card receiving address matches an available ZBX crypto network.')),
           actions: [
             if (depositWallets.hasError)
               TextButton(
@@ -631,10 +631,10 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
                     ref.invalidate(depositAddressesProvider);
                     ref.invalidate(exchangeCardDepositAddressesProvider);
                   },
-                  child: const Text('Retry')),
+                  child: Text(context.tr('Retry'))),
             TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Close'))
+                child: Text(context.tr('Close')))
           ]);
     }
     final title = widget.flow == ExchangeFlow.fund
@@ -656,11 +656,11 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
             actions: [
               TextButton(
                   onPressed: busy ? null : () => Navigator.pop(context),
-                  child: Text(submitted ? 'Close' : 'Cancel')),
+                  child: Text(submitted ? context.tr('Close') : context.tr('Cancel'))),
               if (review && !submitted)
                 TextButton(
                     onPressed: busy ? null : () => edit(() {}),
-                    child: const Text('Edit')),
+                    child: Text(context.tr('Edit'))),
               if (!submitted)
                 _primaryAction(context,
                     onPressed: busy || quoteRefreshFailed ||
@@ -690,15 +690,15 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
             ],
             child: ExchangeFormColumn(children: [
               if (widget.flow == ExchangeFlow.fund) ...[
-                const Text(
-                    'Transfer EUR from your Fiat account, exchange it, and send crypto to your Crypto card. Review the quote before confirming.'),
                 Text(
-                    'Available in Fiat account: ${(exchangeBudgetBalances(budget!)['EUR'] ?? 0).toStringAsFixed(2)} EUR'),
+                    context.tr('Transfer EUR from your Fiat account, exchange it, and send crypto to your Crypto card. Review the quote before confirming.')),
+                Text(
+                    context.tr('Available in Fiat account: {p0} EUR', {'p0': (exchangeBudgetBalances(budget!)['EUR'] ?? 0).toStringAsFixed(2)})),
                 if (exchangeBudgetBalances(budget!)
                     .entries
                     .any((entry) => entry.key != 'EUR' && entry.value > 0)) ...[
-                  const Text(
-                      'Have funds in another currency? Convert them to EUR first, then continue here.'),
+                  Text(
+                      context.tr('Have funds in another currency? Convert them to EUR first, then continue here.')),
                   if (widget.onConvertToEur != null)
                     TextButton(
                         onPressed: locked
@@ -723,22 +723,22 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
                                     setState(() {
                                       fundingBalanceRefreshFailed = true;
                                       error =
-                                          'Could not refresh your Fiat account balance. Close and reopen this transfer before continuing.';
+                                          context.tr('Could not refresh your Fiat account balance. Close and reopen this transfer before continuing.');
                                     });
                                   }
                                 } finally {
                                   if (mounted) setState(() => busy = false);
                                 }
                               },
-                        child: const Text('Convert to EUR')),
+                        child: Text(context.tr('Convert to EUR'))),
                 ],
                 ExchangeFieldLabel(
                     label: 'Source fiat account',
                     child: DropdownButtonFormField<String>(
                         initialValue: budget!.id,
                         isExpanded: true,
-                        decoration: const InputDecoration(
-                            hintText: 'Select an account'),
+                        decoration: InputDecoration(
+                            hintText: context.tr('Select an account')),
                         items: budgets
                             .map((b) => DropdownMenuItem(
                                 value: b.id,
@@ -757,8 +757,8 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
                         key: ValueKey('funding-$fundingCurrency'),
                         initialValue: fundingCurrency,
                         isExpanded: true,
-                        decoration: const InputDecoration(
-                            hintText: 'Select an account'),
+                        decoration: InputDecoration(
+                            hintText: context.tr('Select an account')),
                         items: fundingCurrencies(budget!)
                             .map((c) =>
                                 DropdownMenuItem(value: c, child: Text(c)))
@@ -774,8 +774,8 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
                     child: DropdownButtonFormField<String>(
                         initialValue: walletId(wallet!),
                         isExpanded: true,
-                        decoration: const InputDecoration(
-                            hintText: 'Select an account'),
+                        decoration: InputDecoration(
+                            hintText: context.tr('Select an account')),
                         items: walletChoices
                             .map((w) => DropdownMenuItem(
                                 value: walletId(w),
@@ -814,11 +814,11 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
               if (source != null &&
                   source!.amount <= 0 &&
                   widget.flow != ExchangeFlow.fund)
-                const ExchangeNotice(
-                    'There are no funds available in this account. Deposit funds to continue.'),
+                ExchangeNotice(
+                    context.tr('There are no funds available in this account. Deposit funds to continue.')),
               if (widget.flow != ExchangeFlow.withdraw && destination == null)
-                const ExchangeNotice(
-                    'No compatible currency account is available yet. Refresh your exchange accounts and try again.'),
+                ExchangeNotice(
+                    context.tr('No compatible currency account is available yet. Refresh your exchange accounts and try again.')),
               ExchangeFieldLabel(
                   label: 'Amount (${source?.currency ?? ''})',
                   child: TextField(
@@ -838,8 +838,8 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
                   title: Text(context.tr('Fund my payment card wallet')),
-                  subtitle: const Text(
-                      'Optional · Deliver the converted crypto after settlement, ready for a card top-up.'),
+                  subtitle: Text(
+                      context.tr('Optional · Deliver the converted crypto after settlement, ready for a card top-up.')),
                   value: sendToCard,
                   onChanged: locked ||
                           !widget.outflowsEnabled ||
@@ -849,14 +849,14 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
                 ),
                 if (widget.overview.canTrade('USDT') &&
                     !balances.any((b) => b.currency == 'USDT' && b.isCrypto))
-                  const ExchangeNotice(
-                      'USDT is not enabled for conversion on your Exchange account.'),
+                  ExchangeNotice(
+                      context.tr('USDT is not enabled for conversion on your Exchange account.')),
                 if (depositWallets.isLoading)
-                  const ExchangeNotice(
-                      'Loading your payment card wallet addresses…')
+                  ExchangeNotice(
+                      context.tr('Loading your payment card wallet addresses…'))
                 else if (depositWallets.hasError) ...[
-                  const ExchangeNotice(
-                      'Could not load your payment card wallet addresses.'),
+                  ExchangeNotice(
+                      context.tr('Could not load your payment card wallet addresses.')),
                   TextButton.icon(
                     onPressed: locked
                         ? null
@@ -866,11 +866,11 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
                                 exchangeCardDepositAddressesProvider);
                           },
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Retry deposit addresses'),
+                    label: Text(context.tr('Retry deposit addresses')),
                   ),
                 ] else if (cardDestinations.isEmpty)
-                  const ExchangeNotice(
-                      'No payment card wallet address matches this currency and network. Choose another network.'),
+                  ExchangeNotice(
+                      context.tr('No payment card wallet address matches this currency and network. Choose another network.')),
                 if (sendToCard && cardDestination != null)
                   ExchangeFieldLabel(
                       label: 'Payment card wallet',
@@ -890,8 +890,8 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
                               : (v) => edit(() => walletKey = v))),
               ],
               if (needsBank) ...[
-                const ExchangeNotice(
-                    'EUR proceeds are sent to your bank account after settlement. Fiat can remain in Exchange for up to 24 hours.'),
+                ExchangeNotice(
+                    context.tr('EUR proceeds are sent to your bank account after settlement. Fiat can remain in Exchange for up to 24 hours.')),
                 if (savedBanks.isNotEmpty ||
                     eligibleReceiving.isNotEmpty ||
                     eligibleEqualsPayees.isNotEmpty)
@@ -904,11 +904,11 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
                               ? 'new'
                               : bankChoice,
                           isExpanded: true,
-                          decoration: const InputDecoration(
-                              hintText: 'Select an account'),
+                          decoration: InputDecoration(
+                              hintText: context.tr('Select an account')),
                           items: [
-                            const DropdownMenuItem(
-                                value: 'new', child: Text('New payee')),
+                            DropdownMenuItem(
+                                value: 'new', child: Text(context.tr('New payee'))),
                             for (final d in savedBanks)
                               DropdownMenuItem(
                                   value: 'saved:${exchangeText(d, 'id')}',
@@ -923,7 +923,7 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
                               DropdownMenuItem(
                                   value: r.accountNumber,
                                   child: Text(
-                                      'My Fiat account · ${r.holder} · ${r.maskedIdentifier}',
+                                      context.tr('My Fiat account · {p0} · {p1}', {'p0': r.holder, 'p1': r.maskedIdentifier}),
                                       overflow: TextOverflow.ellipsis))
                           ],
                           onChanged: locked
@@ -996,8 +996,8 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
                       child: DropdownButtonFormField<String>(
                           key: ValueKey(source!.key),
                           isExpanded: true,
-                          decoration: const InputDecoration(
-                              hintText: 'Choose a saved wallet'),
+                          decoration: InputDecoration(
+                              hintText: context.tr('Choose a saved wallet')),
                           items: [
                             for (final entry in cryptoDestinations.entries)
                               DropdownMenuItem(
@@ -1016,39 +1016,39 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
                         initialValue: address,
                         enabled: !locked,
                         decoration: InputDecoration(
-                            hintText: 'Enter ${source!.chainName} address'),
+                            hintText: context.tr('Enter {p0} address', {'p0': source!.chainName})),
                         onChanged: (v) {
                           address = v;
                           accepted = false;
                         })),
                 ExchangeNotice(
-                    'Send only to a ${source!.chainName} address. Transfers to the wrong network cannot be recovered.'),
+                    context.tr('Send only to a {p0} address. Transfers to the wrong network cannot be recovered.', {'p0': source!.chainName})),
               ],
               if (review) ...[
                 const Divider(),
-                Text('You send $amount ${source?.currency ?? ''}'),
+                Text(context.tr('You send {p0} {p1}', {'p0': amount, 'p1': source?.currency ?? ''})),
                 if (quote != null) ...[
                   Text(
-                      'You receive ${exchangeText(quote!, 'buy_amount')} ${exchangeText(quote!, 'buy_currency')}'),
-                  Text('Rate: ${exchangeText(quote!, 'rate')}'),
+                      context.tr('You receive {p0} {p1}', {'p0': exchangeText(quote!, 'buy_amount'), 'p1': exchangeText(quote!, 'buy_currency')})),
+                  Text(context.tr('Rate: {p0}', {'p0': exchangeText(quote!, 'rate')})),
                   Text(
-                      'Fee: ${exchangeText(fees, 'total_fee')} ${exchangeText(fees, 'fee_ccy')}'),
+                      context.tr('Fee: {p0} {p1}', {'p0': exchangeText(fees, 'total_fee'), 'p1': exchangeText(fees, 'fee_ccy')})),
                   Text(refreshingQuote
-                      ? 'Updating quote…'
+                      ? context.tr('Updating quote…')
                       : quoteRefreshFailed
-                          ? 'Quote refresh failed. Retrying automatically…'
+                          ? context.tr('Quote refresh failed. Retrying automatically…')
                           : expired
-                              ? 'Updating expired quote…'
-                              : 'Quote refreshes automatically.'),
+                              ? context.tr('Updating expired quote…')
+                              : context.tr('Quote refreshes automatically.')),
                   if (quoteChanged)
-                    const ExchangeNotice('The rate or fees changed. Review the updated quote and confirm your agreement again.'),
+                    ExchangeNotice(context.tr('The rate or fees changed. Review the updated quote and confirm your agreement again.')),
                   if (quoteRefreshFailed && !busy)
                     TextButton(onPressed: () => prepare(refresh: true),
-                        child: const Text('Retry quote now')),
+                        child: Text(context.tr('Retry quote now'))),
                 ],
                 if (canSendToCard && sendToCard && cardDestination != null)
                   SelectableText(
-                      'After settlement: ${destination!.currency} → Crypto card account\n${cardDestination!.network} · ${cardDestination!.address}'),
+                      context.tr('After settlement: {p0} → Crypto card account\n{p1} · {p2}', {'p0': destination!.currency, 'p1': cardDestination!.network, 'p2': cardDestination!.address})),
                 if (needsBank)
                   SelectableText(savedBank != null
                       ? bankLabel(savedBank!)
@@ -1057,8 +1057,8 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
                     source?.isCrypto == true)
                   SelectableText(address),
                 if (widget.flow == ExchangeFlow.fund)
-                  const Text(
-                      'After funding, rates within ±0.5% are accepted automatically. Larger changes require your approval.'),
+                  Text(
+                      context.tr('After funding, rates within ±0.5% are accepted automatically. Larger changes require your approval.')),
                 ExchangeTerms(
                     accepted: accepted,
                     onChanged: (v) => setState(() {
@@ -1071,7 +1071,7 @@ class _ExchangeFlowDialogState extends ConsumerState<ExchangeFlowDialog> {
               if (actionUrl != null)
                 TextButton(
                     onPressed: () => openExchangeUrl(actionUrl!),
-                    child: const Text('Complete provider verification')),
+                    child: Text(context.tr('Complete provider verification'))),
               if (error != null) ExchangeNotice(error!, isError: true),
               if (busy) const LinearProgressIndicator(),
             ])));

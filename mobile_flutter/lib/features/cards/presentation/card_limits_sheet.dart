@@ -120,7 +120,7 @@ class _CardLimitsSheetState extends ConsumerState<CardLimitsSheet> {
     final problem = _problem(info);
     if (problem != null) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(problem)));
+          .showSnackBar(SnackBar(content: Text(context.tr(problem))));
       return;
     }
     setState(() => _busy = true);

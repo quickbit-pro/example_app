@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'package:dio/dio.dart';
@@ -109,7 +110,7 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
         if (mounted) Navigator.pop(context, true);
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Due diligence progress saved')));
+            SnackBar(content: Text(context.tr('Due diligence progress saved'))));
       }
     });
   }
@@ -173,17 +174,17 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
           initialValue: _data[key] as bool?,
           isExpanded: true,
           decoration: InputDecoration(
-              labelText: label, border: const OutlineInputBorder()),
-          items: const [
-            DropdownMenuItem(value: true, child: Text('Yes')),
-            DropdownMenuItem(value: false, child: Text('No'))
+              labelText: context.tr(label), border: const OutlineInputBorder()),
+          items: [
+            DropdownMenuItem(value: true, child: Text(context.tr('Yes'))),
+            DropdownMenuItem(value: false, child: Text(context.tr('No')))
           ],
           onChanged: _busy
               ? null
               : (value) {
                   setState(() => _data[key] = value);
                 },
-          validator: (value) => value == null ? 'Choose yes or no' : null));
+          validator: (value) => value == null ? context.tr('Choose yes or no') : null));
 
   Widget _route(String key, String label, Map<String, String> options) =>
       Padding(
@@ -192,10 +193,10 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
               initialValue: _data[key] as String?,
               isExpanded: true,
               decoration: InputDecoration(
-                  labelText: label, border: const OutlineInputBorder()),
+                  labelText: context.tr(label), border: const OutlineInputBorder()),
               items: options.entries
                   .map((e) =>
-                      DropdownMenuItem(value: e.key, child: Text(e.value)))
+                      DropdownMenuItem(value: e.key, child: Text(context.tr(e.value))))
                   .toList(),
               onChanged: _busy
                   ? null
@@ -209,15 +210,15 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
         (_evaluation['requirements'] as List? ?? []).map(_map).toList();
     final errors = _evaluation['errors'] as List? ?? [];
     return Scaffold(
-        appBar: AppBar(title: const Text('Business due diligence')),
+        appBar: AppBar(title: Text(context.tr('Business due diligence'))),
         body: AbsorbPointer(
             absorbing: _busy,
             child: Form(
                 key: _form,
                 child: ListView(padding: const EdgeInsets.all(20), children: [
                   if (_busy) const LinearProgressIndicator(),
-                  const Text(
-                      'Provide information and evidence for Equals Money to review. Equals Money makes the approval decision.'),
+                  Text(
+                      context.tr('Provide information and evidence for Equals Money to review. Equals Money makes the approval decision.')),
                   const SizedBox(height: 16),
                   if (_error != null)
                     SelectableText(_error!,
@@ -226,14 +227,14 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
                   if (_profile.isEmpty && !_busy)
                     TextButton(
                         onPressed: () => _run(_load),
-                        child: const Text('Retry loading checklist')),
+                        child: Text(context.tr('Retry loading checklist'))),
                   if (_profile.isNotEmpty) ...[
-                    Text('Policy: ${_evaluation['policyVersion'] ?? ''}'),
+                    Text(context.tr('Policy: {p0}', {'p0': _evaluation['policyVersion'] ?? ''})),
                     if (widget.saveApplication != null &&
                         _application.keys.any(
                             (key) => key.toLowerCase() == 'registeredaddress'))
                       ExpansionTile(
-                        title: const Text('Saved business details'),
+                        title: Text(context.tr('Saved business details')),
                         children: [
                           for (final field in const {
                             'website': 'Website (optional)',
@@ -254,18 +255,18 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
                                       await widget.saveApplication!(_application);
                                       await _load();
                                     }),
-                            child: const Text(
-                              'Save business details and refresh checklist',
+                            child: Text(
+                              context.tr('Save business details and refresh checklist'),
                             ),
                           ),
                         ],
                       ),
                     if (_evaluation['requiresDirector'] == true)
-                      const Text(
-                          'This legal form requires a director in the associated people section.'),
+                      Text(
+                          context.tr('This legal form requires a director in the associated people section.')),
                     if (_evaluation['requiresSoleTraderOwner'] == true)
-                      const Text(
-                          'The sole trader must be both the authorised applicant and 100% beneficial owner.'),
+                      Text(
+                          context.tr('The sole trader must be both the authorised applicant and 100% beneficial owner.')),
                     const SizedBox(height: 20),
                     _boolean('isDropshipping',
                         'Does the business use dropshipping?'),
@@ -273,8 +274,8 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
                         'Trust, nominee or fiduciary ownership?'),
                     _boolean('noProhibitedRegionalExposure',
                         'No exposure to prohibited regions?'),
-                    const Text(
-                        'Include all business, ownership and payment locations. The checklist identifies any restrictions for those locations.'),
+                    Text(
+                        context.tr('Include all business, ownership and payment locations. The checklist identifies any restrictions for those locations.')),
                     const SizedBox(height: 16),
                     if (_evaluation['asksOperationalExpenses'] == true)
                       _boolean('operationalExpensesOnly',
@@ -298,17 +299,17 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
                         initialValue: _data['ownershipExplanation'] as String?,
                         minLines: 3,
                         maxLines: 8,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                             labelText:
-                                'Indirect ownership and effective control',
+                                context.tr('Indirect ownership and effective control'),
                             helperText:
-                                'Name controllers, intermediate entities, voting rights and percentages. Explain any no-UBO case.',
+                                context.tr('Name controllers, intermediate entities, voting rights and percentages. Explain any no-UBO case.'),
                             helperMaxLines: 3),
                         onChanged: (v) => _data['ownershipExplanation'] = v),
                     const SizedBox(height: 16),
                     OutlinedButton(
                         onPressed: () => _run(_evaluate),
-                        child: const Text('Refresh requirements')),
+                        child: Text(context.tr('Refresh requirements'))),
                     for (final error in errors)
                       Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -342,24 +343,24 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
                           }.entries)
                             ListTile(
                                 title: Text(entry.key == 'PROOF_OF_IDENTITY'
-                                    ? 'Identity evidence'
-                                    : 'Address evidence'),
+                                    ? context.tr('Identity evidence')
+                                    : context.tr('Address evidence')),
                                 trailing: person[entry.value] == true
                                     ? const Icon(Icons.check_circle)
                                     : TextButton(
                                         onPressed: () => _uploadPerson(
                                             person, entry.key, entry.value),
-                                        child: const Text('Upload'))),
+                                        child: Text(context.tr('Upload')))),
                         ])),
                     for (final requirement in requirements)
                       _requirement(requirement),
                     const SizedBox(height: 20),
                     OutlinedButton(
                         onPressed: () => _save(),
-                        child: const Text('Save progress')),
+                        child: Text(context.tr('Save progress'))),
                     FilledButton(
                         onPressed: () => _save(complete: true),
-                        child: const Text('Save checklist and continue')),
+                        child: Text(context.tr('Save checklist and continue'))),
                   ],
                 ]))));
   }
@@ -372,7 +373,7 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
     return TextFormField(
       key: ValueKey(field),
       initialValue: _application[key]?.toString(),
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(labelText: context.tr(label)),
       onChanged: (value) => setState(() {
         final text = value.trim();
         if (text.isEmpty && !_savedApplication.containsKey(key)) {
@@ -398,7 +399,7 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
             padding: const EdgeInsets.all(16),
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(requirement['label']?.toString() ?? id),
+              Text(context.tr(requirement['label']?.toString() ?? id)),
               if (requirement['evidenceOnly'] != true)
                 TextFormField(
                     key: ValueKey('$id-text'),
@@ -406,19 +407,19 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
                     minLines: 2,
                     maxLines: 8,
                     decoration:
-                        const InputDecoration(labelText: 'Your response'),
+                        InputDecoration(labelText: context.tr('Your response')),
                     onChanged: (v) => answer['text'] = v,
                     validator: (v) =>
                         !notApplicable && (v?.trim().isEmpty ?? true)
-                            ? 'Provide a response'
+                            ? context.tr('Provide a response')
                             : null),
               if (requirement['allowNotApplicable'] == true)
                 TextFormField(
                     initialValue: answer['notApplicableReason']?.toString(),
                     minLines: 1,
                     maxLines: 4,
-                    decoration: const InputDecoration(
-                        labelText: 'If not applicable, explain why'),
+                    decoration: InputDecoration(
+                        labelText: context.tr('If not applicable, explain why')),
                     onChanged: (v) =>
                         setState(() => answer['notApplicableReason'] = v)),
               if (purpose != null) ...[
@@ -428,7 +429,7 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
                   CheckboxListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(
-                          doc['fileName']?.toString() ?? 'Uploaded evidence'),
+                          doc['fileName']?.toString() ?? context.tr('Uploaded evidence')),
                       value: selected.contains(doc['complianceDocumentId']),
                       onChanged: (checked) => setState(() {
                             answer['documentIds'] = checked == true
@@ -442,7 +443,7 @@ class _EqualsComplianceScreenState extends State<EqualsComplianceScreen> {
                 TextButton.icon(
                     onPressed: () => _upload(requirement),
                     icon: const Icon(Icons.upload_file),
-                    label: const Text('Upload supporting evidence')),
+                    label: Text(context.tr('Upload supporting evidence'))),
               ],
             ])));
   }

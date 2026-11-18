@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 class ExchangeLimitsDialog extends StatefulWidget {
@@ -19,7 +20,7 @@ class _ExchangeLimitsDialogState extends State<ExchangeLimitsDialog> {
   Widget build(BuildContext context) => AlertDialog(
         scrollable: true,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        title: const Text('Choose Exchange limits'),
+        title: Text(context.tr('Choose Exchange limits')),
         content: SizedBox(
           width: 400,
           child: RadioGroup<String>(
@@ -29,8 +30,8 @@ class _ExchangeLimitsDialogState extends State<ExchangeLimitsDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                    'Select your limits, then continue to verification.'),
+                Text(
+                    context.tr('Select your limits, then continue to verification.')),
                 const SizedBox(height: 20),
                 if (widget.allowBasic) ...[
                   _LimitOption(
@@ -58,14 +59,14 @@ class _ExchangeLimitsDialogState extends State<ExchangeLimitsDialog> {
               onPressed: selectedTier == null
                   ? null
                   : () => Navigator.pop(context, selectedTier),
-              child: const Text('Continue'),
+              child: Text(context.tr('Continue')),
             ),
           ),
           SizedBox(
             width: double.infinity,
             child: TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
           ),
         ],

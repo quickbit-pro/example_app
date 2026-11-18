@@ -47,7 +47,7 @@ class ResourceList extends StatelessWidget {
           ExampleRow(
             leading: ExampleIconTile(icon: icon, color: ExampleColors.iris),
             title: _friendlyResourceTitle(resource),
-            subtitle: _rowSubtitle(resource),
+            subtitle: _rowSubtitle(context, resource),
             trailing: ExampleRow.chevron,
             semanticsLabel: context
                 .tr('Open {p0}', {'p0': _friendlyResourceTitle(resource)}),
@@ -94,13 +94,14 @@ class ResourceList extends StatelessWidget {
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ],
-                        if (_displayFacts(resource).isNotEmpty) ...[
+                        if (_displayFacts(context, resource).isNotEmpty) ...[
                           const SizedBox(height: 10),
                           Wrap(
                             spacing: 8,
                             runSpacing: 8,
                             children: [
-                              for (final fact in _displayFacts(resource))
+                              for (final fact
+                                  in _displayFacts(context, resource))
                                 Chip(
                                   label: Text(fact),
                                   visualDensity: VisualDensity.compact,
@@ -159,7 +160,7 @@ class PlatformActionListener extends ConsumerWidget {
           showActionMessage(result.message);
         },
         error: (error, stackTrace) =>
-            showActionMessage(friendlyErrorMessage(error)),
+            showActionMessage(context.tr(friendlyErrorMessage(error))),
       );
     });
 
@@ -191,7 +192,7 @@ class ActionButton extends ConsumerWidget {
               child: AppProgressIndicator(strokeWidth: 2),
             )
           : Icon(icon),
-      label: Text(label),
+      label: Text(context.tr(label)),
     );
   }
 }
@@ -295,58 +296,18 @@ List<({String label, String value})> _displayPairs(PlatformResource resource) {
 ) {
   for (final key in keys) {
     final value = metadata[key]?.toString().trim() ?? '';
-    if (value.isNotEmpty && !_looksTechnicalId(value)) {
-      return (label: label, value: friendlyStatus(value));
+    if (value.isNotEmpty && (label == 'Status' || !_looksTechnicalId(value))) {
+      return (label: label, value: value);
     }
   }
   return null;
 }
 
-List<String> _displayFacts(PlatformResource resource) {
-  final metadata = resource.metadata;
-  final facts = [
-    _labeledValue('Asset', metadata, const [
-      'asset',
-      'Asset',
-      'assetCode',
-      'AssetCode',
-      'currency',
-      'Currency',
-    ]),
-    _labeledValue(
-        'Network', metadata, const ['network', 'Network', 'chain', 'Chain']),
-    _labeledValue('Available', metadata, const [
-      'available',
-      'Available',
-      'availableBalance',
-      'AvailableBalance',
-      'balance',
-      'Balance',
-    ]),
-    _labeledValue(
-        'Status', metadata, const ['status', 'Status', 'state', 'State']),
-  ].whereType<String>().toList();
-
-  final seen = <String>{};
+List<String> _displayFacts(BuildContext context, PlatformResource resource) {
   return [
-    for (final fact in facts)
-      if (seen.add(fact.toLowerCase())) fact,
-  ].take(4).toList();
-}
-
-String? _labeledValue(
-  String label,
-  Map<String, dynamic> metadata,
-  List<String> keys,
-) {
-  for (final key in keys) {
-    final value = metadata[key]?.toString().trim() ?? '';
-    if (value.isNotEmpty && !_looksTechnicalId(value)) {
-      return '$label ${friendlyStatus(value)}';
-    }
-  }
-
-  return null;
+    for (final pair in _displayPairs(resource))
+      '${context.tr(pair.label)} ${pair.label == 'Status' ? localizedPlatformStatus(context, pair.value) : friendlyStatus(pair.value)}',
+  ];
 }
 
 String _resourceKind(Map<String, dynamic> metadata) {
@@ -474,7 +435,12 @@ class _ExampleResourceSheet extends StatelessWidget {
               ExampleListGroup(
                 children: [
                   for (final pair in pairs)
-                    PlatformFactRow(label: pair.label, value: pair.value),
+                    PlatformFactRow(
+                      label: context.tr(pair.label),
+                      value: pair.label == 'Status'
+                          ? localizedPlatformStatus(context, pair.value)
+                          : friendlyStatus(pair.value),
+                    ),
                 ],
               ),
             ],
@@ -527,12 +493,12 @@ Widget _legacyResourceSheet(
             if (_friendlyResourceSubtitle(resource) != null)
               SelectableText(_friendlyResourceSubtitle(resource)!),
             const SizedBox(height: 16),
-            if (_displayFacts(resource).isNotEmpty)
+            if (_displayFacts(context, resource).isNotEmpty)
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  for (final fact in _displayFacts(resource))
+                  for (final fact in _displayFacts(context, resource))
                     Chip(label: Text(fact)),
                 ],
               ),
@@ -696,7 +662,7 @@ class _PlatformActionRowState extends ConsumerState<PlatformActionRow> {
                 child: ExampleRow.chevronOf(context),
               ),
       ),
-      semanticsLabel: widget.label,
+      semanticsLabel: context.tr(widget.label),
       onTap: live
           ? () {
               setState(() => _pending = true);
@@ -749,6 +715,21 @@ Color platformStatusColor(String value) {
   return ExampleColors.iris;
 }
 
+/// Provider statuses use varying casing and separators; use the catalogue's
+/// canonical spelling without treating resource titles or identifiers as copy.
+String localizedPlatformStatus(BuildContext context, String status) {
+  final label = friendlyStatus(status);
+  final messages = AppLocalizations.of(context).messages;
+  final normalized = label.toLowerCase();
+  final sentenceCase =
+      '${normalized[0].toUpperCase()}${normalized.substring(1)}';
+  if (messages.containsKey(sentenceCase)) return context.tr(sentenceCase);
+  for (final key in messages.keys) {
+    if (key.toLowerCase() == normalized) return context.tr(key);
+  }
+  return label;
+}
+
 /// Status as a [ExamplePill]: the one place a semantic hue is allowed on these
 /// screens. Both themes resolve through `ExampleInk.accent`, so the label
 /// clears 4.5:1 on paper as well as on night.
@@ -760,7 +741,7 @@ class PlatformStatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = friendlyStatus(status);
+    final label = localizedPlatformStatus(context, status);
     return ExamplePill(
       label: label,
       color: platformStatusColor(status),
@@ -809,7 +790,7 @@ class PlatformFactRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            label,
+            context.tr(label),
             style: TextStyle(
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
@@ -993,7 +974,7 @@ class PlatformStickyBar extends StatelessWidget {
 
 /// One line under a resource row title: its own subtitle, then the first fact
 /// the payload carries, so the row says something without a chip cloud.
-String? _rowSubtitle(PlatformResource resource) {
+String? _rowSubtitle(BuildContext context, PlatformResource resource) {
   final raw = _friendlyResourceSubtitle(resource);
   // A chain address reaching a row's subtitle is the common case here, and a
   // row subtitle elides at the END — which throws away the last characters,
@@ -1002,7 +983,7 @@ String? _rowSubtitle(PlatformResource resource) {
   final subtitle = raw != null && platformLooksMachineString(raw)
       ? ExampleMono.truncateMiddle(raw, head: 10, tail: 8)
       : raw;
-  final facts = _displayFacts(resource);
+  final facts = _displayFacts(context, resource);
   if (subtitle == null) return facts.isEmpty ? null : facts.join(' · ');
   if (facts.isEmpty) return subtitle;
   return '$subtitle · ${facts.first}';

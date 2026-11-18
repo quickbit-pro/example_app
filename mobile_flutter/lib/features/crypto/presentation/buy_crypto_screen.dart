@@ -79,7 +79,7 @@ class _BuyCryptoScreenState extends ConsumerState<BuyCryptoScreen> {
   Future<void> _submit(HoppaWalletAsset? destination) async {
     if (destination == null) {
       setState(() => _error =
-          'No $_asset deposit address is available yet. Complete verification and try again.');
+          context.tr('No {p0} deposit address is available yet. Complete verification and try again.', {'p0': _asset}));
       return;
     }
     setState(() {
@@ -243,7 +243,7 @@ class _BuyCryptoScreenState extends ConsumerState<BuyCryptoScreen> {
             Semantics(
               liveRegion: true,
               child: Text(
-                _error!,
+                context.tr(_error!),
                 style: TextStyle(
                   color: ExampleInk.accent(context, ExampleColors.danger),
                   fontSize: 12.5,
@@ -270,8 +270,16 @@ class _BuyCryptoScreenState extends ConsumerState<BuyCryptoScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Finish the card payment in the Transak checkout. Your $_asset arrives in the wallet once Transak confirms it, usually within a few minutes.'
-                    '${_orderId != null ? ' Order $_orderId.' : ''}',
+                    context.tr(
+                        'Finish the card payment in the Transak checkout. Your {p0} arrives in the wallet once Transak confirms it, usually within a few minutes.{p1}',
+                        {
+                          'p0': _asset,
+                          'p1': _orderId != null
+                              ? ' ${context.tr('Order {p0}.', {
+                                      'p0': _orderId
+                                    })}'
+                              : ''
+                        }),
                     style: TextStyle(
                       fontSize: 12,
                       height: 1.4,
@@ -529,7 +537,7 @@ class _BuyCryptoScreenState extends ConsumerState<BuyCryptoScreen> {
                 ),
                 const SizedBox(height: 6),
                 _LegacyInfoRow(
-                    label: context.tr('Payment'), value: 'Card via Transak'),
+                    label: context.tr('Payment'), value: context.tr('Card via Transak')),
               ],
             ),
           ),
@@ -563,8 +571,16 @@ class _BuyCryptoScreenState extends ConsumerState<BuyCryptoScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Finish the card payment in the Transak checkout. Your $_asset arrives in the wallet once Transak confirms it, usually within a few minutes.'
-                    '${_orderId != null ? ' Order $_orderId.' : ''}',
+                    context.tr(
+                        'Finish the card payment in the Transak checkout. Your {p0} arrives in the wallet once Transak confirms it, usually within a few minutes.{p1}',
+                        {
+                          'p0': _asset,
+                          'p1': _orderId != null
+                              ? ' ${context.tr('Order {p0}.', {
+                                      'p0': _orderId
+                                    })}'
+                              : ''
+                        }),
                     style: TextStyle(
                       fontSize: 12,
                       height: 1.4,
@@ -741,7 +757,7 @@ class _BuyCta extends StatelessWidget {
                 child: AppProgressIndicator(strokeWidth: 2),
               )
             : const Icon(Icons.credit_card_rounded, size: 20),
-        label: Text(label),
+        label: Text(context.tr(label)),
       ),
     );
   }
@@ -766,7 +782,7 @@ class _QuickAmount extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadii.pill),
       semanticsLabel: context.tr(
-          'Pay {p0}{p1}', {'p0': label, 'p1': selected ? ', selected' : ''}),
+          selected ? 'Pay {p0}, selected' : 'Pay {p0}', {'p0': label}),
       child: AnimatedContainer(
         duration: ExampleMotion.of(context, ExampleMotion.state),
         curve: ExampleMotion.arrive,
@@ -786,7 +802,7 @@ class _QuickAmount extends StatelessWidget {
           ),
         ),
         child: Text(
-          label,
+          context.tr(label),
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
@@ -818,8 +834,10 @@ class _AssetChoice extends StatelessWidget {
     return ExamplePressable(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadii.sm),
-      semanticsLabel: context.tr('{p0} on {p1}{p2}',
-          {'p0': symbol, 'p1': caption, 'p2': selected ? ', selected' : ''}),
+      semanticsLabel: context.tr(
+        selected ? '{p0} on {p1}, selected' : '{p0} on {p1}',
+        {'p0': symbol, 'p1': caption},
+      ),
       child: ExampleGlassPanel(
         radius: AppRadii.sm,
         borderAlpha: selected ? .5 : .16,
@@ -914,7 +932,7 @@ class _OrderLedger extends StatelessWidget {
           ),
           trailing: target == null
               ? ExampleRowValue(
-                  value: 'No address yet',
+                  value: context.tr('No address yet'),
                   color: ExampleInk.accent(context, ExampleColors.warning),
                 )
               : ExampleMono(
@@ -932,7 +950,7 @@ class _OrderLedger extends StatelessWidget {
             horizontal: AppSpacing.md,
             vertical: AppSpacing.xxs,
           ),
-          trailing: const ExampleRowValue(value: 'Card · Transak'),
+          trailing: ExampleRowValue(value: context.tr('Card · Transak')),
         ),
       ],
     );

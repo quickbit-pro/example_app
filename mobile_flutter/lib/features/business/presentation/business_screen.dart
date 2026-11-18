@@ -320,7 +320,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
                       label: context.tr('Country of incorporation'),
                       value: _countryOfIncorporation,
                       options: equalsCountryCodes,
-                      labelBuilder: _countryLabel,
+                      labelBuilder: (code) => _countryLabel(context, code),
                       onChanged: (value) => setState(() {
                         _countryOfIncorporation = value;
                         if (!_requiresIncorporationRegion(value)) {
@@ -370,7 +370,8 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
                       label: context.tr('Business overview'),
                       maxLines: 3,
                       maxLength: 1000,
-                      validator: _businessOverviewValidator,
+                      validator:
+                          context.localizeValidator(_businessOverviewValidator),
                     ),
                     if (_industryMain.isNotEmpty)
                       SearchableSingleSelectDropdown(
@@ -406,7 +407,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
                       label: context.tr('Business phone'),
                       hint: '+386 40 000 003',
                       keyboardType: TextInputType.phone,
-                      validator: _phoneValidator,
+                      validator: context.localizeValidator(_phoneValidator),
                     ),
                     _Field(
                       controller: _taxIdController,
@@ -418,7 +419,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
                       label: context.tr('Website'),
                       hint: 'https://example.com',
                       keyboardType: TextInputType.url,
-                      validator: _websiteValidator,
+                      validator: context.localizeValidator(_websiteValidator),
                     ),
                     _Field(
                       controller: _promotionController,
@@ -463,7 +464,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
                       label: context.tr('Country'),
                       value: _registeredCountry,
                       options: equalsCountryCodes,
-                      labelBuilder: _countryLabel,
+                      labelBuilder: (code) => _countryLabel(context, code),
                       onChanged: (value) =>
                           setState(() => _registeredCountry = value),
                     ),
@@ -513,7 +514,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
                         label: context.tr('Trading country'),
                         value: _tradingCountry,
                         options: equalsCountryCodes,
-                        labelBuilder: _countryLabel,
+                        labelBuilder: (code) => _countryLabel(context, code),
                         onChanged: (value) =>
                             setState(() => _tradingCountry = value),
                       ),
@@ -546,7 +547,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
                       controller: _applicantEmailController,
                       label: context.tr('Email'),
                       keyboardType: TextInputType.emailAddress,
-                      validator: _emailValidator,
+                      validator: context.localizeValidator(_emailValidator),
                     ),
                     _DateField(
                       controller: _applicantDobController,
@@ -558,7 +559,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
                       label: context.tr('Phone number'),
                       hint: '+386 40 000 003',
                       keyboardType: TextInputType.phone,
-                      validator: _phoneValidator,
+                      validator: context.localizeValidator(_phoneValidator),
                     ),
                     _Field(
                       controller: _applicantTaxIdController,
@@ -600,13 +601,14 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
-                        validator: _ownershipValidator,
+                        validator:
+                            context.localizeValidator(_ownershipValidator),
                       ),
                     SearchableMultiSelectDropdown(
                       label: context.tr('Nationalities'),
                       values: _applicantNationalities,
                       options: equalsCountryCodes,
-                      labelBuilder: _countryLabel,
+                      labelBuilder: (code) => _countryLabel(context, code),
                       onChanged: (value) =>
                           setState(() => _applicantNationalities = value),
                     ),
@@ -641,7 +643,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
                       label: context.tr('Residential country'),
                       value: _applicantCountry,
                       options: equalsCountryCodes,
-                      labelBuilder: _countryLabel,
+                      labelBuilder: (code) => _countryLabel(context, code),
                       onChanged: (value) =>
                           setState(() => _applicantCountry = value),
                     ),
@@ -700,7 +702,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
                       label: context.tr('Payment purposes'),
                       values: _paymentPurposes,
                       options: equalsBusinessPaymentPurposeOptions,
-                      labelBuilder: _label,
+                      labelBuilder: (value) => context.tr(_label(value)),
                       onChanged: (value) =>
                           setState(() => _paymentPurposes = value),
                     ),
@@ -708,7 +710,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
                       label: context.tr('Account funding source'),
                       values: _accountFundingSource,
                       options: equalsBusinessFundingSourceOptions,
-                      labelBuilder: _label,
+                      labelBuilder: (value) => context.tr(_label(value)),
                       onChanged: (value) =>
                           setState(() => _accountFundingSource = value),
                     ),
@@ -730,7 +732,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
                       label: context.tr('Inbound currencies'),
                       values: _inboundCurrencies,
                       options: equalsSupportedCurrencyCodes,
-                      labelBuilder: _label,
+                      labelBuilder: (value) => value,
                       onChanged: (value) =>
                           setState(() => _inboundCurrencies = value),
                     ),
@@ -738,7 +740,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
                       label: context.tr('Outbound currencies'),
                       values: _outboundCurrencies,
                       options: equalsSupportedCurrencyCodes,
-                      labelBuilder: _label,
+                      labelBuilder: (value) => value,
                       onChanged: (value) =>
                           setState(() => _outboundCurrencies = value),
                     ),
@@ -746,7 +748,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
                       label: context.tr('Receiving countries'),
                       values: _receivingCountries,
                       options: equalsCountryCodes,
-                      labelBuilder: _countryLabel,
+                      labelBuilder: (code) => _countryLabel(context, code),
                       onChanged: (value) =>
                           setState(() => _receivingCountries = value),
                     ),
@@ -754,7 +756,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
                       label: context.tr('Sending countries'),
                       values: _sendingCountries,
                       options: equalsCountryCodes,
-                      labelBuilder: _countryLabel,
+                      labelBuilder: (code) => _countryLabel(context, code),
                       onChanged: (value) =>
                           setState(() => _sendingCountries = value),
                     ),
@@ -983,7 +985,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyErrorMessage(error))),
+          SnackBar(content: Text(context.tr(friendlyErrorMessage(error)))),
         );
       }
     }
@@ -1053,7 +1055,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyErrorMessage(error))),
+          SnackBar(content: Text(context.tr(friendlyErrorMessage(error)))),
         );
       }
     }
@@ -1142,7 +1144,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
             controller: person.email,
             label: context.tr('Email'),
             keyboardType: TextInputType.emailAddress,
-            validator: _emailValidator,
+            validator: context.localizeValidator(_emailValidator),
           ),
           const SizedBox(height: 12),
           _DateField(
@@ -1156,7 +1158,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
             label: context.tr('Phone number'),
             hint: '+386 40 000 003',
             keyboardType: TextInputType.phone,
-            validator: _phoneValidator,
+            validator: context.localizeValidator(_phoneValidator),
           ),
           const SizedBox(height: 12),
           _Field(
@@ -1171,7 +1173,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
               label: context.tr('Ownership percentage'),
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
-              validator: _ownershipValidator,
+              validator: context.localizeValidator(_ownershipValidator),
             ),
           ],
           const SizedBox(height: 12),
@@ -1179,7 +1181,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
             label: context.tr('Nationalities'),
             values: person.nationalities,
             options: equalsCountryCodes,
-            labelBuilder: _countryLabel,
+            labelBuilder: (code) => _countryLabel(context, code),
             onChanged: (value) => setState(() => person.nationalities = value),
           ),
           const SizedBox(height: 12),
@@ -1218,7 +1220,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
             label: context.tr('Residential country'),
             value: person.country,
             options: equalsCountryCodes,
-            labelBuilder: _countryLabel,
+            labelBuilder: (code) => _countryLabel(context, code),
             onChanged: (value) => setState(() => person.country = value),
           ),
         ],
@@ -1302,11 +1304,11 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
                 double.tryParse(_applicantOwnershipController.text.trim()) !=
                     100)) {
           _showValidationMessage(
-              'The sole trader must be the applicant and 100% beneficial owner.');
+              context.tr('The sole trader must be the applicant and 100% beneficial owner.'));
           return;
         }
         if (rules['requiresDirector'] == true && !hasDirector) {
-          _showValidationMessage('Add a director for this legal form.');
+          _showValidationMessage(context.tr('Add a director for this legal form.'));
           return;
         }
       } catch (error) {
@@ -1316,7 +1318,7 @@ class _BusinessScreenState extends ConsumerState<_BusinessDraftScreen> {
     }
     if (_currentSection == 2 && _totalUboOwnership() > 100) {
       _showValidationMessage(
-        'Total ownership across all beneficial owners cannot exceed 100%.',
+        context.tr('Total ownership across all beneficial owners cannot exceed 100%.'),
       );
       return;
     }
@@ -1785,7 +1787,7 @@ class _BusinessProviderStatus extends StatelessWidget {
                 subtitle: document.expectsFiles
                     ? Text([
                         if (document.associatedPersonId != null)
-                          'Associated person request',
+                          context.tr('Associated person request'),
                         if (document.additionalInformation != null)
                           document.additionalInformation!,
                       ].join('\n'))
@@ -2146,7 +2148,7 @@ class _BusinessProgress extends StatelessWidget {
           // The section name is the page title, so no section repeats it
           // further down: one name per state of the form.
           Text(
-            exampleLabels[currentSection],
+            context.tr(exampleLabels[currentSection]),
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w700,
@@ -2157,7 +2159,8 @@ class _BusinessProgress extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Semantics(
             label: context.tr('Application progress'),
-            value: 'Section ${currentSection + 1} of ${_labels.length}',
+            value: context.tr('Section {p0} of {p1}',
+                {'p0': currentSection + 1, 'p1': _labels.length}),
             child: Row(
               children: [
                 for (var index = 0; index < _labels.length; index++) ...[
@@ -2199,7 +2202,7 @@ class _BusinessProgress extends StatelessWidget {
               context.tr('Step {p0} of {p1}: {p2}', {
                 'p0': currentSection + 1,
                 'p1': _labels.length,
-                'p2': _labels[currentSection]
+                'p2': context.tr(_labels[currentSection])
               }),
               style: theme.textTheme.titleLarge,
             ),
@@ -2284,7 +2287,7 @@ class _Field extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            label,
+            context.tr(label),
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: ExampleInk.secondary(context),
                   fontWeight: FontWeight.w700,
@@ -2297,7 +2300,8 @@ class _Field extends StatelessWidget {
             keyboardType: keyboardType,
             maxLength: maxLength,
             decoration: InputDecoration(hintText: hint),
-            validator: validator ?? (required ? _required : null),
+            validator: context
+                .localizeValidator(validator ?? (required ? _required : null)),
           ),
         ],
       );
@@ -2307,8 +2311,9 @@ class _Field extends StatelessWidget {
       maxLines: maxLines,
       keyboardType: keyboardType,
       maxLength: maxLength,
-      decoration: InputDecoration(labelText: label, hintText: hint),
-      validator: validator ?? (required ? _required : null),
+      decoration: InputDecoration(labelText: context.tr(label), hintText: hint),
+      validator:
+          context.localizeValidator(validator ?? (required ? _required : null)),
     );
   }
 }
@@ -2330,11 +2335,11 @@ class _DateField extends StatelessWidget {
       controller: controller,
       readOnly: true,
       decoration: InputDecoration(
-        labelText: label,
+        labelText: context.tr(label),
         hintText: context.tr('YYYY-MM-DD'),
         suffixIcon: const Icon(Icons.calendar_month_outlined),
       ),
-      validator: _required,
+      validator: context.localizeValidator(_required),
       onTap: () async {
         final current = DateTime.tryParse(controller.text);
         final selected = await showDatePicker(
@@ -2371,7 +2376,7 @@ class _Dropdown extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            label,
+            context.tr(label),
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: ExampleInk.secondary(context),
                   fontWeight: FontWeight.w700,
@@ -2392,12 +2397,14 @@ class _Dropdown extends StatelessWidget {
                 DropdownMenuItem(
                   value: option,
                   child: Text(
-                    _label(option),
+                    context.tr(_label(option)),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
             ],
-            validator: (value) => value == null ? '$label is required' : null,
+            validator: context.localizeValidator((value) => value == null
+                ? context.tr('{p0} is required', {'p0': context.tr(label)})
+                : null),
             onChanged: (value) {
               if (value != null) onChanged(value);
             },
@@ -2408,18 +2415,20 @@ class _Dropdown extends StatelessWidget {
     return DropdownButtonFormField<String>(
       initialValue: value,
       isExpanded: true,
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(labelText: context.tr(label)),
       items: [
         for (final option in options)
           DropdownMenuItem(
             value: option,
             child: Text(
-              _label(option),
+              context.tr(_label(option)),
               overflow: TextOverflow.ellipsis,
             ),
           ),
       ],
-      validator: (value) => value == null ? '$label is required' : null,
+      validator: context.localizeValidator((value) => value == null
+          ? context.tr('{p0} is required', {'p0': context.tr(label)})
+          : null),
       onChanged: (value) {
         if (value != null) {
           onChanged(value);
@@ -2478,7 +2487,7 @@ class _FileTile extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.upload_file),
       title: Text(title),
-      subtitle: Text(file?.name ?? 'Required'),
+      subtitle: Text(file?.name ?? context.tr('Required')),
       trailing: TextButton(
         onPressed: _pickFile,
         child: Text(context.tr('Choose')),
@@ -2571,7 +2580,7 @@ String _label(String value) {
   }).join(' ');
 }
 
-String _countryLabel(String code) {
+String _countryLabel(BuildContext context, String code) {
   const names = {
     'AT': 'Austria',
     'BE': 'Belgium',
@@ -2608,7 +2617,7 @@ String _countryLabel(String code) {
     'US': 'United States',
   };
   final name = names[code];
-  return name == null ? code : '$name ($code)';
+  return name == null ? code : '${context.tr(name)} ($code)';
 }
 
 bool _requiresIncorporationRegion(String countryCode) =>

@@ -1,0 +1,6 @@
+"NSCameraUsageDescription" = "カメラを使用して請求書や本人確認書類を撮影できます。";
+"NSFaceIDUsageDescription" = "Face ID を使用してアプリのロックを解除し、安全にサインインできます。";
+"NSMicrophoneUsageDescription" = "マイクをタップすると Ask AI への質問を音声入力できます。ビデオによる本人確認でもマイクを使用する場合があります。";
+"NSSpeechRecognitionUsageDescription" = "Ask AI への音声入力をテキストに変換し、送信するか決める前に編集できます。";
+"NSPhotoLibraryUsageDescription" = "写真ライブラリからアップロードする請求書や本人確認書類を選択できます。";
+"NSLocationWhenInUseUsageDescription" = "Ask AI で近くの出発空港を検索するときに位置情報を使用します。座標は端末内にとどまります。本人確認でも、必要に応じて位置情報を求める場合があります。";

@@ -92,7 +92,7 @@ class ActivityAccountDropdown extends ConsumerWidget {
                       alignment: AlignmentDirectional.centerStart,
                       child: Tooltip(
                           message: label,
-                          child: Text(label,
+                          child: Text(context.tr(label),
                               maxLines: 1, overflow: TextOverflow.ellipsis)),
                     ),
                 ],

@@ -167,7 +167,7 @@ class _PinField extends StatelessWidget {
         onChanged: onChanged,
         onSubmitted: onSubmitted,
         decoration: InputDecoration(
-          labelText: label,
+          labelText: context.tr(label),
           errorText: errorText,
           counterText: '',
         ),

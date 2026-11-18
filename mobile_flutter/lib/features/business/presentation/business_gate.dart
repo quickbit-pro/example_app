@@ -108,7 +108,7 @@ class _BusinessGateState extends ConsumerState<BusinessGate>
     return ref.watch(businessWorkflowProvider).when(
           loading: () =>
               _page(const Center(child: CircularProgressIndicator())),
-          error: (error, _) => _page(Text(friendlyErrorMessage(error))),
+          error: (error, _) => _page(Text(context.tr(friendlyErrorMessage(error)))),
           data: (workflow) {
             final state = workflow['state'];
             if (widget.tierSelectionOnly && state != 'SELECT_TIER') {
@@ -171,7 +171,7 @@ class _BusinessGateState extends ConsumerState<BusinessGate>
                   children: [
                     content,
                     if (_error != null)
-                      Text(_error!,
+                      Text(context.tr(_error!),
                           style: TextStyle(
                               color: Theme.of(context).colorScheme.error)),
                     if (_busy) const LinearProgressIndicator(),
@@ -301,7 +301,7 @@ class _PaymentTermsState extends State<_PaymentTerms> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: Text(widget.terms['title']?.toString() ?? 'Payment terms'),
+        title: Text(widget.terms['title']?.toString() ?? context.tr('Payment terms')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -316,7 +316,7 @@ class _PaymentTermsState extends State<_PaymentTerms> {
                 value: _accepted,
                 onChanged: (value) => setState(() => _accepted = value == true),
                 title: Text(widget.terms['checkboxLabel']?.toString() ??
-                    'I accept these payment terms'),
+                    context.tr('I accept these payment terms')),
               ),
             ],
           ),

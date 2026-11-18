@@ -1,3 +1,5 @@
+import '../../../shared/widgets/localized_disclosure.dart';
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'exchange_support.dart';
 import 'exchange_reference_data.dart';
@@ -17,13 +19,13 @@ class ExchangeDisclaimer extends StatelessWidget {
       showDialog<void>(
           context: context,
           builder: (context) => ExchangeDialog(
-              title: title,
+              title: context.tr(title),
               actions: [
                 TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Close'))
+                    child: Text(context.tr('Close')))
               ],
-              child: SelectableText(text,
+              child: LocalizedDisclosure(text,
                   style: Theme.of(context)
                       .textTheme
                       .bodyMedium
@@ -35,10 +37,10 @@ class ExchangeDisclaimer extends StatelessWidget {
             icon: const Icon(Icons.info_outline, size: 18),
             onPressed: () => _show(context, 'Crypto Services Disclaimer',
                 cryptoServicesDisclaimer),
-            label: const Text('Crypto Services Disclaimer')),
+            label: Text(context.tr('Crypto Services Disclaimer'))),
         TextButton(
             onPressed: () => _show(context,
                 'Crypto Exchange — Terms & Disclosures', exchangeTerms),
-            child: const Text('ZBX Terms & Risk Disclosure')),
+            child: Text(context.tr('ZBX Terms & Risk Disclosure'))),
       ]);
 }

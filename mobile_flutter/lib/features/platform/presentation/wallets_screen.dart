@@ -261,7 +261,7 @@ class _DepositAddressCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        network ?? 'Network unavailable',
+                        network ?? context.tr('Network unavailable'),
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ],

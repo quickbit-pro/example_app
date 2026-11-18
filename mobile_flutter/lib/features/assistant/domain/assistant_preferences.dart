@@ -1,3 +1,4 @@
+import '../../../core/l10n/message_format.dart';
 import 'assistant_departure.dart';
 
 /// Only coarse onboarding context reaches the app. The financial band stays
@@ -70,60 +71,88 @@ String assistantTravelStyleLabel(AssistantTravelStyle style) => switch (style) {
 /// a travel budget. Every prompt asks the user for a separate budget and dates.
 List<AssistantStarter> assistantStarters({
   AssistantDeparture? departure,
+  String Function(String, [Map<String, Object?>]) translate = formatAppMessage,
   AssistantPreferences preferences = const AssistantPreferences(),
 }) {
   // The screen supplies its visible departure; an explicit clear stays clear.
-  final origin = departure == null ? '' : ' from ${departure.city}';
-  final nearby = departure == null ? 'near me' : 'near ${departure.city}';
+  final nearby = departure == null
+      ? translate('near me')
+      : translate('near {p0}', {'p0': departure.city});
+  String flightFrom(String withoutOrigin, String withOrigin) =>
+      departure == null
+          ? translate(withoutOrigin)
+          : translate(withOrigin, {'p0': departure.city});
   final style = preferences.style;
   final flight = switch (style) {
-    AssistantTravelStyle.value =>
-      'Compare low-cost flights$origin for a short break.',
-    AssistantTravelStyle.balanced =>
-      'Compare flights$origin for a long weekend, balancing price and flight times.',
-    AssistantTravelStyle.comfort =>
-      'Find convenient flights$origin for a relaxed weekend, prioritising nonstop options.',
-    AssistantTravelStyle.premium =>
-      'Compare convenient flights$origin for a special getaway, including premium and good-value options.',
+    AssistantTravelStyle.value => flightFrom(
+        'Compare low-cost flights for a short break.',
+        'Compare low-cost flights from {p0} for a short break.'),
+    AssistantTravelStyle.balanced => flightFrom(
+        'Compare flights for a long weekend, balancing price and flight times.',
+        'Compare flights from {p0} for a long weekend, balancing price and flight times.'),
+    AssistantTravelStyle.comfort => flightFrom(
+        'Find convenient flights for a relaxed weekend, prioritising nonstop options.',
+        'Find convenient flights from {p0} for a relaxed weekend, prioritising nonstop options.'),
+    AssistantTravelStyle.premium => flightFrom(
+        'Compare convenient flights for a special getaway, including premium and good-value options.',
+        'Compare convenient flights from {p0} for a special getaway, including premium and good-value options.'),
   };
   final hotel = switch (style) {
-    AssistantTravelStyle.value =>
-      'Find a good-value hotel $nearby for a weekend stay, with free cancellation.',
-    AssistantTravelStyle.balanced =>
-      'Find a quiet hotel $nearby for a weekend stay, balancing comfort and price.',
-    AssistantTravelStyle.comfort =>
-      'Find a quiet spa hotel $nearby for a relaxing weekend, with flexible cancellation.',
-    AssistantTravelStyle.premium =>
-      'Compare boutique and luxury spa hotels $nearby for a special weekend, including a good-value alternative.',
+    AssistantTravelStyle.value => translate(
+        'Find a good-value hotel {p0} for a weekend stay, with free cancellation.',
+        {'p0': nearby}),
+    AssistantTravelStyle.balanced => translate(
+        'Find a quiet hotel {p0} for a weekend stay, balancing comfort and price.',
+        {'p0': nearby}),
+    AssistantTravelStyle.comfort => translate(
+        'Find a quiet spa hotel {p0} for a relaxing weekend, with flexible cancellation.',
+        {'p0': nearby}),
+    AssistantTravelStyle.premium => translate(
+        'Compare boutique and luxury spa hotels {p0} for a special weekend, including a good-value alternative.',
+        {'p0': nearby}),
   };
   final escape = switch (style) {
-    AssistantTravelStyle.value =>
-      'Plan an affordable two-night escape$origin for two, including transport and a hotel.',
-    AssistantTravelStyle.balanced =>
-      'Plan a three-night escape$origin for two, comparing the total cost of transport and a hotel.',
-    AssistantTravelStyle.comfort =>
-      'Plan a relaxing three-night escape$origin for two, with convenient travel and a comfortable hotel.',
-    AssistantTravelStyle.premium =>
-      'Plan a special three-night escape$origin for two, with a memorable stay and convenient travel.',
+    AssistantTravelStyle.value => flightFrom(
+        'Plan an affordable two-night escape for two, including transport and a hotel.',
+        'Plan an affordable two-night escape from {p0} for two, including transport and a hotel.'),
+    AssistantTravelStyle.balanced => flightFrom(
+        'Plan a three-night escape for two, comparing the total cost of transport and a hotel.',
+        'Plan a three-night escape from {p0} for two, comparing the total cost of transport and a hotel.'),
+    AssistantTravelStyle.comfort => flightFrom(
+        'Plan a relaxing three-night escape for two, with convenient travel and a comfortable hotel.',
+        'Plan a relaxing three-night escape from {p0} for two, with convenient travel and a comfortable hotel.'),
+    AssistantTravelStyle.premium => flightFrom(
+        'Plan a special three-night escape for two, with a memorable stay and convenient travel.',
+        'Plan a special three-night escape from {p0} for two, with a memorable stay and convenient travel.'),
   };
   final dinner = switch (style) {
-    AssistantTravelStyle.value =>
-      'Find a good-value dinner and a free or low-cost activity $nearby for two.',
-    AssistantTravelStyle.balanced =>
-      'Plan dinner and a memorable local experience $nearby for two.',
-    AssistantTravelStyle.comfort =>
-      'Plan a relaxed dinner and a special experience $nearby for two.',
-    AssistantTravelStyle.premium =>
-      'Compare a tasting menu and a special evening experience $nearby for two, including a good-value option.',
+    AssistantTravelStyle.value => translate(
+        'Find a good-value dinner and a free or low-cost activity {p0} for two.',
+        {'p0': nearby}),
+    AssistantTravelStyle.balanced => translate(
+        'Plan dinner and a memorable local experience {p0} for two.',
+        {'p0': nearby}),
+    AssistantTravelStyle.comfort => translate(
+        'Plan a relaxed dinner and a special experience {p0} for two.',
+        {'p0': nearby}),
+    AssistantTravelStyle.premium => translate(
+        'Compare a tasting menu and a special evening experience {p0} for two, including a good-value option.',
+        {'p0': nearby}),
   };
   return [
+    AssistantStarter('Find flights',
+        translate('{p0} Ask me for dates and a trip budget.', {'p0': flight})),
     AssistantStarter(
-        'Find flights', '$flight Ask me for dates and a trip budget.'),
+        'Find a hotel',
+        translate(
+            '{p0} Ask me for dates and a nightly budget.', {'p0': hotel})),
     AssistantStarter(
-        'Find a hotel', '$hotel Ask me for dates and a nightly budget.'),
+        'Plan my escape',
+        translate(
+            '{p0} Ask me for dates and a total trip budget.', {'p0': escape})),
     AssistantStarter(
-        'Plan my escape', '$escape Ask me for dates and a total trip budget.'),
-    AssistantStarter('Dinner and experiences',
-        '$dinner Ask me for the date and an evening budget.'),
+        'Dinner and experiences',
+        translate(
+            '{p0} Ask me for the date and an evening budget.', {'p0': dinner})),
   ];
 }

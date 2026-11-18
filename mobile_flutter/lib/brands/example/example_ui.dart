@@ -325,7 +325,7 @@ class ExamplePaymentCard extends StatelessWidget {
                             ),
                             const SizedBox(width: 5),
                             Text(
-                              statusLabel,
+                              context.tr(statusLabel),
                               style: TextStyle(
                                 color: statusColor,
                                 fontSize: (compact ? 9 : 11) *
@@ -2744,23 +2744,23 @@ String _maskedDescription(
     BuildContext context, PaymentCard? card, CardStatus status, bool frozen) {
   if (card == null) {
     final name = AppDesignTheme.nameOf(context);
-    return '${name.isEmpty ? (context.brandDesign.isConfigured ? 'Payment' : 'Example') : name} card';
+    return name.isEmpty && context.brandDesign.isConfigured
+        ? context.tr('Payment card')
+        : context.tr('{p0} card', {'p0': name.isEmpty ? 'Example' : name});
   }
   final parts = <String>[
     card.displayLabel,
     if (card.cardImageAlt.trim().isNotEmpty &&
         card.cardImageAlt != card.displayLabel)
       card.cardImageAlt,
-    if (card.last4.isNotEmpty) 'ending ${card.last4.split('').join(' ')}',
-    if (frozen)
-      'frozen'
-    else
-      switch (status) {
-        CardStatus.active => 'active',
-        CardStatus.frozen => 'frozen',
-        CardStatus.pending => 'pending',
-        CardStatus.cancelled => 'closed',
-      },
+    if (card.last4.isNotEmpty)
+      context.tr('ending {p0}', {'p0': card.last4.split('').join(' ')}),
+    context.tr(frozen ? 'frozen' : switch (status) {
+      CardStatus.active => 'active',
+      CardStatus.frozen => 'frozen',
+      CardStatus.pending => 'pending',
+      CardStatus.cancelled => 'closed',
+    }),
   ];
   return parts.join(', ');
 }

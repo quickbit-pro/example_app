@@ -305,7 +305,7 @@ class _FilterChip extends StatelessWidget {
                 : ExampleBorders.subtleOf(context),
           ),
           child: Text(
-            label,
+            context.tr(label),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -338,7 +338,7 @@ class ReferralLoadMore extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            friendlyErrorMessage(failure),
+            context.tr(friendlyErrorMessage(failure)),
             textAlign: TextAlign.center,
             style: referralBodyStyle(context),
           ),
@@ -360,7 +360,7 @@ class ReferralLoadMore extends StatelessWidget {
       tone: ExampleGlassButtonTone.neutral,
       sheen: false,
       loading: pager.loadingMore,
-      loadingSemanticsLabel: 'Loading more',
+      loadingSemanticsLabel: context.tr('Loading more'),
       onPressed: pager.loadingMore ? null : pager.loadMore,
     );
   }

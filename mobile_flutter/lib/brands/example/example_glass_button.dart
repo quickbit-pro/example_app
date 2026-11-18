@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
@@ -448,7 +449,8 @@ class _ExampleGlassButtonState extends State<ExampleGlassButton> {
       button: true,
       enabled: _interactive,
       label: widget.loading
-          ? (widget.loadingSemanticsLabel ?? '${widget.label}, in progress')
+          ? (widget.loadingSemanticsLabel ??
+              context.tr('{p0}, in progress', {'p0': widget.label}))
           : (widget.semanticsLabel ?? widget.label),
       liveRegion: widget.loading,
       excludeSemantics: true,

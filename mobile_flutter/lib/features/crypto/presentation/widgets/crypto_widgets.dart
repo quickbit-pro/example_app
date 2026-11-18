@@ -52,11 +52,11 @@ class CryptoChange extends StatelessWidget {
     final spoken = switch (trend) {
       CryptoTrend.up => 'Up',
       CryptoTrend.down => 'Down',
-      CryptoTrend.flat => 'Unchanged,',
+      CryptoTrend.flat => 'Unchanged',
     };
     return Semantics(
       label: context.tr('{p0} {p1} percent',
-          {'p0': spoken, 'p1': value.abs().toStringAsFixed(2)}),
+          {'p0': context.tr(spoken), 'p1': value.abs().toStringAsFixed(2)}),
       excludeSemantics: true,
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -166,8 +166,11 @@ class PortfolioPositionTile extends StatelessWidget {
       title: position.asset.name,
       subtitle: held,
       semanticsLabel: _priced
-          ? '${position.asset.name}, $held, worth '
-              '${Money.formatAmount('EUR', position.value)}'
+          ? context.tr('{p0}, {p1}, worth {p2}', {
+              'p0': position.asset.name,
+              'p1': held,
+              'p2': Money.formatAmount('EUR', position.value)
+            })
           : context.tr('{p0}, {p1}, value unavailable',
               {'p0': position.asset.name, 'p1': held}),
       trailing: _priced

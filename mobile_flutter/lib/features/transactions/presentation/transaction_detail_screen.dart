@@ -441,7 +441,7 @@ class _ExampleTransactionDetail extends StatelessWidget {
               label: context.tr('Booked'),
               value: transaction.hasBookedAt
                   ? _dateLabel(transaction.bookedAt)
-                  : 'Unavailable',
+                  : context.tr('Unavailable'),
             ),
             if (transactionNetworkLabel(transaction) case final network?)
               _ExampleDetailRow(label: context.tr('Network'), value: network),
@@ -746,8 +746,8 @@ class _ExampleSettlementTrack extends StatelessWidget {
     final open = palette.warning;
     final done = palette.success;
     final booked = bookedAt == null
-        ? 'Booking time unavailable'
-        : 'Booked ${_dateLabel(bookedAt!)}';
+        ? context.tr('Booking time unavailable')
+        : context.tr('Booked {p0}', {'p0': _dateLabel(bookedAt!)});
 
     return Semantics(
       container: true,
@@ -917,7 +917,7 @@ class _ExampleDetailRow extends StatelessWidget {
             Expanded(
               flex: 4,
               child: Text(
-                label,
+                context.tr(label),
                 style: TextStyle(
                   fontSize: 12.5,
                   height: 1.35,
@@ -1205,7 +1205,7 @@ class _DetailRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(child: Text(label)),
+          Expanded(child: Text(context.tr(label))),
           const SizedBox(width: 16),
           Flexible(
             child: Text(

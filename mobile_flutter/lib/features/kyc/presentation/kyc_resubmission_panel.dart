@@ -121,7 +121,7 @@ class _KycResubmissionPanelState extends ConsumerState<KycResubmissionPanel>
             const SizedBox(height: 12),
             Semantics(
                 liveRegion: true,
-                child: Text(_error!,
+                child: Text(context.tr(_error!),
                     style:
                         TextStyle(color: Theme.of(context).colorScheme.error))),
           ],
@@ -131,7 +131,8 @@ class _KycResubmissionPanelState extends ConsumerState<KycResubmissionPanel>
                 ? ExampleGlassButton(
                     label: label, onPressed: _busy ? null : _resume)
                 : FilledButton(
-                    onPressed: _busy ? null : _resume, child: Text(label))
+                    onPressed: _busy ? null : _resume,
+                    child: Text(context.tr(label)))
           else
             FilledButton(
                 onPressed: () => context.go('/support'),

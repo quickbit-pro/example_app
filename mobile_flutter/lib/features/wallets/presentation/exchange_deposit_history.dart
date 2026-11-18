@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import '../domain/exchange_history_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -19,12 +20,12 @@ class ExchangeDepositHistory extends StatelessWidget {
     return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Deposit history',
+          Text(context.tr('Deposit history'),
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           if (visible.isEmpty)
-            const Text(
-                'Incoming Exchange deposits will appear here when the provider reports them.'),
+            Text(
+                context.tr('Incoming Exchange deposits will appear here when the provider reports them.')),
           for (final deposit in visible.take(5))
             ExchangeDepositCard(deposit: deposit),
           if (visible.length > 5)
@@ -32,7 +33,7 @@ class ExchangeDepositHistory extends StatelessWidget {
                 onPressed: () => showDialog<void>(
                     context: context,
                     builder: (context) => AlertDialog(
-                            title: const Text('Deposit history'),
+                            title: Text(context.tr('Deposit history')),
                             content: SizedBox(
                                 width: 560,
                                 child: ListView(shrinkWrap: true, children: [
@@ -42,9 +43,9 @@ class ExchangeDepositHistory extends StatelessWidget {
                             actions: [
                               TextButton(
                                   onPressed: () => Navigator.pop(context),
-                                  child: const Text('Done'))
+                                  child: Text(context.tr('Done')))
                             ])),
-                child: const Text('Show all deposits')),
+                child: Text(context.tr('Show all deposits'))),
         ],
       );
   }
@@ -66,8 +67,8 @@ class _ExchangeDepositCardState extends State<ExchangeDepositCard> {
       await openExchangeUrl(widget.deposit.verificationUrl!);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Could not open verification. Please try again.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(context.tr('Could not open verification. Please try again.'))));
       }
     }
   }
@@ -107,7 +108,7 @@ class _ExchangeDepositCardState extends State<ExchangeDepositCard> {
             color: statusColor),
         const SizedBox(width: 6),
         Flexible(
-            child: Text(deposit.statusLabel,
+            child: Text(context.tr(deposit.statusLabel),
                 style: theme.textTheme.labelMedium?.copyWith(
                     color: statusColor, fontWeight: FontWeight.w600))),
       ]),
@@ -187,19 +188,19 @@ class _ExchangeDepositCardState extends State<ExchangeDepositCard> {
                 final explanation = Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Verify the source of funds',
+                      Text(context.tr('Verify the source of funds'),
                           style: theme.textTheme.labelLarge
                               ?.copyWith(fontWeight: FontWeight.w600)),
                       const SizedBox(height: 4),
                       Text(
                           deposit.isDeposit
-                              ? 'Complete the Travel Rule check to release this deposit.'
-                              : 'Complete the Travel Rule check to continue this payment.',
+                              ? context.tr('Complete the Travel Rule check to release this deposit.')
+                              : context.tr('Complete the Travel Rule check to continue this payment.'),
                           style: theme.textTheme.bodySmall?.copyWith(
                               color: colors.onSurfaceVariant, height: 1.45)),
                     ]);
                 final action = deposit.verificationUrl == null
-                    ? Text('Refresh Exchange to get a verification link.',
+                    ? Text(context.tr('Refresh Exchange to get a verification link.'),
                         style: theme.textTheme.bodySmall
                             ?.copyWith(color: colors.onSurfaceVariant))
                     : FilledButton.icon(
@@ -213,8 +214,8 @@ class _ExchangeDepositCardState extends State<ExchangeDepositCard> {
                                 borderRadius: BorderRadius.circular(10))),
                         icon: const Icon(Icons.open_in_new, size: 16),
                         label: Text(deposit.isDeposit
-                            ? 'Verify deposit'
-                            : 'Verify payment'));
+                            ? context.tr('Verify deposit')
+                            : context.tr('Verify payment')));
                 if (constraints.maxWidth < 620) {
                   return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -233,12 +234,12 @@ class _ExchangeDepositCardState extends State<ExchangeDepositCard> {
             ),
           ] else if (deposit.status == 'pending' && deposit.isDeposit) ...[
             const SizedBox(height: 12),
-            Text('The provider is still processing this payment. Check Exchange balances for your available funds.',
+            Text(context.tr('The provider is still processing this payment. Check Exchange balances for your available funds.'),
                 style: theme.textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant, height: 1.45)),
           ] else if (deposit.status == 'failed') ...[
             const SizedBox(height: 12),
             Text(
-                'The provider reported this payment as failed. Contact support with the payment ID.',
+                context.tr('The provider reported this payment as failed. Contact support with the payment ID.'),
                 style:
                     theme.textTheme.bodySmall?.copyWith(color: colors.error)),
           ],
@@ -256,7 +257,7 @@ class _ExchangeDepositCardState extends State<ExchangeDepositCard> {
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                 icon: Icon(_expanded ? Icons.expand_less : Icons.expand_more,
                     size: 18),
-                label: Text(_expanded ? 'Hide details' : 'Transaction details'),
+                label: Text(_expanded ? context.tr('Hide details') : context.tr('Transaction details')),
               )),
           if (_expanded) ...[
             const SizedBox(height: 4),
@@ -269,14 +270,14 @@ class _ExchangeDepositCardState extends State<ExchangeDepositCard> {
                   constraints: const BoxConstraints(maxWidth: 760),
                   child: Column(children: [
                     _DepositDetailValue(
-                        label: 'Payment ID', value: deposit.paymentId),
+                        label: context.tr('Payment ID'), value: deposit.paymentId),
                     if (deposit.transactionHash.isNotEmpty)
                       _DepositDetailValue(
-                          label: 'Blockchain transaction',
+                          label: context.tr('Blockchain transaction'),
                           value: deposit.transactionHash),
                     if (deposit.settlementTransactionHash.isNotEmpty)
                       _DepositDetailValue(
-                          label: 'Settlement transaction',
+                          label: context.tr('Settlement transaction'),
                           value: deposit.settlementTransactionHash),
                   ]),
                 )),
@@ -307,14 +308,14 @@ class _DepositDetailValue extends StatelessWidget {
                   style: theme.textTheme.bodySmall
                       ?.copyWith(fontFamily: 'monospace')))),
       IconButton(
-        tooltip: 'Copy $label',
+        tooltip: context.tr('Copy {p0}', {'p0': label}),
         icon: const Icon(Icons.copy_outlined, size: 16),
         onPressed: () async {
           try {
             await Clipboard.setData(ClipboardData(text: value));
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('$label copied'),
+                  content: Text(context.tr('{p0} copied', {'p0': label})),
                   duration: const Duration(seconds: 2)));
             }
           } catch (_) {
@@ -327,7 +328,7 @@ class _DepositDetailValue extends StatelessWidget {
                           actions: [
                             TextButton(
                                 onPressed: () => Navigator.pop(context),
-                                child: const Text('Done'))
+                                child: Text(context.tr('Done')))
                           ]));
             }
           }
@@ -378,10 +379,10 @@ class ExchangeDepositReceipt extends ConsumerWidget {
           ExchangeDepositCard(deposit: current),
           TextButton(
               onPressed: () => context.go('/wallets/exchange'),
-              child: const Text('Open Exchange')),
+              child: Text(context.tr('Open Exchange'))),
           TextButton(
               onPressed: () => ref.invalidate(exchangeOverviewProvider),
-              child: const Text('Refresh status')),
+              child: Text(context.tr('Refresh status'))),
         ]));
   }
 }

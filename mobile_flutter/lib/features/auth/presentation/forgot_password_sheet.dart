@@ -126,7 +126,7 @@ class _ForgotPasswordSheetState extends ConsumerState<_ForgotPasswordSheet> {
     if (_loading || _remaining > 0) return;
     final email = _emailController.text.trim();
     if (!email.contains('@')) {
-      setState(() => _error = 'Enter the email you signed up with.');
+      setState(() => _error = context.tr('Enter the email you signed up with.'));
       return;
     }
     setState(() {
@@ -153,7 +153,7 @@ class _ForgotPasswordSheetState extends ConsumerState<_ForgotPasswordSheet> {
     final code = _codeController.text.trim();
     final password = _passwordController.text;
     if (code.length != 6) {
-      setState(() => _error = 'Enter the six-digit code from the email.');
+      setState(() => _error = context.tr('Enter the six-digit code from the email.'));
       return;
     }
     final problem = _passwordProblem(password);
@@ -165,7 +165,7 @@ class _ForgotPasswordSheetState extends ConsumerState<_ForgotPasswordSheet> {
       return;
     }
     if (password != _confirmController.text) {
-      setState(() => _error = 'The passwords do not match.');
+      setState(() => _error = context.tr('The passwords do not match.'));
       return;
     }
     setState(() {
@@ -439,7 +439,7 @@ class _ForgotPasswordSheetState extends ConsumerState<_ForgotPasswordSheet> {
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.md),
               Text(
-                _error!,
+                context.tr(_error!),
                 style: TextStyle(color: theme.colorScheme.error),
               ),
             ],
@@ -537,7 +537,8 @@ class ExampleSheetTextAction extends StatelessWidget {
               disabledForegroundColor: ExampleInk.secondary(context),
             ),
             icon: Icon(icon, size: 18),
-            label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+            label: Text(context.tr(label),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ),
       );

@@ -307,7 +307,7 @@ class _ExampleAuthFieldState extends FormFieldState<String> {
         // Caption, not the placeholder grey: helper text is content, and it
         // has to clear 4.5:1 the way the label above the box does.
         child: Text(
-          field.helperText!,
+          context.tr(field.helperText!),
           style: bodySmall.copyWith(color: caption),
         ),
       );
@@ -350,7 +350,7 @@ class ExampleAuthFieldLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text,
+        context.tr(text),
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: color ?? ExampleInk.secondary(context),
             ),
@@ -384,11 +384,11 @@ class ExamplePasswordToggle extends StatelessWidget {
           // otherwise never learn that the characters became visible.
           SemanticsService.sendAnnouncement(
             view,
-            obscured ? 'Password shown' : 'Password hidden',
+            obscured ? context.tr('Password shown') : context.tr('Password hidden'),
             direction,
           );
         },
-        semanticsLabel: message,
+        semanticsLabel: context.tr(message),
         borderRadius: const BorderRadius.all(Radius.circular(AppRadii.xs)),
         child: SizedBox.square(
           dimension: ExampleAuthField.controlSize,
@@ -461,7 +461,7 @@ class ExampleAuthAlert extends StatelessWidget {
               const SizedBox(width: AppSpacing.xs),
               Flexible(
                 child: Text(
-                  message,
+                  context.tr(message),
                   style: theme.textTheme.bodySmall?.copyWith(color: accent),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,

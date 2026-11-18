@@ -58,7 +58,7 @@ class _PeerHubScreenState extends ConsumerState<PeerHubScreen> {
       context,
       ref,
       reason:
-          'Confirm paying ${peerMoney(request.currency, request.amount)} to ${request.otherUser.fullName}',
+          context.tr('Confirm paying {p0} to {p1}', {'p0': peerMoney(request.currency, request.amount), 'p1': request.otherUser.fullName}),
     );
     if (confirmation == null || !mounted) return;
     setState(() => _busyRequests.add(request.id));
@@ -71,7 +71,7 @@ class _PeerHubScreenState extends ConsumerState<PeerHubScreen> {
       invalidatePeerData(ref);
       if (!mounted) return;
       _toast(
-          'Paid ${peerMoney(request.currency, request.amount)} to ${request.otherUser.fullName}.');
+          context.tr('Paid {p0} to {p1}.', {'p0': peerMoney(request.currency, request.amount), 'p1': request.otherUser.fullName}));
     } catch (error) {
       if (!mounted) return;
       _toast(peerErrorText(error));
@@ -111,7 +111,7 @@ class _PeerHubScreenState extends ConsumerState<PeerHubScreen> {
           .read(peerTransfersApiProvider)
           .respond(requestId: request.id, accept: false);
       invalidatePeerData(ref);
-      if (mounted) _toast('Request declined.');
+      if (mounted) _toast(context.tr('Request declined.'));
     } catch (error) {
       if (mounted) _toast(peerErrorText(error));
     } finally {
@@ -124,7 +124,7 @@ class _PeerHubScreenState extends ConsumerState<PeerHubScreen> {
     try {
       await ref.read(peerTransfersApiProvider).cancelRequest(request.id);
       invalidatePeerData(ref);
-      if (mounted) _toast('Request cancelled.');
+      if (mounted) _toast(context.tr('Request cancelled.'));
     } catch (error) {
       if (mounted) _toast(peerErrorText(error));
     } finally {
@@ -641,7 +641,7 @@ class _ContactBubble extends StatelessWidget {
               avatar,
               const SizedBox(height: 6),
               Text(
-                label,
+                context.tr(label),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(

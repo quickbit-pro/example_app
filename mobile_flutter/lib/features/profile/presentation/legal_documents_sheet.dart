@@ -40,7 +40,7 @@ class _LegalDocumentsContentState
     }
     if (mounted) {
       setState(
-          () => _error = 'Could not open ${document.label}. Please try again.');
+          () => _error = context.tr('Could not open {p0}. Please try again.', {'p0': document.label}));
     }
   }
 
@@ -91,7 +91,7 @@ class _LegalDocumentsContentState
         if (_error != null) ...[
           Semantics(
               liveRegion: true,
-              child: Text(_error!,
+              child: Text(context.tr(_error!),
                   style:
                       TextStyle(color: Theme.of(context).colorScheme.error))),
           const SizedBox(height: AppSpacing.sm),

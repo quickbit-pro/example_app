@@ -41,7 +41,7 @@ class ActivityScopeDropdown extends ConsumerWidget {
                         : '${card.displayLabel} · •••• $last4',
                   );
                 }
-                return _dropdown(context, 'All cards', 'Card', options);
+                return _dropdown(context, 'All cards', options);
               },
               loading: () => _status(context, 'Loading cards…'),
               error: (_, __) => _status(
@@ -62,13 +62,12 @@ class ActivityScopeDropdown extends ConsumerWidget {
                   options.putIfAbsent(
                     id,
                     () => [
-                      name.isEmpty ? 'Account' : name,
+                      name.isEmpty ? context.tr('Account') : name,
                       if (currency.isNotEmpty) currency,
                     ].join(' · '),
                   );
                 }
-                return _dropdown(context, context.tr('All accounts'),
-                    context.tr('Account'), options);
+                return _dropdown(context, 'All accounts', options);
               },
               loading: () => _status(context, 'Loading accounts…'),
               error: (_, __) => _status(
@@ -84,7 +83,6 @@ class ActivityScopeDropdown extends ConsumerWidget {
         return _dropdown(
           context,
           'All crypto',
-          'Crypto asset',
           {for (final asset in sortedAssets) asset: asset},
         );
       default:
@@ -95,24 +93,28 @@ class ActivityScopeDropdown extends ConsumerWidget {
   Widget _dropdown(
     BuildContext context,
     String allLabel,
-    String scopeLabel,
     Map<String, String> options,
   ) {
     final isExample = context.isExampleTheme;
-    final labels = {'': allLabel, ...options};
+    final labels = {'': context.tr(allLabel), ...options};
     final selectionUnavailable =
         selectedId.isNotEmpty && !labels.containsKey(selectedId);
     if (selectionUnavailable) {
       labels[selectedId] = type == TransactionActivityType.crypto
-          ? '$selectedId (unavailable)'
-          : 'Selected ${scopeLabel.toLowerCase()} unavailable';
+          ? context.tr('{p0} (unavailable)', {'p0': selectedId})
+          : context.tr(type == TransactionActivityType.card
+              ? 'Selected card unavailable'
+              : 'Selected account unavailable');
     }
     final color = isExample
         ? ExampleInk.primary(context)
         : Theme.of(context).colorScheme.onSurface;
     return Semantics(
-      label: context
-          .tr('Filter activity by {p0}', {'p0': scopeLabel.toLowerCase()}),
+      label: context.tr(switch (type) {
+        TransactionActivityType.card => 'Filter activity by card',
+        TransactionActivityType.account => 'Filter activity by account',
+        _ => 'Filter activity by crypto asset',
+      }),
       child: InputDecorator(
         decoration: _decoration(context),
         child: DropdownButtonHideUnderline(
@@ -178,7 +180,7 @@ class ActivityScopeDropdown extends ConsumerWidget {
               ],
               Expanded(
                 child: Text(
-                  message,
+                  context.tr(message),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -188,7 +190,9 @@ class ActivityScopeDropdown extends ConsumerWidget {
               ),
               if (onRetry != null)
                 IconButton(
-                  tooltip: context.tr('Retry loading {p0}s', {'p0': type.name}),
+                  tooltip: context.tr(type == TransactionActivityType.card
+                      ? 'Retry loading cards'
+                      : 'Retry loading accounts'),
                   onPressed: onRetry,
                   icon: const Icon(Icons.refresh_rounded),
                 ),

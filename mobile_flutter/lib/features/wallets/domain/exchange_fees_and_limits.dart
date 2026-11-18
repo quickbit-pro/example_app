@@ -1,3 +1,5 @@
+import '../../../core/l10n/message_format.dart';
+
 /// Account-scoped provider values. Unknown values stay unknown, never zero.
 class BoomFiFeesAndLimits {
   const BoomFiFeesAndLimits(
@@ -35,34 +37,61 @@ class BoomFiFeesAndLimits {
 
   bool get hasWithdrawalLimits => minWithdraw != null || maxWithdraw != null;
 
-  String? validate(String amount, String currency, {required bool withdrawal}) {
+  String? validate(String amount, String currency,
+      {required bool withdrawal,
+      String Function(String, Map<String, Object?>) translate =
+          formatAppMessage}) {
     final value = _Amount.parse(amount.replaceAll(',', '.'));
-    if (value == null) return 'Enter a valid amount.';
+    if (value == null) return translate('Enter a valid amount.', const {});
     final min = withdrawal ? minWithdraw : minDeposit;
     final max = withdrawal ? maxWithdraw : maxDeposit;
-    final action = withdrawal ? 'withdrawal' : 'deposit';
     if (min != null && value.compareTo(_Amount.parse(min)!) < 0) {
-      return 'Minimum $action is $min $currency.';
+      return translate(
+          withdrawal
+              ? 'Minimum withdrawal is {p0} {p1}.'
+              : 'Minimum deposit is {p0} {p1}.',
+          {'p0': min, 'p1': currency});
     }
     if (max != null && value.compareTo(_Amount.parse(max)!) > 0) {
-      return 'Maximum $action is $max $currency.';
+      return translate(
+          withdrawal
+              ? 'Maximum withdrawal is {p0} {p1}.'
+              : 'Maximum deposit is {p0} {p1}.',
+          {'p0': max, 'p1': currency});
     }
     return null;
   }
 
-  List<String> descriptions(String currency, {required bool withdrawal}) {
+  List<String> descriptions(String currency,
+      {required bool withdrawal,
+      String Function(String, Map<String, Object?>) translate =
+          formatAppMessage}) {
     final min = withdrawal ? minWithdraw : minDeposit;
     final max = withdrawal ? maxWithdraw : maxDeposit;
-    final action = withdrawal ? 'withdrawal' : 'deposit';
     return [
-      if (min != null) 'Minimum $action: $min $currency',
-      if (max != null) 'Maximum $action: $max $currency',
+      if (min != null)
+        translate(
+            withdrawal
+                ? 'Minimum withdrawal: {p0} {p1}'
+                : 'Minimum deposit: {p0} {p1}',
+            {'p0': min, 'p1': currency}),
+      if (max != null)
+        translate(
+            withdrawal
+                ? 'Maximum withdrawal: {p0} {p1}'
+                : 'Maximum deposit: {p0} {p1}',
+            {'p0': max, 'p1': currency}),
       if (withdrawal) ...[
-        if (withdrawFee != null) 'Fixed withdrawal fee: $withdrawFee $currency',
+        if (withdrawFee != null)
+          translate('Fixed withdrawal fee: {p0} {p1}',
+              {'p0': withdrawFee, 'p1': currency}),
         if (withdrawFee == null)
-          'Withdrawal fee unavailable. The provider may charge a fee.',
+          translate(
+              'Withdrawal fee unavailable. The provider may charge a fee.',
+              const {}),
         if (withdrawFeePercentage != null)
-          'Variable withdrawal fee: $withdrawFeePercentage%',
+          translate(
+              'Variable withdrawal fee: {p0}%', {'p0': withdrawFeePercentage}),
       ],
     ];
   }

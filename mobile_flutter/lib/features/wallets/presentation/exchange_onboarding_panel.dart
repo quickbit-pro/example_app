@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -52,8 +53,8 @@ class ExchangeOnboardingPanel extends ConsumerWidget {
             padding: const EdgeInsets.all(20),
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Could not check your Exchange application.'),
-              TextButton(onPressed: refresh, child: const Text('Check status')),
+              Text(context.tr('Could not check your Exchange application.')),
+              TextButton(onPressed: refresh, child: Text(context.tr('Check status'))),
             ]),
           )),
           data: (progress) {
@@ -79,25 +80,25 @@ class ExchangeOnboardingPanel extends ConsumerWidget {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Exchange',
+                    Text(context.tr('Exchange'),
                         style: Theme.of(context).textTheme.titleLarge),
                     const SizedBox(height: 12),
                     Text(staging
-                        ? 'Exchange is unavailable in staging.'
+                        ? context.tr('Exchange is unavailable in staging.')
                         : rejected
-                            ? 'Your Exchange application needs attention. Contact support.'
+                            ? context.tr('Your Exchange application needs attention. Contact support.')
                             : submitted
-                                ? 'Your Exchange application is in progress. You do not need to activate it again.'
-                                : 'Complete your selected-services application to set up Exchange using your existing verification.'),
+                                ? context.tr('Your Exchange application is in progress. You do not need to activate it again.')
+                                : context.tr('Complete your selected-services application to set up Exchange using your existing verification.')),
                     if (!staging && !submitted && !rejected) ...[
                       const SizedBox(height: 16),
                       FilledButton(
                           onPressed: () => context.push('/kyc'),
-                          child: const Text('Continue onboarding')),
+                          child: Text(context.tr('Continue onboarding'))),
                     ],
                     const SizedBox(height: 12),
                     TextButton(
-                        onPressed: refresh, child: const Text('Check status')),
+                        onPressed: refresh, child: Text(context.tr('Check status'))),
                   ]),
             ));
           },

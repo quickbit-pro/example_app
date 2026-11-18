@@ -459,7 +459,7 @@ class _StatCard extends StatelessWidget {
           children: [
             Text(value.toString(),
                 style: Theme.of(context).textTheme.headlineSmall),
-            Text(label),
+            Text(context.tr(label)),
           ],
         ),
       ),

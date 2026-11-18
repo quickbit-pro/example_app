@@ -129,7 +129,7 @@ class _StatusRow extends StatelessWidget {
   Widget build(BuildContext context) => ExampleRow(
         leading: ExampleIconTile(icon: icon, color: ExampleColors.iris),
         title: label,
-        semanticsLabel: '$label ${friendlyStatus(status)}',
+        semanticsLabel: '$label ${localizedPlatformStatus(context, status)}',
         trailing: PlatformStatusPill(status: status),
       );
 }
@@ -162,7 +162,7 @@ class _NextActionPanel extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
-                  fallbackText(text, 'Nothing to do right now.'),
+                  fallbackText(text, context.tr('Nothing to do right now.')),
                   style: TextStyle(
                     fontSize: 13.5,
                     height: 1.45,
@@ -261,8 +261,8 @@ class _StatusTile extends StatelessWidget {
     return Card(
       child: ListTile(
         leading: const Icon(Icons.verified_outlined),
-        title: Text(label),
-        trailing: Text(friendlyStatus(value)),
+        title: Text(context.tr(label)),
+        trailing: Text(localizedPlatformStatus(context, value)),
       ),
     );
   }

@@ -162,12 +162,12 @@ class _CryptoWithdrawalDialogState
     if (amount == null ||
         !amount.isFinite ||
         amount < minimumCryptoWithdrawal) {
-      setState(() => _error = 'Enter an amount of at least 5 $_currency.');
+      setState(() => _error = context.tr('Enter an amount of at least 5 {p0}.', {'p0': _currency}));
       return;
     }
     if (amount > _available) {
       setState(() => _error =
-          'Your available $_currency balance is ${_asset.amount.toStringAsFixed(6)}.');
+          context.tr('Your available {p0} balance is {p1}.', {'p0': _currency, 'p1': _asset.amount.toStringAsFixed(6)}));
       return;
     }
 
@@ -208,7 +208,7 @@ class _CryptoWithdrawalDialogState
 
   Future<void> _requestCode() async {
     if (!_confirmed) {
-      setState(() => _error = 'Confirm the reviewed withdrawal details.');
+      setState(() => _error = context.tr('Confirm the reviewed withdrawal details.'));
       return;
     }
     setState(() {
@@ -252,7 +252,7 @@ class _CryptoWithdrawalDialogState
   Future<void> _confirmOtp() async {
     final otp = _otpController.text.trim();
     if (otp.length != 8) {
-      setState(() => _error = 'Enter the full 8-digit verification code.');
+      setState(() => _error = context.tr('Enter the full 8-digit verification code.'));
       return;
     }
     setState(() {
@@ -377,7 +377,7 @@ class _CryptoWithdrawalDialogState
                       dimension: 20,
                       child: AppProgressIndicator(strokeWidth: 2),
                     )
-                  : Text(primaryLabel),
+                  : Text(context.tr(primaryLabel)),
             ),
           );
 
@@ -775,10 +775,14 @@ class _CryptoWithdrawalDialogState
                       subtitle: _networkShape(entry.key),
                       padding: _bareRowPadding,
                       semanticsLabel: entry.key == _chain
-                          ? '${entry.value}, ${_networkShape(entry.key)}, '
-                              'selected'
-                          : 'Send on ${entry.value}, '
-                              '${_networkShape(entry.key)}',
+                          ? context.tr('{p0}, {p1}, selected', {
+                              'p0': entry.value,
+                              'p1': _networkShape(entry.key)
+                            })
+                          : context.tr('Send on {p0}, {p1}', {
+                              'p0': entry.value,
+                              'p1': _networkShape(entry.key)
+                            }),
                       onTap: _loading ? null : () => _selectChain(entry.key),
                       trailing: entry.key == _chain
                           ? Icon(
@@ -795,8 +799,8 @@ class _CryptoWithdrawalDialogState
                     subtitle: _networkShape(_chain),
                     padding: _bareRowPadding,
                     trailing: ExampleRow.chevron,
-                    semanticsLabel: 'Network, ${_networks[_chain] ?? _chain}. '
-                        'Change network',
+                    semanticsLabel: context.tr('Network, {p0}. Change network',
+                        {'p0': _networks[_chain] ?? _chain}),
                     onTap: _loading
                         ? null
                         : () => setState(() => _networkOpen = true),
@@ -814,9 +818,10 @@ class _CryptoWithdrawalDialogState
           onChanged: (_) => _checkAddress(showError: false),
           decoration: InputDecoration(
             labelText: context.tr('Destination wallet address'),
-            helperText: CryptoAddressValidator.hint(family),
+            helperText: context.tr(CryptoAddressValidator.hint(family)),
             helperMaxLines: 2,
-            errorText: _addressError,
+            errorText:
+                _addressError == null ? null : context.tr(_addressError!),
             errorMaxLines: 3,
             suffixIcon: _addressValid
                 ? Icon(Icons.check_circle_rounded, color: palette.success)
@@ -841,8 +846,10 @@ class _CryptoWithdrawalDialogState
             labelText: context.tr('Amount ({p0})', {'p0': _currency}),
             errorText: _amountProblem,
             errorMaxLines: 3,
-            helperText: 'Minimum 5 $_currency  ·  Available '
-                '${Money.formatAmount(_currency, _available)}',
+            helperText: context.tr('Minimum 5 {p0}  ·  Available {p1}', {
+              'p0': _currency,
+              'p1': Money.formatAmount(_currency, _available)
+            }),
             helperMaxLines: 2,
             suffixIcon: TextButton(
               style: TextButton.styleFrom(
@@ -962,8 +969,9 @@ class _CryptoWithdrawalDialogState
         if (expiresAt != null) ...[
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Code expires at '
-            '${TimeOfDay.fromDateTime(expiresAt.toLocal()).format(context)}.',
+            context.tr('Code expires at {p0}.', {
+              'p0': TimeOfDay.fromDateTime(expiresAt.toLocal()).format(context)
+            }),
             style: TextStyle(fontSize: 12, color: palette.textTertiary),
           ),
         ],
@@ -1274,7 +1282,7 @@ class _LedgerLine extends StatelessWidget {
           Expanded(
             flex: _labelFlex,
             child: Text(
-              label,
+              context.tr(label),
               style: TextStyle(
                 fontSize: 13,
                 height: 1.35,
@@ -1325,7 +1333,7 @@ class _ReviewRow extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: Text(label)),
+            Expanded(child: Text(context.tr(label))),
             const SizedBox(width: AppSpacing.sm),
             Flexible(
               child: Text(

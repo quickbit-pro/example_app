@@ -308,7 +308,7 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> {
   Future<void> _validateVoucher() async {
     final code = _voucherController.text.trim();
     if (code.isEmpty) {
-      _message('Enter a voucher code first.');
+      _message(context.tr('Enter a voucher code first.'));
       return;
     }
 
@@ -319,7 +319,7 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> {
       if (!mounted) return;
       final valid = _boolean(result.metadata, 'Valid', 'valid');
       if (!valid) {
-        _message('This code is invalid or unavailable.');
+        _message(context.tr('This code is invalid or unavailable.'));
         return;
       }
       final amount = _text(result.metadata, 'Amount', 'amount') ?? '—';
@@ -401,12 +401,12 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> {
     final target = Uri.tryParse(url?.trim() ?? '');
     if (target == null || !target.hasScheme) {
       _message(
-          'Reward terms are published by your company. Contact support for a copy.');
+          context.tr('Reward terms are published by your company. Contact support for a copy.'));
       return;
     }
     final opened =
         await launchUrl(target, mode: LaunchMode.externalApplication);
-    if (!opened && mounted) _message('Could not open the terms document.');
+    if (!opened && mounted) _message(context.tr('Could not open the terms document.'));
   }
 }
 
@@ -1262,7 +1262,7 @@ class _FunnelStage extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  label,
+                  context.tr(label),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -1818,7 +1818,7 @@ class _ReferralOverviewState extends ConsumerState<_ReferralOverview> {
           tone: ExampleGlassButtonTone.neutral,
           sheen: false,
           loading: _sendingInvitation,
-          loadingSemanticsLabel: 'Sending invitation',
+          loadingSemanticsLabel: context.tr('Sending invitation'),
           onPressed: _sendingInvitation
               ? null
               : () => _showEmailInvitationDialog(context),
@@ -1876,7 +1876,7 @@ class _ReferralOverviewState extends ConsumerState<_ReferralOverview> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(friendlyErrorMessage(error))),
+        SnackBar(content: Text(context.tr(friendlyErrorMessage(error)))),
       );
     } finally {
       if (mounted) setState(() => _sendingInvitation = false);
@@ -2010,7 +2010,7 @@ class _VoucherCodeCard extends StatelessWidget {
                   // consistent with each other instead.
                   sheen: false,
                   loading: processing,
-                  loadingSemanticsLabel: 'Redeeming voucher',
+                  loadingSemanticsLabel: context.tr('Redeeming voucher'),
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.md,
                     vertical: 12,
@@ -2184,7 +2184,8 @@ class _AssignedVouchers extends StatelessWidget {
                         color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
-                    title: Text(_text(voucher, 'Name', 'name') ?? 'Voucher'),
+                    title: Text(_text(voucher, 'Name', 'name') ??
+                        context.tr('Voucher')),
                     subtitle: Text(
                       '${_field(voucher, 'Amount')} ${_field(voucher, 'Currency')} • ${_voucherTypeLabel(voucher)}',
                     ),

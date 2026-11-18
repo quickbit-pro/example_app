@@ -92,7 +92,7 @@ class _AssistantAnswerState extends State<AssistantAnswer> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Next step',
+                        Text(context.tr('Next step'),
                             style: style.copyWith(
                                 fontWeight: FontWeight.w700,
                                 color: palette.accent)),
@@ -120,7 +120,7 @@ class _AssistantAnswerState extends State<AssistantAnswer> {
                         size: 18,
                       ),
                       label: Text(
-                          _showFullAnswer ? 'Show less' : 'Show full answer'),
+                          _showFullAnswer ? context.tr('Show less') : context.tr('Show full answer')),
                       style: TextButton.styleFrom(
                         foregroundColor: palette.accent,
                         minimumSize: const Size(0, 44),
@@ -266,7 +266,7 @@ class _RecommendationCardState extends State<_RecommendationCard> {
                           ? Icons.expand_less_rounded
                           : Icons.expand_more_rounded,
                       size: 18),
-                  label: Text(_expanded ? 'Less details' : 'More details'),
+                  label: Text(_expanded ? context.tr('Less details') : context.tr('More details')),
                   style: TextButton.styleFrom(
                     foregroundColor: palette.accent,
                     minimumSize: const Size(0, 44),

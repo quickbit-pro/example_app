@@ -119,7 +119,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen>
         ),
         error: (error, stackTrace) =>
             ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyErrorMessage(error))),
+          SnackBar(content: Text(context.tr(friendlyErrorMessage(error)))),
         ),
       );
     });
@@ -1115,8 +1115,10 @@ class _MoneyLedger extends StatelessWidget {
             // Spelled out for a screen reader: the caps are typography, not
             // an acronym, and "MORE" is short enough that some engines spell
             // it letter by letter.
-            semanticsLabel: context.tr('{p0} more {p1}',
-                {'p0': extra, 'p1': extra == 1 ? 'currency' : 'currencies'}),
+            semanticsLabel: context.tr(
+              extra == 1 ? '{p0} more currency' : '{p0} more currencies',
+              {'p0': extra},
+            ),
             // The counter is a marker, not a balance, so it takes the eyebrow
             // voice the masthead adopted rather than a fourth volume. Set as
             // a raw 12.5 px `TextStyle` it put back the exact off-ladder
@@ -1381,7 +1383,7 @@ class _ExampleHeaderIcon extends StatelessWidget {
         excludeFromSemantics: true,
         child: ExamplePressable(
           onTap: onTap,
-          semanticsLabel: label,
+          semanticsLabel: context.tr(label),
           borderRadius: BorderRadius.circular(AppRadii.pill),
           child: SizedBox(
             width: 44,
@@ -1431,7 +1433,7 @@ class _ExampleHeaderAction extends StatelessWidget {
       child: ExamplePressable(
         onTap: onTap,
         enabled: enabled,
-        semanticsLabel: label,
+        semanticsLabel: context.tr(label),
         borderRadius: radius,
         child: DecoratedBox(
           decoration: BoxDecoration(
@@ -1454,7 +1456,7 @@ class _ExampleHeaderAction extends StatelessWidget {
                 const SizedBox(width: AppSpacing.xs),
                 Flexible(
                   child: Text(
-                    label,
+                    context.tr(label),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -1582,7 +1584,7 @@ class _CompactMoneyTab extends StatelessWidget {
             const SizedBox(width: 5),
             Flexible(
               child: Text(
-                label,
+                context.tr(label),
                 maxLines: 1,
                 overflow: TextOverflow.fade,
                 softWrap: false,
@@ -1861,7 +1863,7 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
                             ),
                           ),
                       ],
-                      validator: _required,
+                      validator: context.localizeValidator(_required),
                       onChanged: (value) {
                         setState(() {
                           _accountKey = value;
@@ -1882,7 +1884,7 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
                             child: Text(_payeeLabel(option.payee)),
                           ),
                       ],
-                      validator: _required,
+                      validator: context.localizeValidator(_required),
                       onChanged: (value) {
                         setState(() {
                           _payeeKey = value;
@@ -1903,7 +1905,7 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
                             child: Text(currency),
                           ),
                       ],
-                      validator: _required,
+                      validator: context.localizeValidator(_required),
                       onChanged: (value) {
                         setState(() {
                           _currency = value;
@@ -1928,7 +1930,7 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
                       controller: _referenceController,
                       decoration:
                           InputDecoration(labelText: context.tr('Reference')),
-                      validator: _required,
+                      validator: context.localizeValidator(_required),
                       onChanged: (_) => setState(_resetPayoutState),
                     ),
                     if (targetCurrency != _currency) ...[
@@ -1997,7 +1999,7 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
                         label: _ctaLabel,
                         icon: _otpSent ? Icons.verified_user : Icons.send,
                         loading: _loading,
-                        loadingSemanticsLabel: '$_ctaLabel, in progress',
+                        loadingSemanticsLabel: context.tr('{p0}, in progress', {'p0': _ctaLabel}),
                         onPressed: _ctaAction(
                           selectedPayee,
                           selectedAccount,
@@ -2104,7 +2106,7 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
         setState(() {
           _check = check;
           _errorMessage = check.message.isEmpty
-              ? 'The payout check did not pass.'
+              ? context.tr('The payout check did not pass.')
               : check.message;
         });
         return;
@@ -2151,14 +2153,14 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
   Future<void> _confirmPayout() async {
     final otpCode = _otpController.text.trim();
     if (otpCode.length != 8) {
-      setState(() => _errorMessage = 'Enter the full 8-digit OTP code.');
+      setState(() => _errorMessage = context.tr('Enter the full 8-digit OTP code.'));
       return;
     }
     if (_verificationToken.isEmpty ||
         _payoutPayeeId.isEmpty ||
         _payoutBalanceId.isEmpty) {
       setState(
-          () => _errorMessage = 'Request a new OTP code before confirming.');
+          () => _errorMessage = context.tr('Request a new OTP code before confirming.'));
       return;
     }
 
@@ -2689,7 +2691,7 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
                       controller: _firstNameController,
                       decoration:
                           InputDecoration(labelText: context.tr('First name')),
-                      validator: _required,
+                      validator: context.localizeValidator(_required),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -2698,7 +2700,7 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
                       controller: _lastNameController,
                       decoration:
                           InputDecoration(labelText: context.tr('Last name')),
-                      validator: _required,
+                      validator: context.localizeValidator(_required),
                     ),
                   ),
                 ],
@@ -2708,7 +2710,7 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
                 controller: _accountHolderController,
                 decoration: InputDecoration(
                     labelText: context.tr('Account holder name')),
-                validator: _required,
+                validator: context.localizeValidator(_required),
               ),
               const SizedBox(height: 12),
               Row(
@@ -2771,7 +2773,7 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
                 controller: _accountController,
                 decoration: InputDecoration(
                     labelText: context.tr('IBAN or account number')),
-                validator: _required,
+                validator: context.localizeValidator(_required),
               ),
               const SizedBox(height: 12),
               Row(
@@ -3068,7 +3070,7 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
         _payeeCheckAcknowledged = false;
         _payeeVerificationToken = result.verificationToken;
         _payeeStatusMessage = result.message.isEmpty
-            ? 'Enter the OTP code to save this payee.'
+            ? context.tr('Enter the OTP code to save this payee.')
             : result.message;
         _payeeOtpSent = true;
         _payeeOtpController.clear();
@@ -3094,7 +3096,7 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
     if (!details.hasBankDetails) {
       setState(() {
         _payeeErrorMessage =
-            'This QR code does not include bank account details we can prefill.';
+            context.tr('This QR code does not include bank account details we can prefill.');
         _payeeStatusMessage = payload.trim();
       });
       return;
@@ -3103,7 +3105,7 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
     setState(() {
       _showPayeeForm = true;
       _applyScannedPayee(details);
-      _payeeStatusMessage = 'Payee details filled from QR code.';
+      _payeeStatusMessage = context.tr('Payee details filled from QR code.');
       _payeeErrorMessage = '';
     });
   }
@@ -3161,12 +3163,12 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
     if (_payeeOtpLocked || !_payeeCheckAllowsConfirm) return;
     final otpCode = _payeeOtpController.text.trim();
     if (otpCode.length != 8) {
-      setState(() => _payeeErrorMessage = 'Enter the full 8-digit OTP code.');
+      setState(() => _payeeErrorMessage = context.tr('Enter the full 8-digit OTP code.'));
       return;
     }
     if (_payeeVerificationToken.isEmpty) {
       setState(() =>
-          _payeeErrorMessage = 'Request a new OTP code before confirming.');
+          _payeeErrorMessage = context.tr('Request a new OTP code before confirming.'));
       return;
     }
 
@@ -3237,7 +3239,7 @@ class _PayeesViewState extends ConsumerState<_PayeesView> {
       setState(() {
         _payeeOtpLocked = false;
         _payeeStatusMessage =
-            result.message.isEmpty ? 'OTP code resent.' : result.message;
+            result.message.isEmpty ? context.tr('OTP code resent.') : result.message;
       });
     } catch (error) {
       setState(() => _payeeErrorMessage = friendlyErrorMessage(error));
@@ -3838,19 +3840,19 @@ class _PayoutQuoteCard extends StatelessWidget {
         const SizedBox(height: 12),
         if (otpSent && paymentSummary != null) ...[
           _QuoteRow(
-              label: 'Recipient gets',
+              label: context.tr('Recipient gets'),
               value:
                   '${paymentSummary!['recipientAmount']} ${paymentSummary!['recipientCurrency']}'),
           _QuoteRow(
-              label: 'Debit before fees',
+              label: context.tr('Debit before fees'),
               value:
                   '${paymentSummary!['debitAmount']} ${paymentSummary!['debitCurrency']}'),
           _QuoteRow(
-              label: 'Fee',
+              label: context.tr('Fee'),
               value:
                   '${paymentSummary!['fee']} ${paymentSummary!['debitCurrency']}'),
           _QuoteRow(
-              label: 'Total debit',
+              label: context.tr('Total debit'),
               value:
                   '${paymentSummary!['totalDebit']} ${paymentSummary!['debitCurrency']}'),
         ] else ...[
@@ -3917,7 +3919,7 @@ class _QuoteRow extends StatelessWidget {
     // tabular figures so the quote's numbers line up. Other brands keep the
     // fixed column they render today.
     final labelText = Text(
-      label,
+      context.tr(label),
       style: isExample
           ? theme.textTheme.bodySmall?.copyWith(
               color: ExampleInk.secondary(context),
@@ -4004,7 +4006,7 @@ class _SelectField extends StatelessWidget {
     return DropdownButtonFormField<String>(
       initialValue: value,
       isExpanded: true,
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(labelText: context.tr(label)),
       items: [
         for (final option in options)
           DropdownMenuItem(
@@ -4015,7 +4017,7 @@ class _SelectField extends StatelessWidget {
             ),
           ),
       ],
-      validator: _required,
+      validator: context.localizeValidator(_required),
       onChanged: (value) {
         if (value != null) {
           onChanged(value);

@@ -120,10 +120,9 @@ class _ExampleBody extends ConsumerWidget {
                     ExampleSectionTitle(title: context.tr('Rate quote')),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'A quote holds a EUR to USD rate for a short window, so '
-                      'the figure you agree to is the figure that settles. '
-                      'This one quotes '
-                      '${_quoteAmount.formatted}.',
+                      context.tr(
+                          'A quote holds a EUR to USD rate for a short window, so the figure you agree to is the figure that settles. This one quotes {p0}.',
+                          {'p0': _quoteAmount.formatted}),
                       style: TextStyle(
                         fontSize: 13.5,
                         height: 1.45,
@@ -175,7 +174,7 @@ class _QuoteButtonState extends ConsumerState<_QuoteButton> {
       icon: Icons.currency_exchange_rounded,
       semanticsLabel: context.tr(
           'Lock a EUR to USD rate for {p0}', {'p0': _quoteAmount.formatted}),
-      loadingSemanticsLabel: 'Creating the quote',
+      loadingSemanticsLabel: context.tr('Creating the quote'),
       ground: ExampleGlassGround.surface,
       loading: _pending && busy,
       onPressed: busy

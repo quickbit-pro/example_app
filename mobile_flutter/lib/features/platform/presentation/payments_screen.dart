@@ -64,7 +64,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
         context,
         ref,
         title: context.tr('Create payment'),
-        primaryLabel: 'Create payment',
+        primaryLabel: context.tr('Create payment'),
         icon: Icons.payments_outlined,
         defaultReference: 'Merchant',
         currencies: const ['EUR', 'USD', 'USDC', 'USDT'],
@@ -78,7 +78,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
         context,
         ref,
         title: context.tr('Create mandate'),
-        primaryLabel: 'Create mandate',
+        primaryLabel: context.tr('Create mandate'),
         icon: Icons.fact_check_outlined,
         referenceLabel: 'Merchant',
         amountLabel: 'Maximum amount',
@@ -93,7 +93,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
         context,
         ref,
         title: context.tr('Request payment'),
-        primaryLabel: 'Request payment',
+        primaryLabel: context.tr('Request payment'),
         icon: Icons.request_quote,
         referenceLabel: 'Counterparty',
         defaultReference: 'Customer',
@@ -110,7 +110,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
         context,
         ref,
         title: context.tr('Withdraw'),
-        primaryLabel: 'Withdraw',
+        primaryLabel: context.tr('Withdraw'),
         icon: Icons.account_balance_wallet_outlined,
         referenceLabel: 'Destination address',
         defaultReference: '',
@@ -125,7 +125,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
         context,
         ref,
         title: context.tr('Withdrawal fee'),
-        primaryLabel: 'Calculate fee',
+        primaryLabel: context.tr('Calculate fee'),
         icon: Icons.money_off_csred_outlined,
         referenceLabel: 'Destination address',
         defaultReference: '',
@@ -496,7 +496,7 @@ class _ActionTile extends ConsumerWidget {
               child: AppProgressIndicator(strokeWidth: 2),
             )
           : Icon(icon),
-      label: Text(label, overflow: TextOverflow.ellipsis),
+      label: Text(context.tr(label), overflow: TextOverflow.ellipsis),
     );
   }
 }

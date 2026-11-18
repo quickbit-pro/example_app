@@ -241,14 +241,14 @@ class _SafeguardingContent extends StatelessWidget {
                   final opened = await launchUrl(url,
                       mode: LaunchMode.externalApplication);
                   if (!opened && context.mounted)
-                    ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(
+                    ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
                         content: Text(
-                            'Could not open Equals Money terms. Please try again.')));
+                            context.tr('Could not open Equals Money terms. Please try again.'))));
                 },
-                child: const Text('Equals Money Terms and Conditions'))
+                child: Text(context.tr('Equals Money Terms and Conditions')))
           else
-            const Text(
-                'The terms link is temporarily unavailable. Please contact support.'),
+            Text(
+                context.tr('The terms link is temporarily unavailable. Please contact support.')),
           const SizedBox(height: 16),
           Text(statement, style: style),
         ]);

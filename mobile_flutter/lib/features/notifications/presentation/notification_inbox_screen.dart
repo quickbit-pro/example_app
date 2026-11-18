@@ -330,7 +330,7 @@ class ExampleNotificationTile extends StatelessWidget {
     final unread = !notification.isRead;
     final destination = notificationDestinationLabel(notification.route);
     final body = notification.body.trim();
-    final time = notificationTime(notification.createdAt);
+    final time = notificationTime(notification.createdAt, context: context);
     return ExampleRow(
       minHeight: compact ? 52 : 60,
       padding: compact
@@ -364,17 +364,17 @@ class ExampleNotificationTile extends StatelessWidget {
       ),
       title: notification.title,
       titleMaxLines: null,
-      subtitle: body.isEmpty ? destination : body,
+      subtitle: body.isEmpty ? context.tr(destination) : body,
       subtitleMaxLines: null,
       trailing: _NotificationMeta(time: time, unread: unread),
       divider: divider,
       onTap: onTap,
       semanticsLabel: [
-        unread ? 'Unread notification' : 'Notification',
+        unread ? context.tr('Unread notification') : context.tr('Notification'),
         notification.title,
         if (body.isNotEmpty) body,
         time,
-        'Opens $destination',
+        context.tr('Opens {p0}', {'p0': context.tr(destination)}),
       ].join('. '),
     );
   }
@@ -498,7 +498,7 @@ class _NotificationTile extends StatelessWidget {
                 ],
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  notificationTime(notification.createdAt),
+                  notificationTime(notification.createdAt, context: context),
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: colors.onSurfaceVariant,
                       ),
@@ -513,12 +513,22 @@ class _NotificationTile extends StatelessWidget {
   }
 }
 
-String notificationTime(DateTime value) {
-  final difference = DateTime.now().difference(value.toLocal());
-  if (difference.inDays > 0) return '${difference.inDays}d ago';
-  if (difference.inHours > 0) return '${difference.inHours}h ago';
-  if (difference.inMinutes > 0) return '${difference.inMinutes}m ago';
-  return 'Just now';
+String notificationTime(DateTime value,
+    {BuildContext? context, DateTime? now}) {
+  final difference = (now ?? DateTime.now()).difference(value.toLocal());
+  if (difference.inDays > 0) {
+    return context?.tr('{p0}d ago', {'p0': difference.inDays}) ??
+        '${difference.inDays}d ago';
+  }
+  if (difference.inHours > 0) {
+    return context?.tr('{p0}h ago', {'p0': difference.inHours}) ??
+        '${difference.inHours}h ago';
+  }
+  if (difference.inMinutes > 0) {
+    return context?.tr('{p0}m ago', {'p0': difference.inMinutes}) ??
+        '${difference.inMinutes}m ago';
+  }
+  return context?.tr('Just now') ?? 'Just now';
 }
 
 String safeNotificationRoute(String value) {

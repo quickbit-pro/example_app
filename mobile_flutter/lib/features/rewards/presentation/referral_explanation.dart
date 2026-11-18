@@ -93,7 +93,10 @@ class ReferralRewardExplanationView extends StatelessWidget {
           context.tr(explanation.basisLabel),
         ),
       if (explanation?.rate != null)
-        (context.tr('Rate'), formatReferralPercent(explanation!.rate!)),
+        (
+          context.tr('Commission rate'),
+          formatReferralPercent(explanation!.rate!)
+        ),
       if (explanation?.termsVersion != null)
         (context.tr('Terms version'), '${explanation!.termsVersion}'),
       if (explanation != null && explanation.rounding.isNotEmpty)
@@ -195,7 +198,8 @@ class _Fact extends StatelessWidget {
             children: [
               Expanded(
                 flex: 2,
-                child: Text(label, style: referralBodyStyle(context)),
+                child:
+                    Text(context.tr(label), style: referralBodyStyle(context)),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(

@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import '../../../core/widgets/app_states.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -134,8 +135,8 @@ class _ExchangeAccountDetailsState
     } catch (e) {
       if (mounted) {
         setState(() => error = widget.destinations
-            ? 'We couldn’t load your saved destinations. Please try again.'
-            : 'We couldn’t refresh your deposit details. Please try again.');
+            ? context.tr('We couldn’t load your saved destinations. Please try again.')
+            : context.tr('We couldn’t refresh your deposit details. Please try again.'));
       }
     } finally {
       if (mounted) setState(() => busy = false);
@@ -209,7 +210,7 @@ class _ExchangeAccountDetailsState
     } catch (_) {
       if (mounted) {
         setState(() => payInError =
-            'Could not create the $currency deposit address. Please try again.');
+            context.tr('Could not create the {p0} deposit address. Please try again.', {'p0': currency}));
       }
     } finally {
       if (mounted) setState(() => busy = false);
@@ -300,8 +301,8 @@ class _ExchangeAccountDetailsState
           key: ValueKey('deposit-network-$currency-$chain'),
           initialValue: chain,
           isExpanded: true,
-          decoration: const InputDecoration(
-              labelText: 'Network', prefixIcon: Icon(Icons.hub_outlined)),
+          decoration: InputDecoration(
+              labelText: context.tr('Network'), prefixIcon: Icon(Icons.hub_outlined)),
           items: [
             for (final network in networks.keys)
               DropdownMenuItem(
@@ -335,23 +336,23 @@ class _ExchangeAccountDetailsState
                     ),
                   )),
           const SizedBox(height: 16),
-          Text('Deposit address', style: theme.textTheme.labelLarge),
+          Text(context.tr('Deposit address'), style: theme.textTheme.labelLarge),
           const SizedBox(height: 8),
           SelectableText(address,
               key: ValueKey('deposit-address-$currency'),
               style: theme.textTheme.bodyMedium?.copyWith(height: 1.5)),
           const SizedBox(height: 12),
-          Text('Only send $currency on ${networkLabel(chain)}.',
+          Text(context.tr('Only send {p0} on {p1}.', {'p0': currency, 'p1': networkLabel(chain)}),
               style: theme.textTheme.bodySmall),
           const SizedBox(height: 12),
           OutlinedButton.icon(
               key: ValueKey('copy-deposit-$currency'),
               onPressed: () => copy(address, false),
               icon: const Icon(Icons.copy_outlined, size: 18),
-              label: const Text('Copy address')),
+              label: Text(context.tr('Copy address'))),
         ] else if (!accepted)
-          const Text(
-              'Your exchange account must be approved before you can deposit.')
+          Text(
+              context.tr('Your exchange account must be approved before you can deposit.'))
         else if (depositNetworks.containsKey(currency) &&
             account == null &&
             !requestedNetworks.contains((currency, chain)) &&
@@ -360,10 +361,10 @@ class _ExchangeAccountDetailsState
               key: ValueKey('create-${currency.toLowerCase()}-$chain'),
               onPressed:
                   busy ? null : () => createDepositAddress(currency, chain),
-              child: const Text('Create deposit address'))
+              child: Text(context.tr('Create deposit address')))
         else
-          const Text(
-              'These deposit details are not available yet. Refresh to check again.'),
+          Text(
+              context.tr('These deposit details are not available yet. Refresh to check again.')),
       ]),
     );
   }
@@ -383,23 +384,23 @@ class _ExchangeAccountDetailsState
         !accounts.any((account) => exchangeText(account, 'id') == id)) {
       setState(() => accounts = [...accounts, saved]);
     }
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Destination saved. No funds were transferred.')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(context.tr('Destination saved. No funds were transferred.'))));
   }
 
   Future<void> remove(Map<String, dynamic> account) async {
     final confirmed = await showDialog<bool>(
         context: context,
         builder: (c) => AlertDialog(
-                title: const Text('Remove destination?'),
-                content: const Text('Existing transfers are not cancelled.'),
+                title: Text(context.tr('Remove destination?')),
+                content: Text(context.tr('Existing transfers are not cancelled.')),
                 actions: [
                   TextButton(
                       onPressed: () => Navigator.pop(c, false),
-                      child: const Text('Cancel')),
+                      child: Text(context.tr('Cancel'))),
                   FilledButton(
                       onPressed: () => Navigator.pop(c, true),
-                      child: const Text('Remove'))
+                      child: Text(context.tr('Remove')))
                 ]));
     if (confirmed != true || !mounted) return;
     setState(() => busy = true);
@@ -426,11 +427,11 @@ class _ExchangeAccountDetailsState
       await Clipboard.setData(ClipboardData(text: text));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(bank ? 'IBAN copied' : 'Address copied')));
+          SnackBar(content: Text(bank ? context.tr('IBAN copied') : context.tr('Address copied'))));
     } catch (_) {
       if (mounted) {
         setState(() =>
-            error = 'Could not copy. Select the address and copy it manually.');
+            error = context.tr('Could not copy. Select the address and copy it manually.'));
       }
     }
   }
@@ -480,7 +481,7 @@ class _ExchangeAccountDetailsState
                           .titleMedium
                           ?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 4),
-                  Text(bank ? (!widget.destinations && currencies == 'EUR' ? 'Bank transfer · SEPA' : 'Bank account') : exchangeNetworkName(chain),
+                  Text(bank ? (!widget.destinations && currencies == 'EUR' ? context.tr('Bank transfer · SEPA') : context.tr('Bank account')) : exchangeNetworkName(chain),
                       style: Theme.of(context).textTheme.bodySmall),
                 ]))
           ]),
@@ -496,15 +497,15 @@ class _ExchangeAccountDetailsState
                 : address),
             const SizedBox(height: 12),
             Text(exchangeValue(a, 'enabled') == true
-                ? 'Ready to use'
-                : 'Not available for withdrawals'),
+                ? context.tr('Ready to use')
+                : context.tr('Not available for withdrawals')),
             if (widget.outflowsEnabled)
               Align(
                   alignment: Alignment.centerLeft,
                   child: TextButton.icon(
                       onPressed: busy ? null : () => remove(a),
                       icon: const Icon(Icons.delete_outline, size: 18),
-                      label: const Text('Remove'))),
+                      label: Text(context.tr('Remove')))),
           ] else if (ready && bank)
             ExchangeBankDepositDetails(account: a,
               onAddPayee: ref.watch(mobileTenantConfigProvider).valueOrNull?.equalsMoneyEnabled == true
@@ -521,7 +522,7 @@ class _ExchangeAccountDetailsState
                       router.push(AppRoutes.payees, extra: draft);
                     } : null)
           else if (ready) ...[
-            Text(bank ? 'IBAN' : 'Deposit address',
+            Text(bank ? 'IBAN' : context.tr('Deposit address'),
                 style: Theme.of(context).textTheme.labelMedium),
             const SizedBox(height: 8),
             SelectableText(address,
@@ -538,7 +539,7 @@ class _ExchangeAccountDetailsState
                       '${e.key.replaceAll('_', ' ')}: ${e.value}')),
             const SizedBox(height: 12),
             if (!bank)
-              Text('Only send $currencies on ${exchangeNetworkName(chain)}.',
+              Text(context.tr('Only send {p0} on {p1}.', {'p0': currencies, 'p1': exchangeNetworkName(chain)}),
                   style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 8),
             Align(
@@ -546,12 +547,12 @@ class _ExchangeAccountDetailsState
                 child: OutlinedButton.icon(
                     onPressed: () => copy(address, bank),
                     icon: const Icon(Icons.copy_outlined, size: 18),
-                    label: Text(bank ? 'Copy IBAN' : 'Copy address'))),
+                    label: Text(bank ? context.tr('Copy IBAN') : context.tr('Copy address')))),
           ] else
             Text(
                 accepted
-                    ? 'These deposit details are not available yet. Refresh to check again.'
-                    : 'Your exchange account must be approved before you can deposit.',
+                    ? context.tr('These deposit details are not available yet. Refresh to check again.')
+                    : context.tr('Your exchange account must be approved before you can deposit.'),
                 style: Theme.of(context).textTheme.bodyMedium),
         ]));
   }
@@ -559,18 +560,18 @@ class _ExchangeAccountDetailsState
   @override
   Widget build(BuildContext context) => ExchangeDialog(
         width: widget.destinations ? 600 : 820,
-        title: widget.destinations ? 'Saved destinations' : 'Deposit funds',
+        title: widget.destinations ? context.tr('Saved destinations') : context.tr('Deposit funds'),
         subtitle: widget.destinations
-            ? 'Bank accounts and crypto wallets saved for withdrawals.'
-            : 'Use the correct currency and network for each deposit.',
+            ? context.tr('Bank accounts and crypto wallets saved for withdrawals.')
+            : context.tr('Use the correct currency and network for each deposit.'),
         actions: [
           TextButton.icon(
               onPressed: busy ? null : load,
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Refresh')),
+              label: Text(context.tr('Refresh'))),
           FilledButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Done'))
+              child: Text(context.tr('Done')))
         ],
         child: ExchangeFormColumn(children: [
           if (widget.destinations)
@@ -578,19 +579,19 @@ class _ExchangeAccountDetailsState
               OutlinedButton.icon(
                   onPressed: busy ? null : () => addDestination(true),
                   icon: const Icon(Icons.account_balance_outlined),
-                  label: const Text('Add bank account')),
+                  label: Text(context.tr('Add bank account'))),
               OutlinedButton.icon(
                   onPressed: busy ? null : () => addDestination(false),
                   icon: const Icon(Icons.account_balance_wallet_outlined),
-                  label: const Text('Add crypto address')),
+                  label: Text(context.tr('Add crypto address'))),
             ]),
           if (busy) const LinearProgressIndicator(),
           if (error != null) ExchangeNotice(error!, isError: true),
           if (payInError != null) ExchangeNotice(payInError!, isError: true),
           if (accounts.isEmpty && !busy && error == null)
             ExchangeNotice(widget.destinations
-                ? 'No saved destinations yet. Add a bank account or crypto address for future withdrawals.'
-                : 'Your deposit details are being prepared. Refresh to check again.'),
+                ? context.tr('No saved destinations yet. Add a bank account or crypto address for future withdrawals.')
+                : context.tr('Your deposit details are being prepared. Refresh to check again.')),
           if (widget.destinations) ...[
             for (final account in accounts) accountCard(account),
             const ExchangeDisclaimer(),

@@ -91,7 +91,7 @@ class _ReferralCommunityScreenState
     } catch (_) {
       if (mounted) {
         setState(
-            () => _error = 'Community earnings are temporarily unavailable.');
+            () => _error = context.tr('Community earnings are temporarily unavailable.'));
       }
     } finally {
       if (mounted) setState(() => _loading = false);

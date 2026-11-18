@@ -40,7 +40,7 @@ extension TransactionActivityTypeDisplay on TransactionActivityType {
         TransactionActivityType.account => 'Account',
         TransactionActivityType.crypto => 'Crypto',
         TransactionActivityType.transfer => 'Transfer',
-        TransactionActivityType.topUp => 'Top up',
+        TransactionActivityType.topUp => 'Top-up',
         TransactionActivityType.payment => 'Payment',
         TransactionActivityType.fee => 'Fee',
       };

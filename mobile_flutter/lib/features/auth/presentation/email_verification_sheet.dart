@@ -96,7 +96,7 @@ class _EmailVerificationSheetState
   Future<void> _verify() async {
     final code = _codeController.text.trim();
     if (code.length != 6) {
-      setState(() => _error = 'Enter the six-digit code from the email.');
+      setState(() => _error = context.tr('Enter the six-digit code from the email.'));
       return;
     }
     setState(() {
@@ -264,7 +264,8 @@ class _EmailVerificationSheetState
           ),
           if (_error != null) ...[
             const SizedBox(height: AppSpacing.md),
-            Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+            Text(context.tr(_error!),
+                style: TextStyle(color: theme.colorScheme.error)),
           ],
           if (_resent) ...[
             const SizedBox(height: AppSpacing.md),

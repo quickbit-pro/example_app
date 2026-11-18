@@ -50,7 +50,7 @@ class ProfileScreen extends ConsumerWidget {
       next.whenOrNull(
         error: (error, stackTrace) =>
             ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyErrorMessage(error))),
+          SnackBar(content: Text(context.tr(friendlyErrorMessage(error)))),
         ),
       );
     });
@@ -305,7 +305,7 @@ class _ExampleProfileContentState extends ConsumerState<_ExampleProfileContent> 
           title: context.tr('Two-step verification'),
           subtitle: securityValue(
             (value) => value.twoFactorEnabled
-                ? 'On · ${value.recoveryCodesRemaining} codes left'
+                ? context.tr('On · {p0} codes left', {'p0': value.recoveryCodesRemaining})
                 : 'Off',
           ),
           trailing: ExampleRow.chevron,
@@ -333,8 +333,8 @@ class _ExampleProfileContentState extends ConsumerState<_ExampleProfileContent> 
           title: context.tr('Duress password'),
           subtitle: securityValue(
             (value) => value.duressPasswordSet
-                ? 'Locks the account if used'
-                : 'Not set',
+                ? context.tr('Locks the account if used')
+                : context.tr('Not set'),
           ),
           trailing: ExampleRow.chevron,
           onTap: () => showDuressPasswordSheet(
@@ -579,7 +579,7 @@ class _ExampleProfileContentState extends ConsumerState<_ExampleProfileContent> 
     }
     final controller = ref.read(authControllerProvider.notifier);
     final result = await ref.read(biometricAuthenticatorProvider).authenticate(
-          reason: 'Confirm to enable $biometricLabel sign-in',
+          reason: context.tr('Confirm to enable {p0} sign-in', {'p0': biometricLabel}),
         );
     if (result != BiometricAuthResult.success) {
       if (mounted) {
@@ -656,7 +656,7 @@ class _DesktopSettingsNavItem extends StatelessWidget {
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
-                      label,
+                      context.tr(label),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -791,8 +791,7 @@ class _ExampleProfileHeader extends StatelessWidget {
           pressedScale: .99,
           // Everything the zone shows, in the order the eye takes it, then
           // the action it performs.
-          semanticsLabel: '${_profileDisplayName(profile)}, $tierLabel, '
-              '$email, open personal details',
+          semanticsLabel: context.tr('{p0}, {p1}, {p2}, open personal details', {'p0': _profileDisplayName(profile), 'p1': tierLabel, 'p2': email}),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
@@ -1522,7 +1521,7 @@ class _ThemeSpecimen extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              label,
+              context.tr(label),
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -2487,7 +2486,7 @@ class _SettingsPanel extends ConsumerWidget {
     // we persist the access token.
     final auth = ref.read(biometricAuthenticatorProvider);
     final result = await auth.authenticate(
-      reason: 'Confirm to enable $biometricLabel sign-in',
+      reason: context.tr('Confirm to enable {p0} sign-in', {'p0': biometricLabel}),
     );
     if (result != BiometricAuthResult.success) {
       if (context.mounted) {
@@ -2912,7 +2911,8 @@ Future<void> _showDevicesSheet(BuildContext context, WidgetRef ref) {
           } catch (error) {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(friendlyErrorMessage(error))),
+                SnackBar(
+                    content: Text(context.tr(friendlyErrorMessage(error)))),
               );
             }
           }
@@ -2931,7 +2931,8 @@ Future<void> _showDevicesSheet(BuildContext context, WidgetRef ref) {
           } catch (error) {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(friendlyErrorMessage(error))),
+                SnackBar(
+                    content: Text(context.tr(friendlyErrorMessage(error)))),
               );
             }
           }
@@ -3000,7 +3001,7 @@ Future<void> _showDevicesSheet(BuildContext context, WidgetRef ref) {
                                   title: session.deviceName,
                                   subtitle: [
                                     if (session.isCurrent) 'This device',
-                                    'Active ${when(session.lastUsedAt ?? session.createdAt)}',
+                                    context.tr('Active {p0}', {'p0': when(session.lastUsedAt ?? session.createdAt)}),
                                     if ((session.ipAddress ?? '').isNotEmpty)
                                       session.ipAddress!,
                                   ].join(' · '),
@@ -3093,7 +3094,7 @@ class _SessionRevokeButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
         alignment: Alignment.center,
         child: Text(
-          label,
+          context.tr(label),
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,

@@ -442,10 +442,10 @@ class _AccountClaimScreenState extends ConsumerState<AccountClaimScreen> {
                               prefixIcon:
                                   const Icon(Icons.mail_outline, size: 18),
                             ),
-                            validator: (value) =>
+                            validator: context.localizeValidator((value) =>
                                 (value?.trim().contains('@') ?? false)
                                     ? null
-                                    : 'Enter a valid email',
+                                    : 'Enter a valid email'),
                           ),
                           const Spacer(),
                           const SizedBox(height: 18),
@@ -586,9 +586,10 @@ class _AccountClaimScreenState extends ConsumerState<AccountClaimScreen> {
                 hintText: context.tr('name@example.com'),
                 prefixIcon: const Icon(Icons.mail_outline, size: 18),
               ),
-              validator: (value) => (value?.trim().contains('@') ?? false)
-                  ? null
-                  : 'Enter a valid email',
+              validator: context.localizeValidator((value) =>
+                  (value?.trim().contains('@') ?? false)
+                      ? null
+                      : 'Enter a valid email'),
             ),
           ],
         ),
@@ -636,7 +637,7 @@ class _AccountClaimScreenState extends ConsumerState<AccountClaimScreen> {
               label: context.tr('Create app password'),
               controller: _password,
               obscureText: _obscurePassword,
-              validator: _passwordError,
+              validator: context.localizeValidator(_passwordError)!,
               onChanged: (_) => setState(() {}),
               suffixIcon: _eye(
                 obscured: _obscurePassword,
@@ -654,8 +655,8 @@ class _AccountClaimScreenState extends ConsumerState<AccountClaimScreen> {
               label: context.tr('Confirm password'),
               controller: _confirmPassword,
               obscureText: _obscureConfirm,
-              validator: (value) =>
-                  value == _password.text ? null : 'Passwords do not match',
+              validator: context.localizeValidator<String>((value) =>
+                  value == _password.text ? null : 'Passwords do not match')!,
               suffixIcon: _eye(
                 obscured: _obscureConfirm,
                 onTap: () => setState(() => _obscureConfirm = !_obscureConfirm),
@@ -784,8 +785,8 @@ class _AccountClaimScreenState extends ConsumerState<AccountClaimScreen> {
                 labelText: context.tr('Six-digit code'),
                 prefixIcon: const Icon(Icons.pin_outlined),
               ),
-              validator: (value) =>
-                  value?.length == 6 ? null : 'Enter all 6 digits',
+              validator: context.localizeValidator(
+                  (value) => value?.length == 6 ? null : 'Enter all 6 digits'),
             ),
             const SizedBox(height: AppSpacing.md),
             TextFormField(
@@ -801,7 +802,7 @@ class _AccountClaimScreenState extends ConsumerState<AccountClaimScreen> {
                       setState(() => _obscurePassword = !_obscurePassword),
                 ),
               ),
-              validator: _passwordError,
+              validator: context.localizeValidator(_passwordError)!,
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -824,8 +825,8 @@ class _AccountClaimScreenState extends ConsumerState<AccountClaimScreen> {
                       setState(() => _obscureConfirm = !_obscureConfirm),
                 ),
               ),
-              validator: (value) =>
-                  value == _password.text ? null : 'Passwords do not match',
+              validator: context.localizeValidator<String>((value) =>
+                  value == _password.text ? null : 'Passwords do not match')!,
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton.icon(
@@ -953,7 +954,7 @@ class _AccountClaimScreenState extends ConsumerState<AccountClaimScreen> {
                       setState(() => _obscurePassword = !_obscurePassword),
                 ),
               ),
-              validator: _passwordError,
+              validator: context.localizeValidator(_passwordError)!,
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -976,8 +977,8 @@ class _AccountClaimScreenState extends ConsumerState<AccountClaimScreen> {
                       setState(() => _obscureConfirm = !_obscureConfirm),
                 ),
               ),
-              validator: (value) =>
-                  value == _password.text ? null : 'Passwords do not match',
+              validator: context.localizeValidator<String>((value) =>
+                  value == _password.text ? null : 'Passwords do not match')!,
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton.icon(
@@ -1189,7 +1190,7 @@ class _AccountClaimScreenState extends ConsumerState<AccountClaimScreen> {
   void _showError(Object error) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(friendlyErrorMessage(error))),
+      SnackBar(content: Text(context.tr(friendlyErrorMessage(error)))),
     );
   }
 }
@@ -1271,7 +1272,7 @@ class _ExampleClaimField extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            label,
+            context.tr(label),
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: _claimInk(context, .70),
                   fontWeight: FontWeight.w700,
@@ -1287,7 +1288,7 @@ class _ExampleClaimField extends StatelessWidget {
               prefixIcon: const Icon(Icons.lock_outline, size: 18),
               suffixIcon: suffixIcon,
             ),
-            validator: validator,
+            validator: context.localizeValidator(validator),
             onChanged: onChanged,
           ),
         ],
@@ -1358,7 +1359,7 @@ class _ExampleOtpField extends StatelessWidget {
                     errorBorder: InputBorder.none,
                   ),
                   validator: (value) =>
-                      value?.length == 6 ? null : 'Enter all 6 digits',
+                      value?.length == 6 ? null : context.tr('Enter all 6 digits'),
                 ),
               ),
             ),
@@ -1394,7 +1395,7 @@ class _TransferQrInstructions extends StatelessWidget {
         example ? ExamplePalette.of(context).accent : theme.colorScheme.primary;
     final where = dashboardUrl.isEmpty ? brandName : _displayUrl(dashboardUrl);
     final steps = [
-      'Go to $where and log in to your existing account.',
+      context.tr('Go to {p0} and log in to your existing account.', {'p0': where}),
       'Open Security and choose App transfer.',
       'Tap “Generate account transfer QR”.',
       'Come back here, tap “Scan with camera” and point it at the QR. The code works once and expires after five minutes.',
@@ -1468,7 +1469,7 @@ class _TransferQrInstructions extends StatelessWidget {
                   ),
                   Expanded(
                     child: Text(
-                      steps[i],
+                      context.tr(steps[i]),
                       style: TextStyle(
                           color: textColor, fontSize: 12, height: 1.4),
                     ),

@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/features/platform/presentation/tier_localizations.dart';
 import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -430,7 +431,7 @@ class _ExampleAccountSetup extends StatelessWidget {
                       expand: false,
                       height: 46,
                       loading: refreshing,
-                      loadingSemanticsLabel: 'Refreshing your status',
+                      loadingSemanticsLabel: context.tr('Refreshing your status'),
                       onPressed: refreshing ? null : onRefresh,
                     ),
                   ],
@@ -539,8 +540,8 @@ class _ExampleAccountSetup extends StatelessWidget {
               hint: canContinue
                   ? null
                   : identity == IdentityStage.required
-                      ? 'Verify your identity to continue.'
-                      : 'Choose a tier to continue.',
+                      ? context.tr('Verify your identity to continue.')
+                      : context.tr('Choose a tier to continue.'),
               onContinue: () => onFinish(dismissed: false),
               onDismiss: () => onFinish(dismissed: true),
             ),
@@ -587,7 +588,7 @@ class _SetupProgress extends StatelessWidget {
     return Semantics(
       container: true,
       label: context.tr('Account setup progress'),
-      value: '$done of $total steps done',
+      value: context.tr('{p0} of {p1} steps done', {'p0': done, 'p1': total}),
       excludeSemantics: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -717,14 +718,14 @@ class _SetupStation extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                title,
+                context.tr(title),
                 style: theme.textTheme.titleSmall?.copyWith(
                   color: ExampleInk.primary(context),
                 ),
               ),
               const SizedBox(height: 3),
               Text(
-                subtitle,
+                context.tr(subtitle),
                 style: theme.textTheme.bodySmall?.copyWith(
                   height: 1.4,
                   color: ExampleInk.secondary(context),
@@ -1149,7 +1150,7 @@ class _TierFacts extends StatelessWidget {
             children: [
               if (fact.label != null)
                 Text(
-                  fact.label!.toUpperCase(),
+                  context.tr(fact.label!).toUpperCase(),
                   // Tertiary is allowed on a caption whose value sits directly
                   // under it: night .58 composites to (113,111,127) on
                   // lightSurface — 4.66:1, past the 3:1 floor for secondary
@@ -1162,7 +1163,8 @@ class _TierFacts extends StatelessWidget {
                   ),
                 ),
               Text(
-                fact.value,
+                localizeTierDetailValue(
+                    AppLocalizations.of(context), fact.label, fact.value),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: ExampleInk.primary(context),
                   fontWeight: FontWeight.w600,
@@ -1232,7 +1234,7 @@ class _UnlockList extends StatelessWidget {
                   SizedBox(
                     width: 78,
                     child: Text(
-                      _rows[index].$2,
+                      context.tr(_rows[index].$2),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: ExampleInk.primary(context),
                         fontWeight: FontWeight.w600,
@@ -1243,7 +1245,7 @@ class _UnlockList extends StatelessWidget {
                   ),
                   Expanded(
                     child: Text(
-                      _rows[index].$3,
+                      context.tr(_rows[index].$3),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: ExampleInk.secondary(context),
                       ),
@@ -1321,7 +1323,7 @@ class _SetupCtaBar extends StatelessWidget {
                             child: Semantics(
                               liveRegion: true,
                               child: Text(
-                                message,
+                                context.tr(message),
                                 textAlign: TextAlign.center,
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: ExampleInk.secondary(context),
@@ -1441,7 +1443,7 @@ class _SetupStepCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      subtitle,
+                      context.tr(subtitle),
                       style: TextStyle(
                         fontSize: 13,
                         height: 1.4,

@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
 import vm from 'node:vm';
 const source = readFileSync(new URL('../../web/app_recovery.js', import.meta.url), 'utf8');
-function host() {
+function host({savedLanguage, languages} = {}) {
   const events = new Map();
   const timers = new Map();
   const nodes = new Map();
@@ -22,6 +22,7 @@ function host() {
     emit(name) { this.events.get(name)?.({preventDefault() {}}); }
   }
   const window = {
+    localStorage: {getItem: () => JSON.stringify(savedLanguage)}, navigator: {languages},
     OffscreenCanvas: Canvas, HTMLCanvasElement: class extends Canvas {},
     addEventListener: on, location: {reload() { reloads++; }},
     requestAnimationFrame(callback) { callback(); }, dispatchEvent(event) { if (event.type === 'resize') resizes++; },
@@ -38,6 +39,15 @@ test('startup failure offers a manual reopen without automatically reloading', (
   const app = host(); app.tick(30000);
   assert.ok(app.panel()); assert.equal(app.reloads(), 0);
   app.panel().children[1].onclick(); assert.equal(app.reloads(), 1);
+});
+test('recovery uses the app preference before the browser language, even offline', () => {
+  const saved = host({savedLanguage: 'ar', languages: ['de-DE']});
+  saved.tick(30000);
+  assert.equal(saved.panel().dir, 'rtl');
+  assert.equal(saved.panel().children[1].textContent, 'إعادة فتح التطبيق');
+  const device = host({languages: ['ru-RU', 'es-ES']});
+  device.tick(30000);
+  assert.equal(device.panel().children[1].textContent, 'Volver a abrir la aplicación');
 });
 test('a ready app removes startup recovery and its timer', () => {
   const app = host(); app.tick(30000); app.emit('flutter-first-frame');
@@ -61,12 +71,12 @@ test('service worker navigation returns the installed shell without mixing a new
   const handlers = new Map(); let network = 0;
   const shell = {release: 'installed'};
   vm.runInNewContext(worker, {
-    self: {addEventListener(name, callback) {handlers.set(name, callback);}, location: {origin: 'https://app.test'}},
+    self: {addEventListener(name, callback) {handlers.set(name, callback);}, location: {origin: 'https://app.test', href: 'https://app.test/worker.js'}},
     caches: {open: async () => ({match: async () => shell})}, URL,
     fetch: async () => {network++; return {release: 'new'};},
   });
   let response;
-  handlers.get('fetch')({request: {method: 'GET', mode: 'navigate', url: 'https://app.test/'}, respondWith(value) {response = value;}});
+  handlers.get('fetch')({request: {headers: new Headers(), method: 'GET', mode: 'navigate', url: 'https://app.test/'}, respondWith(value) {response = value;}});
   assert.equal(await response, shell); assert.equal(network, 0);
 });
 
@@ -141,7 +151,7 @@ test('service worker reads JS only from its own release cache', async () => {
   const handlers = new Map(); let network = 0; let globalMatches = 0;
   const current = {release: 'current'};
   vm.runInNewContext(worker, {
-    self: {addEventListener(name, callback) {handlers.set(name, callback);}, location: {origin: 'https://app.test'}},
+    self: {addEventListener(name, callback) {handlers.set(name, callback);}, location: {origin: 'https://app.test', href: 'https://app.test/worker.js'}},
     caches: {
       open: async () => ({match: async () => current}),
       match: async () => {globalMatches++; return {release: 'obsolete-flutter'};},
@@ -149,7 +159,7 @@ test('service worker reads JS only from its own release cache', async () => {
     fetch: async () => {network++; return {};},
   });
   let response;
-  handlers.get('fetch')({request: {method: 'GET', url: 'https://app.test/main.dart.js'}, respondWith(value) {response = value;}});
+  handlers.get('fetch')({request: {headers: new Headers(), method: 'GET', url: 'https://app.test/main.dart.js'}, respondWith(value) {response = value;}});
   assert.equal(await response, current); assert.equal(network, 0); assert.equal(globalMatches, 0);
 });
 

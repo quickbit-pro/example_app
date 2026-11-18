@@ -106,12 +106,12 @@ class PasswordStrengthChecklist extends StatelessWidget {
                 ? midColor
                 : badColor;
     final strengthLabel = password.isEmpty
-        ? 'Choose a strong password'
+        ? context.tr('Choose a strong password')
         : complete
-            ? 'Strong password'
+            ? context.tr('Strong password')
             : met >= 3
-                ? 'Almost there'
-                : 'Too weak';
+                ? context.tr('Almost there')
+                : context.tr('Too weak');
     final labelStyle = branded
         ? theme.textTheme.labelMedium
         : const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700);
@@ -120,7 +120,8 @@ class PasswordStrengthChecklist extends StatelessWidget {
       container: true,
       liveRegion: true,
       label: context.tr('Password strength'),
-      value: '$strengthLabel. $met of $total requirements met.',
+      value: context.tr('{p0}. {p1} of {p2} requirements met.',
+          {'p0': context.tr(strengthLabel), 'p1': met, 'p2': total}),
       excludeSemantics: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,7 +151,7 @@ class PasswordStrengthChecklist extends StatelessWidget {
               // its own share of the row instead of pushing the bar out.
               Flexible(
                 child: Text(
-                  strengthLabel,
+                  context.tr(strengthLabel),
                   style: labelStyle?.copyWith(
                     color: password.isEmpty ? muted : barColor,
                   ),
@@ -231,7 +232,7 @@ class _RuleChip extends StatelessWidget {
         // A rule label is a whole phrase: at a 2.0 text scale two of the four
         // are wider than the 375 px column, so it must be allowed to wrap
         // rather than overflow the row it sits in.
-        Flexible(child: Text(label, style: style)),
+        Flexible(child: Text(context.tr(label), style: style)),
       ],
     );
   }
@@ -279,12 +280,12 @@ class _LegacyPasswordStrengthChecklist extends StatelessWidget {
                     .color(theme.brightness, 'warning', fallback: Colors.orange)
                 : badColor;
     final strengthLabel = password.isEmpty
-        ? 'Choose a strong password'
+        ? context.tr('Choose a strong password')
         : complete
-            ? 'Strong password'
+            ? context.tr('Strong password')
             : met >= 3
-                ? 'Almost there'
-                : 'Too weak';
+                ? context.tr('Almost there')
+                : context.tr('Too weak');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,7 +305,7 @@ class _LegacyPasswordStrengthChecklist extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Text(
-              strengthLabel,
+              context.tr(strengthLabel),
               style: TextStyle(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
@@ -368,7 +369,7 @@ class _LegacyRuleChip extends StatelessWidget {
         ),
         const SizedBox(width: 5),
         Text(
-          label,
+          context.tr(label),
           style: TextStyle(
             fontSize: 12,
             color: color,

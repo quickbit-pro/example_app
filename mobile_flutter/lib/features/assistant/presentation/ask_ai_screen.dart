@@ -205,7 +205,7 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen>
     } catch (_) {
       if (!mounted || epoch != _epoch || token.isCancelled) return;
       setState(() {
-        _usageError = 'Could not check your daily allowance. Please try again.';
+        _usageError = context.tr('Could not check your daily allowance. Please try again.');
       });
     } finally {
       if (mounted && epoch == _epoch && !token.isCancelled) {
@@ -242,7 +242,7 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen>
   void _setTripDetails(AssistantTripDetails details) {
     if (!_canAsk) return;
     final draft = applyAssistantTripDetails(
-        _controller.text, _tripDetails.requestText, details.requestText);
+        _controller.text, _tripDetails.localizedRequest(context.tr), details.localizedRequest(context.tr));
     if (draft.length > _messageLimit) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(context
@@ -256,7 +256,7 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen>
 
   void _draftStarter(String text) {
     if (!_canAsk) return;
-    final draft = applyAssistantTripDetails(text, '', _tripDetails.requestText);
+    final draft = applyAssistantTripDetails(text, '', _tripDetails.localizedRequest(context.tr));
     _controller.value = TextEditingValue(
       text: draft,
       selection: TextSelection.collapsed(offset: draft.length),
@@ -1019,6 +1019,7 @@ class _Intro extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = ExamplePalette.of(context);
     final starters = assistantStarters(
+      translate: context.tr,
       departure: departure,
       preferences: preferences,
     );
@@ -1139,10 +1140,10 @@ class _Intro extends StatelessWidget {
             _Suggestion(
               icon: _suggestionIcons[index],
               title: context.tr(starters[index].title),
-              description: context.tr(starters[index].prompt),
+              description: starters[index].prompt,
               onTap: onPick == null
                   ? null
-                  : () => onPick!(context.tr(starters[index].prompt)),
+                  : () => onPick!(starters[index].prompt),
             ),
           _Suggestion(
             icon: Icons.insights_outlined,

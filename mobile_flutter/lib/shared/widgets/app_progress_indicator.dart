@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 import '../../brands/example/example_ui.dart';
@@ -56,7 +57,7 @@ class AppProgressIndicator extends StatelessWidget {
           color: mono,
           strokeWidth: strokeWidth,
           backgroundColor: backgroundColor,
-          semanticsLabel: semanticsLabel ?? 'Loading',
+          semanticsLabel: semanticsLabel ?? context.tr('Loading'),
           semanticsValue: semanticsValue,
         );
       }
@@ -64,7 +65,7 @@ class AppProgressIndicator extends StatelessWidget {
         value: semanticsValue,
         child: ExampleLoader(
           color: mono,
-          semanticsLabel: semanticsLabel ?? 'Loading',
+          semanticsLabel: semanticsLabel ?? context.tr('Loading'),
         ),
       );
     }

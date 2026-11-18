@@ -106,7 +106,7 @@ Future<Uint8List> buildTransactionPdf(
         pw.Text(snapshot.tr('No transactions match these filters.'))
       else
         pw.TableHelper.fromTextArray(
-          headers: ['Booked', 'Transaction', 'Amount', 'Status']
+          headers: ['Booking date', 'Transaction', 'Amount', 'Status']
               .map(snapshot.tr)
               .toList(),
           data: [
@@ -172,7 +172,7 @@ List<pw.Widget> _receiptWidgets(
     ('Status', row.status),
     ('Type', row.type),
     ('Reference', row.reference),
-    ('Booked', row.booked),
+    ('Booking date', row.booked),
     if (row.identity != null) ('Account / card', row.identity!),
     if (row.subtitle.trim().isNotEmpty && row.subtitle != row.status)
       ('Details', row.subtitle),

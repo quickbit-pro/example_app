@@ -661,7 +661,8 @@ class _ExampleDocumentRow extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _equalsMoneyRequestLabel(document.type, document.text),
+                  _equalsMoneyRequestLabel(
+                      context, document.type, document.text),
                   style: TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
@@ -1208,7 +1209,8 @@ class _EqualsMoneyDocumentTile extends ConsumerWidget {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         leading: const Icon(Icons.description_outlined),
-        title: Text(_equalsMoneyRequestLabel(document.type, document.text)),
+        title: Text(
+            _equalsMoneyRequestLabel(context, document.type, document.text)),
         subtitle: document.expectsFiles
             ? Text(
                 [
@@ -1265,7 +1267,7 @@ class _SetupChip extends StatelessWidget {
         isComplete == true ? Icons.check_circle : Icons.radio_button_unchecked,
         size: 18,
       ),
-      label: Text(label),
+      label: Text(context.tr(label)),
     );
   }
 }
@@ -1424,6 +1426,8 @@ Future<void> _showEqualsMoneyDialog(BuildContext context, WidgetRef ref) async {
                   label: context.tr('Main purposes'),
                   values: mainPurposes,
                   options: equalsPersonalPurposeOptions,
+                  labelBuilder: (value) =>
+                      personalOnboardingOptionLabel(context, value),
                   onChanged: (value) => setState(() => mainPurposes = value),
                 ),
                 const SizedBox(height: 12),
@@ -1431,6 +1435,8 @@ Future<void> _showEqualsMoneyDialog(BuildContext context, WidgetRef ref) async {
                   label: context.tr('Sources of funds'),
                   values: sourceOfFunds,
                   options: equalsPersonalSourceOfFundsOptions,
+                  labelBuilder: (value) =>
+                      personalOnboardingOptionLabel(context, value),
                   onChanged: (value) => setState(() => sourceOfFunds = value),
                 ),
                 const SizedBox(height: 12),
@@ -1477,6 +1483,8 @@ Future<void> _showEqualsMoneyDialog(BuildContext context, WidgetRef ref) async {
                     label: context.tr('Card purposes'),
                     values: cardPurposes,
                     options: equalsPersonalPurposeOptions,
+                    labelBuilder: (value) =>
+                        personalOnboardingOptionLabel(context, value),
                     onChanged: (value) => setState(() => cardPurposes = value),
                   ),
                   const SizedBox(height: 12),
@@ -1509,7 +1517,7 @@ Future<void> _showEqualsMoneyDialog(BuildContext context, WidgetRef ref) async {
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.upload_file),
                   title: Text(
-                    proofOfAddress?.name ?? 'Proof of address',
+                    proofOfAddress?.name ?? context.tr('Proof of address'),
                   ),
                   subtitle: Text(
                       context.tr('PDF, JPG, JPEG, or PNG. Maximum 10 MB.')),
@@ -1532,7 +1540,7 @@ Future<void> _showEqualsMoneyDialog(BuildContext context, WidgetRef ref) async {
                         if (!context.mounted) return;
                         setState(() => uploadError = error is FormatException
                             ? error.message
-                            : 'The file could not be opened. Please choose it again.');
+                            : context.tr('The file could not be opened. Please choose it again.'));
                       }
                     },
                     child: Text(context.tr('Choose')),
@@ -1542,7 +1550,8 @@ Future<void> _showEqualsMoneyDialog(BuildContext context, WidgetRef ref) async {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      uploadError ?? 'Proof of address is required.',
+                      uploadError ??
+                          context.tr('Proof of address is required.'),
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.error,
                         fontSize: 12,
@@ -1647,7 +1656,7 @@ Future<void> _answerEqualsMoneyInformation(
 ) async {
   final answer = await showAdditionalInformationDialog(
     context,
-    title: _equalsMoneyRequestLabel(request.type, request.text),
+    title: _equalsMoneyRequestLabel(context, request.type, request.text),
   );
   if (answer == null || !context.mounted) {
     return;
@@ -1662,9 +1671,10 @@ Future<void> _answerEqualsMoneyInformation(
       );
 }
 
-String _equalsMoneyRequestLabel(String type, String fallback) {
+String _equalsMoneyRequestLabel(
+    BuildContext context, String type, String fallback) {
   return type.trim().toUpperCase() == 'RESIDENTIAL_ADDRESS'
-      ? 'Enter your residential address'
+      ? context.tr('Enter your residential address')
       : fallback;
 }
 
@@ -1768,18 +1778,20 @@ class _RequiredDropdown extends StatelessWidget {
     return DropdownButtonFormField<String>(
       initialValue: value,
       isExpanded: true,
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(labelText: context.tr(label)),
       items: [
         for (final option in options)
           DropdownMenuItem(
             value: option,
             child: Text(
-              option.replaceAll('_', ' '),
+              personalOnboardingOptionLabel(context, option),
               overflow: TextOverflow.ellipsis,
             ),
           ),
       ],
-      validator: (value) => value == null ? '$label is required' : null,
+      validator: context.localizeValidator((value) => value == null
+          ? context.tr('{p0} is required', {'p0': context.tr(label)})
+          : null),
       onChanged: (value) {
         if (value != null) {
           onChanged(value);

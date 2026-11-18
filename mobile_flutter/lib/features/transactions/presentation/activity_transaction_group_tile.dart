@@ -40,7 +40,7 @@ class _ActivityTransactionGroupTileState
             .any((row) => row.status == 'requires_action' && row.isBoomFi))
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: Text('Verification required — open the related payment',
+            child: Text(context.tr('Verification required — open the related payment'),
                 style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ),
         Align(
@@ -55,8 +55,8 @@ class _ActivityTransactionGroupTileState
                 icon: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
                 label: Text(group.primary.isBoomFi
                     ? (_expanded
-                        ? 'Hide related transactions'
-                        : 'Show related transactions')
+                        ? context.tr('Hide related transactions')
+                        : context.tr('Show related transactions'))
                     : context.tr(
                         _expanded ? 'Hide {p0} entries' : 'Show {p0} entries',
                         {'p0': related.length})),

@@ -269,7 +269,7 @@ class _AccountTileState extends State<AccountTile> {
     return Card(
       child: ExpansionTile(
         leading: const Icon(Icons.account_balance_wallet_outlined),
-        title: Text(fallbackText(account.name, 'Account')),
+        title: Text(fallbackText(account.name, context.tr('Account'))),
         subtitle: Text(_accountSubtitle(account)),
         trailing: Column(
           mainAxisSize: MainAxisSize.min,
@@ -588,7 +588,7 @@ class CardTile extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         leading: const Icon(Icons.credit_card),
-        title: Text(fallbackText(card.label, 'Card')),
+        title: Text(fallbackText(card.label, context.tr('Card'))),
         subtitle: Text(_cardSubtitle(card)),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,

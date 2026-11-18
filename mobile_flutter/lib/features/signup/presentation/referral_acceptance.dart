@@ -120,7 +120,7 @@ class _AcceptanceTick extends StatelessWidget {
         controlAffinity: ListTileControlAffinity.leading,
         contentPadding: EdgeInsets.zero,
         dense: true,
-        title: Text(label, style: theme.textTheme.bodyMedium),
+        title: Text(context.tr(label), style: theme.textTheme.bodyMedium),
       );
     }
     final fill = ExampleInk.accent(context, ExampleColors.violet);
@@ -162,7 +162,7 @@ class _AcceptanceTick extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
-            label,
+            context.tr(label),
             style: theme.textTheme.bodyMedium?.copyWith(
               color: enabled
                   ? ExampleInk.primary(context)

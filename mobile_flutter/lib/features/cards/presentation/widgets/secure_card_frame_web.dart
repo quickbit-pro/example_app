@@ -3,6 +3,7 @@ import 'dart:js_interop';
 import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/material.dart';
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:web/web.dart' as web;
 
 /// Browser implementation: an `<iframe>` pointing at the issuer's secure
@@ -49,6 +50,15 @@ class _SecureCardFrameState extends State<SecureCardFrame> {
     widget.onReady();
   }
 
+  late String _frameTitle;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _frameTitle = context.tr('Secure card details');
+    _frame?.setAttribute('title', _frameTitle);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -66,7 +76,7 @@ class _SecureCardFrameState extends State<SecureCardFrame> {
         ..style.overflow = 'hidden'
         ..style.background = 'transparent'
         ..style.colorScheme = 'dark';
-      frame.setAttribute('title', 'Secure card details');
+      frame.setAttribute('title', _frameTitle);
       frame.setAttribute('allowtransparency', 'true');
       frame.setAttribute('frameborder', '0');
       _loadListener = ((web.Event event) {
@@ -105,7 +115,7 @@ class _SecureCardFrameState extends State<SecureCardFrame> {
         _failed = true;
         _readyTimer?.cancel();
         widget.onError(
-          (payload['message'] ?? 'Secure card data could not be loaded.')
+          (payload['message'] ?? context.tr('Secure card data could not be loaded.'))
               .toString(),
         );
       }

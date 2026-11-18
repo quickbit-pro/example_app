@@ -1,0 +1,6 @@
+"NSCameraUsageDescription" = "La caméra permet de photographier vos factures et vos pièces d’identité pour la vérification.";
+"NSFaceIDUsageDescription" = "Face ID vous permet de déverrouiller l’application et de vous connecter en toute sécurité.";
+"NSMicrophoneUsageDescription" = "Le micro vous permet de dicter vos demandes dans Ask AI en touchant son icône. Il peut aussi servir à la vérification d’identité par vidéo.";
+"NSSpeechRecognitionUsageDescription" = "Vos demandes dictées dans Ask AI deviennent du texte que vous pouvez modifier avant de choisir de l’envoyer.";
+"NSPhotoLibraryUsageDescription" = "L’accès aux photos vous permet de choisir les factures ou pièces d’identité à importer.";
+"NSLocationWhenInUseUsageDescription" = "Ask AI utilise votre position si vous choisissez de chercher un aéroport de départ à proximité. Les coordonnées restent sur votre appareil. Votre position peut aussi être demandée si la vérification d’identité l’exige.";

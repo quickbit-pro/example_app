@@ -215,7 +215,7 @@ class _UnifiedCddScreenState extends ConsumerState<UnifiedCddScreen> {
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _error = 'Could not load onboarding. Please retry.');
+        setState(() => _error = context.tr('Could not load onboarding. Please retry.'));
         _showAt(_errorAnchor);
       }
     } finally {
@@ -366,7 +366,11 @@ class _UnifiedCddScreenState extends ConsumerState<UnifiedCddScreen> {
                                       )
                                     else
                                       Text(
-                                          '${context.tr('Identity verification')}: ${state['status']}'),
+                                          context.tr('Identity verification: {p0}', {'p0': switch (state['status']) {
+                                            'not_started' => context.tr('Not started'), 'pending' => context.tr('Pending'), 'on_hold' => context.tr('In review'),
+                                            'in_progress' => context.tr('In progress'), 'rejected' => context.tr('Not approved'), 'resubmission_required' => context.tr('More information is required'),
+                                            final String status => status, _ => context.tr('Unknown'),
+                                          }})),
                                     if (!approved && _url != null)
                                       FilledButton(
                                           onPressed: _busy
@@ -382,7 +386,7 @@ class _UnifiedCddScreenState extends ConsumerState<UnifiedCddScreen> {
                                                               .externalApplication)) {
                                                     if (mounted) {
                                                       setState(() => _error =
-                                                          'Could not open verification. Please retry.');
+                                                          context.tr('Could not open verification. Please retry.'));
                                                     }
                                                   }
                                                 },
@@ -732,8 +736,8 @@ class _UnifiedCddScreenState extends ConsumerState<UnifiedCddScreen> {
                                             onPressed: _busy
                                                 ? null
                                                 : () => _request('submit'),
-                                            child: const Text(
-                                                'Continue activation')),
+                                            child: Text(
+                                                context.tr('Continue activation'))),
                                       ],
                                     ],
                                   ],

@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:flutter_stripe_web/flutter_stripe_web.dart';
@@ -40,7 +41,7 @@ class _StripeDialogState extends State<_StripeDialog> {
     } catch (_) {
       if (mounted) {
         setState(() => _error =
-            'Payment could not be confirmed. Check your details and try again.');
+            context.tr('Payment could not be confirmed. Check your details and try again.'));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -51,7 +52,7 @@ class _StripeDialogState extends State<_StripeDialog> {
   Widget build(BuildContext context) => PopScope(
       canPop: !_busy,
       child: AlertDialog(
-          title: const Text('Secure card payment'),
+          title: Text(context.tr('Secure card payment')),
           content: SizedBox(
               width: 520,
               child: SingleChildScrollView(
@@ -68,10 +69,10 @@ class _StripeDialogState extends State<_StripeDialog> {
           actions: [
             TextButton(
                 onPressed: _busy ? null : () => Navigator.pop(context, false),
-                child: const Text('Cancel')),
+                child: Text(context.tr('Cancel'))),
             FilledButton(
                 onPressed: _busy || !_complete ? null : _confirm,
                 child:
-                    Text(_busy ? 'Confirming payment…' : 'Pay and continue')),
+                    Text(_busy ? context.tr('Confirming payment…') : context.tr('Pay and continue'))),
           ]));
 }

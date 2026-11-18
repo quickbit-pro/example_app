@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 class PayeeNameCheck extends StatelessWidget {
@@ -26,37 +27,37 @@ class PayeeNameCheck extends StatelessWidget {
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(
                 switch (outcome) {
-                  'close_match' => 'Close name match',
-                  'no_match' => 'Recipient name does not match',
-                  'unavailable' => 'Name check unavailable',
-                  _ => result['title']?.toString() ?? 'Recipient name check',
+                  'close_match' => context.tr('Close name match'),
+                  'no_match' => context.tr('Recipient name does not match'),
+                  'unavailable' => context.tr('Name check unavailable'),
+                  _ => result['title']?.toString() ?? context.tr('Recipient name check'),
                 },
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Text(switch (outcome) {
               'close_match' =>
-                'The name you entered is similar to the name held by the recipient’s bank.',
+                context.tr('The name you entered is similar to the name held by the recipient’s bank.'),
               'no_match' =>
-                'The name you entered does not match the name held by the recipient’s bank.',
-              'unavailable' => 'We couldn’t check the recipient’s name.',
+                context.tr('The name you entered does not match the name held by the recipient’s bank.'),
+              'unavailable' => context.tr('We couldn’t check the recipient’s name.'),
               _ =>
-                result['message']?.toString() ?? 'Check the recipient details.',
+                result['message']?.toString() ?? context.tr('Check the recipient details.'),
             }),
             if (result['actualName'] is String &&
                 (result['actualName'] as String).isNotEmpty)
-              Text('Account holder name: ${result['actualName']}'),
+              Text(context.tr('Account holder name: {p0}', {'p0': result['actualName']})),
             if (needsAcknowledgement(result)) ...[
               const SizedBox(height: 8),
-              const Text(
-                  'Sending money to incorrect account details could result in loss of funds. Check the details with the recipient using a trusted contact method.'),
+              Text(
+                  context.tr('Sending money to incorrect account details could result in loss of funds. Check the details with the recipient using a trusted contact method.')),
               CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
                   value: acknowledged,
                   onChanged: result['canProceed'] == false
                       ? null
                       : (value) => onChanged(value == true),
-                  title: const Text(
-                      'I have checked the recipient details and understand the risk of continuing.')),
+                  title: Text(
+                      context.tr('I have checked the recipient details and understand the risk of continuing.'))),
             ],
           ])));
 }

@@ -922,7 +922,7 @@ class _InstallPanel extends StatelessWidget {
                   'Add {p0} to this device and open it from your dock or start menu.',
                   {
                     'p0': AppDesignTheme.nameOf(context).isEmpty
-                        ? 'the app'
+                        ? context.tr('the app')
                         : AppDesignTheme.nameOf(context)
                   }),
               style: TextStyle(
@@ -952,7 +952,7 @@ class _InstallPanel extends StatelessWidget {
                           "Use your browser's \"Install app\" option in the address bar to add {p0} to this device.",
                           {
                             'p0': AppDesignTheme.nameOf(context).isEmpty
-                                ? 'the app'
+                                ? context.tr('the app')
                                 : AppDesignTheme.nameOf(context)
                           }),
                     ),

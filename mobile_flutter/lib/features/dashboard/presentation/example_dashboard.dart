@@ -1152,7 +1152,7 @@ class _CardTeaser extends StatelessWidget {
     final title = card == null
         ? context.tr('{p0} Card', {
             'p0': AppDesignTheme.nameOf(context).isEmpty
-                ? 'Payment'
+                ? context.tr('Payment')
                 : AppDesignTheme.nameOf(context)
           })
         : card!.displayLabel;
@@ -1657,7 +1657,7 @@ class _DesktopBalancePanel extends StatelessWidget {
                   ? context
                       .tr('Balance history hidden while balances are hidden.')
                   : series.description ??
-                      'The balance trend appears after your first transactions.',
+                      context.tr('The balance trend appears after your first transactions.'),
               style: TextStyle(
                 fontSize: 12.5 * context.brandDesign.typographyScale,
                 color: ExampleInk.tertiary(context),

@@ -305,7 +305,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         if (card != null) {
           label = card.last4.trim().isEmpty
               ? card.displayLabel
-              : 'Card •••• ${card.last4}';
+              : context.tr('Card •••• {p0}', {'p0': card.last4});
         }
       }
       selections.add((
@@ -346,7 +346,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       style: const TextStyle(fontSize: 11.5))),
             ),
             onDeleted: selection.clear,
-            deleteButtonTooltipMessage: 'Remove ${selection.label} filter',
+            deleteButtonTooltipMessage: context.tr('Remove {p0} filter', {'p0': selection.label}),
           ),
         TextButton(
           key: const ValueKey('activity-clear-filters'),
@@ -382,19 +382,19 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           TransactionActivityFilter.incoming => 'In',
           TransactionActivityFilter.outgoing => 'Out',
         }}',
-        'Asset type: ${_assetFilter.label}',
+        context.tr('Asset type: {p0}', {'p0': _assetFilter.label}),
         if (widget.accountName.trim().isNotEmpty)
-          'Account: ${widget.accountName.trim()}',
+          context.tr('Account: {p0}', {'p0': widget.accountName.trim()}),
         if (widget.currency.trim().isNotEmpty)
-          'Currency: ${widget.currency.trim().toUpperCase()}',
+          context.tr('Currency: {p0}', {'p0': widget.currency.trim().toUpperCase()}),
         if (_typeFilter case final type?) 'Type: ${type.label}',
         if (_scopeId.isNotEmpty)
           transactionCardIdentityLabel(
                   _scopeId, ref.read(cardsProvider).valueOrNull ?? const []) ??
               'Selected card',
-        if (_selectedAccount case final account?) 'Account: ${account.label}',
+        if (_selectedAccount case final account?) context.tr('Account: {p0}', {'p0': account.label}),
         if (_dateRange case final range?)
-          'Date: ${range.start.toIso8601String().split('T').first} to ${range.end.toIso8601String().split('T').first}',
+          context.tr('Date: {p0} to {p1}', {'p0': range.start.toIso8601String().split('T').first, 'p1': range.end.toIso8601String().split('T').first}),
         if (_searchQuery.trim().isNotEmpty) 'Search: ${_searchQuery.trim()}',
       ];
 
@@ -809,7 +809,7 @@ class _FilterGroupRow extends StatelessWidget {
       triggerMode: TooltipTriggerMode.tap,
       child: Row(children: [
         Flexible(
-            child: Text(label,
+            child: Text(context.tr(label),
                 style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -1825,7 +1825,7 @@ class _ExampleDayHeaderLine extends StatelessWidget {
                   ],
                   Flexible(
                     child: Text(
-                      label,
+                      context.tr(label),
                       style: TextStyle(
                         fontSize: 15.5,
                         fontWeight: FontWeight.w700,
@@ -1977,7 +1977,7 @@ class _ExampleFilterChip extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.xs),
           Text(
-            label,
+            context.tr(label),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -2824,7 +2824,7 @@ class _TransactionFilterButton extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    label,
+                    context.tr(label),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -2874,7 +2874,7 @@ class _TransactionFilterButton extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  label,
+                  context.tr(label),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelMedium,
@@ -3177,7 +3177,7 @@ class _SummaryMetric extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        Text(context.tr(label), style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 3),
         Text(value, style: Theme.of(context).textTheme.titleMedium),
       ],

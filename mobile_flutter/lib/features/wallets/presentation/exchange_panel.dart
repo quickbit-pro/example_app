@@ -155,15 +155,15 @@ Future<void> showFiatAccountToCryptoCardTransfer(
     if (!context.mounted) return;
     if (!config.boomFiExchangeEnabled || !config.equalsMoneyEnabled ||
         !config.walletOutflowsEnabled) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Transfers are currently unavailable for this account.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.tr('Transfers are currently unavailable for this account.'))));
       return;
     }
     final overview = await ref.read(exchangeOverviewProvider.future);
     if (!context.mounted) return;
     if (!overview.isReady) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Complete Exchange setup before transferring.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.tr('Complete Exchange setup before transferring.'))));
       return;
     }
     final wallets = await ref.read(hoppaWalletAssetsProvider.future);
@@ -263,7 +263,7 @@ class ExchangeAccountTransferActions extends ConsumerWidget {
           Text(context.tr(reason), style: Theme.of(context).textTheme.bodySmall),
         if (addresses.hasError)
           TextButton(onPressed: () { ref.invalidate(depositAddressesProvider); ref.invalidate(exchangeCardDepositAddressesProvider); },
-              child: const Text('Retry transfer networks')),
+              child: Text(context.tr('Retry transfer networks'))),
       ],
     ]);
   }
@@ -356,7 +356,7 @@ class _ReadyExchangePanel extends ConsumerWidget {
         Expanded(
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Exchange',
+          Text(context.tr('Exchange'),
               style: Theme.of(context)
                   .textTheme
                   .headlineSmall
@@ -368,7 +368,7 @@ class _ReadyExchangePanel extends ConsumerWidget {
           ],
         ])),
         IconButton(
-            tooltip: 'Refresh Exchange',
+            tooltip: context.tr('Refresh Exchange'),
             onPressed: () {
               ref.invalidate(exchangeVerificationProvider);
               ref.invalidate(exchangeOverviewProvider);
@@ -383,7 +383,7 @@ class _ReadyExchangePanel extends ConsumerWidget {
         FilledButton.icon(
             onPressed: () => details(),
             icon: const Icon(Icons.add),
-            label: const Text('Deposit')),
+            label: Text(context.tr('Deposit'))),
         action('Convert', canConvert ? () => open(ExchangeFlow.convert) : null),
         action(
             'Withdraw',
@@ -393,7 +393,7 @@ class _ReadyExchangePanel extends ConsumerWidget {
                 ? () => open(ExchangeFlow.withdraw)
                 : null),
         PopupMenuButton<String>(
-          tooltip: 'More exchange options',
+          tooltip: context.tr('More exchange options'),
           onSelected: (value) {
             if (value == 'destinations') details(destinations: true);
             if (value == 'fund') open(ExchangeFlow.fund);
@@ -402,21 +402,21 @@ class _ReadyExchangePanel extends ConsumerWidget {
             }
           },
           itemBuilder: (_) => [
-            const PopupMenuItem(
-                value: 'destinations', child: Text('Saved destinations')),
+            PopupMenuItem(
+                value: 'destinations', child: Text(context.tr('Saved destinations'))),
             PopupMenuItem(
                 value: 'fund',
                 enabled: fundReason == null,
-                child: const Text('Fiat account to Crypto card')),
+                child: Text(context.tr('Fiat account to Crypto card'))),
             PopupMenuItem(
                 value: 'sell',
                 enabled: sellReason == null,
-                child: const Text('Crypto card to Fiat account')),
+                child: Text(context.tr('Crypto card to Fiat account'))),
           ],
-          child: const Padding(
+          child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Text('More'),
+                Text(context.tr('More')),
                 SizedBox(width: 4),
                 Icon(Icons.expand_more, size: 20)
               ])),
@@ -425,12 +425,12 @@ class _ReadyExchangePanel extends ConsumerWidget {
       if (hasFunds && (!outflowsEnabled || !canConvert)) ...[
         const SizedBox(height: 20),
         ExchangeNotice(!outflowsEnabled
-            ? 'Withdrawals are currently unavailable for this account.'
-            : 'Conversion will be available when a compatible currency account is ready.'),
+            ? context.tr('Withdrawals are currently unavailable for this account.')
+            : context.tr('Conversion will be available when a compatible currency account is ready.')),
       ],
       const ExchangeDisclaimer(),
       const SizedBox(height: 24),
-      Text('Balances', style: Theme.of(context).textTheme.titleMedium),
+      Text(context.tr('Balances'), style: Theme.of(context).textTheme.titleMedium),
       const SizedBox(height: 12),
       LayoutBuilder(builder: (context, constraints) {
         if (constraints.maxWidth >= 900) {
@@ -444,7 +444,7 @@ class _ReadyExchangePanel extends ConsumerWidget {
                     const SizedBox(height: 12),
                     ExampleAmount(amount: balance.amount, currency: balance.currency, size: ExampleAmountSize.small),
                     const SizedBox(height: 4),
-                    Text(balance.isCrypto ? 'Available across networks' : 'Available for conversion or withdrawal',
+                    Text(balance.isCrypto ? context.tr('Available across networks') : context.tr('Available for conversion or withdrawal'),
                       style: Theme.of(context).textTheme.bodySmall),
                   ]))),
           ]);
@@ -465,7 +465,7 @@ class _ReadyExchangePanel extends ConsumerWidget {
         for (final balance in overview.displayBalances)
           ListTile(
               title: Text(balance.currency),
-              subtitle: balance.isCrypto ? null : const Text('Fiat'),
+              subtitle: balance.isCrypto ? null : Text(context.tr('Fiat')),
               trailing: Text(balance.amount.toString())),
         ]);
       }),
@@ -835,11 +835,11 @@ Future<void> _showCryptoToEqualsDialog(
                         }),
               ),
               const SizedBox(height: 12),
-              Text('Available across networks: ${_amount(available())} ${wallet.symbol}'),
-              const Text('You receive EUR in your Fiat account.'),
+              Text(context.tr('Available across networks: {p0} {p1}', {'p0': _amount(available()), 'p1': wallet.symbol})),
+              Text(context.tr('You receive EUR in your Fiat account.')),
               if ((double.tryParse(cryptoAmount.replaceAll(',', '.')) ?? 0) > available() || available() <= 0) ...[
                 const SizedBox(height: 8),
-                const Text('Your crypto balance is insufficient. Convert Quantum USD first, then continue with this transfer.'),
+                Text(context.tr('Your crypto balance is insufficient. Convert Quantum USD first, then continue with this transfer.')),
                 if (quantumAvailable() > 0)
                   TextButton(
                     onPressed: busy || refreshing || verificationToken.isNotEmpty ? null : () async {
@@ -852,17 +852,17 @@ Future<void> _showCryptoToEqualsDialog(
                         final updated = await ref.read(hoppaWalletAssetsProvider.future);
                         if (context.mounted) setState(() => currentBalances = updated);
                       } catch (_) {
-                        if (context.mounted) setState(() => balanceError = 'Could not refresh your crypto balance. Close and reopen this transfer before continuing.');
+                        if (context.mounted) setState(() => balanceError = context.tr('Could not refresh your crypto balance. Close and reopen this transfer before continuing.'));
                       } finally {
                         if (context.mounted) setState(() => refreshing = false);
                       }
                     },
-                    child: Text('Convert Quantum USD to ${wallet.symbol}'),
+                    child: Text(context.tr('Convert Quantum USD to {p0}', {'p0': wallet.symbol})),
                   )
                 else
-                  const Text('Add crypto or fund your Quantum USD balance to continue.'),
+                  Text(context.tr('Add crypto or fund your Quantum USD balance to continue.')),
               ],
-              if (refreshing) const Text('Refreshing your available balance…'),
+              if (refreshing) Text(context.tr('Refreshing your available balance…')),
               if (balanceError != null) Text(balanceError!),
               const SizedBox(height: 12),
               TextField(
@@ -1043,7 +1043,7 @@ class _FullScreenExchangeDialog extends StatelessWidget {
                             height: 40,
                             child: FilledButton(
                               onPressed: onPrimary,
-                              child: Text(primaryLabel),
+                              child: Text(context.tr(primaryLabel)),
                             ),
                           ),
                       ],
@@ -1083,7 +1083,7 @@ class _FullScreenExchangeDialog extends StatelessWidget {
                       height: 52,
                       child: FilledButton(
                         onPressed: onPrimary,
-                        child: Text(primaryLabel),
+                        child: Text(context.tr(primaryLabel)),
                       ),
                     ),
             ),
@@ -1109,6 +1109,6 @@ String _amount(double value) => value.toStringAsFixed(6);
 
 void _showError(BuildContext context, Object error) {
   ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(friendlyErrorMessage(error))),
+    SnackBar(content: Text(context.tr(friendlyErrorMessage(error)))),
   );
 }

@@ -1,0 +1,6 @@
+"NSCameraUsageDescription" = "Kamera, faturaların ve doğrulama için kimlik belgelerinin fotoğrafını çekmenizi sağlar.";
+"NSFaceIDUsageDescription" = "Face ID, uygulamanın kilidini açmanızı ve güvenle oturum açmanızı sağlar.";
+"NSMicrophoneUsageDescription" = "Mikrofona dokunarak Ask AI isteklerinizi sesle yazdırabilirsiniz. Mikrofon, görüntülü kimlik doğrulaması için de kullanılabilir.";
+"NSSpeechRecognitionUsageDescription" = "Ask AI için sesli istekleriniz metne dönüştürülür. Göndermeye karar vermeden önce metni düzenleyebilirsiniz.";
+"NSPhotoLibraryUsageDescription" = "Fotoğraflara erişim, yüklemek istediğiniz faturaları veya kimlik belgelerini seçmenizi sağlar.";
+"NSLocationWhenInUseUsageDescription" = "Ask AI ile yakındaki bir kalkış havalimanını aramayı seçtiğinizde konumunuz kullanılır. Koordinatlar cihazınızda kalır. Gerekirse kimlik doğrulaması sırasında da konumunuz istenebilir.";

@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 class ExchangeVerificationActions extends StatelessWidget {
@@ -31,14 +32,14 @@ class ExchangeVerificationActions extends StatelessWidget {
               if (showActivate)
                 fit(FilledButton(
                   onPressed: onActivate,
-                  child: const Text('Activate Exchange'),
+                  child: Text(context.tr('Activate Exchange')),
                 )),
               if (showChooseLimits)
                 fit(showActivate
                     ? OutlinedButton(
-                        onPressed: onChooseLimits, child: Text(chooseLabel))
+                        onPressed: onChooseLimits, child: Text(context.tr(chooseLabel)))
                     : FilledButton(
-                        onPressed: onChooseLimits, child: Text(chooseLabel))),
+                        onPressed: onChooseLimits, child: Text(context.tr(chooseLabel)))),
             ],
           );
         }),

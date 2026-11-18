@@ -307,7 +307,7 @@ class _MarketRow extends StatelessWidget {
               {'p0': asset.symbol, 'p1': asset.marketCapRank})
           : asset.symbol,
       onTap: onTap,
-      semanticsLabel: _spoken(price, change),
+      semanticsLabel: _spoken(context, price, change),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -331,10 +331,13 @@ class _MarketRow extends StatelessWidget {
     );
   }
 
-  String _spoken(String price, double? change) {
+  String _spoken(BuildContext context, String price, double? change) {
     final buffer = StringBuffer('${asset.name}, ${asset.symbol}');
-    if (asset.hasMarketCapRank) buffer.write(', rank ${asset.marketCapRank}');
-    buffer.write(asset.hasPrice ? ', $price' : ', price unavailable');
+    if (asset.hasMarketCapRank) {
+      buffer.write(', ${context.tr('rank {p0}', {'p0': asset.marketCapRank})}');
+    }
+    buffer.write(
+        asset.hasPrice ? ', $price' : ', ${context.tr('price unavailable')}');
     if (change != null) {
       final direction = switch (CryptoChange.trendOf(change)) {
         CryptoTrend.up => 'up',
@@ -342,11 +345,13 @@ class _MarketRow extends StatelessWidget {
         CryptoTrend.flat => 'unchanged,',
       };
       buffer.write(
-        ', $direction ${change.abs().toStringAsFixed(2)} percent '
-        'over 24 hours',
+        ', ${context.tr('{p0} {p1} percent over 24 hours', {
+              'p0': context.tr(direction),
+              'p1': change.abs().toStringAsFixed(2)
+            })}',
       );
     }
-    buffer.write('. Buy');
+    buffer.write('. ${context.tr('Buy')}');
     return buffer.toString();
   }
 }

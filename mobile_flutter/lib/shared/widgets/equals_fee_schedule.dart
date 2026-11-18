@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -26,7 +27,7 @@ class EqualsFeeScheduleButton extends ConsumerWidget {
     }
     return TextButton.icon(
       icon: const Icon(Icons.receipt_long_outlined),
-      label: const Text('Equals Money fees and billing'),
+      label: Text(context.tr('Equals Money fees and billing')),
       onPressed: () => showEqualsFeeSchedule(context),
     );
   }
@@ -66,7 +67,7 @@ class EqualsFeeScheduleDialog extends ConsumerWidget {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Fees & billing',
+                      Text(context.tr('Fees & billing'),
                           style: theme.textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 4),
@@ -76,7 +77,7 @@ class EqualsFeeScheduleDialog extends ConsumerWidget {
                     ]),
               ),
               IconButton(
-                  tooltip: 'Close',
+                  tooltip: context.tr('Close'),
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close)),
             ]),
@@ -89,20 +90,20 @@ class EqualsFeeScheduleDialog extends ConsumerWidget {
                       const Center(child: CircularProgressIndicator()),
                   error: (_, __) => _FeeScheduleMessage(
                     message:
-                        'Your fee schedule could not be loaded. Please try again.',
+                        context.tr('Your fee schedule could not be loaded. Please try again.'),
                     action: TextButton.icon(
                         onPressed: () =>
                             ref.invalidate(equalsFeeScheduleProvider),
                         icon: const Icon(Icons.refresh),
-                        label: const Text('Retry')),
+                        label: Text(context.tr('Retry'))),
                   ),
                   data: (body) {
                     final data = body['data'];
                     if (body['success'] != true || data is! Map) {
                       return _FeeScheduleMessage(
                           message: body['errorCode'] == 'NO_TIER_ASSIGNED'
-                              ? 'Choose a plan to see your fee schedule.'
-                              : 'No fee schedule is configured for your current plan. Contact support.');
+                              ? context.tr('Choose a plan to see your fee schedule.')
+                              : context.tr('No fee schedule is configured for your current plan. Contact support.'));
                     }
                     final sections = (data['sections'] as List? ?? [])
                         .whereType<Map>()
@@ -122,12 +123,12 @@ class EqualsFeeScheduleDialog extends ConsumerWidget {
                                   : 'Business account'),
                             ]),
                             const SizedBox(height: 16),
-                            Text('Your current plan’s fees, all in one place.',
+                            Text(context.tr('Your current plan’s fees, all in one place.'),
                                 style: theme.textTheme.titleMedium
                                     ?.copyWith(fontWeight: FontWeight.w600)),
                             const SizedBox(height: 8),
                             Text(
-                                'You’ll see the charges for each payment or exchange before you confirm.',
+                                context.tr('You’ll see the charges for each payment or exchange before you confirm.'),
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                     color: colors.onSurfaceVariant,
                                     height: 1.5)),

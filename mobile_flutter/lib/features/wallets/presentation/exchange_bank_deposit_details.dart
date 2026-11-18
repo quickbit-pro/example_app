@@ -39,7 +39,7 @@ class ExchangeBankDepositDetails extends StatelessWidget {
       await Clipboard.setData(ClipboardData(text: value));
       if (context.mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Bank details copied')));
+            .showSnackBar(SnackBar(content: Text(context.tr('Bank details copied'))));
       }
     }
 
@@ -65,12 +65,12 @@ class ExchangeBankDepositDetails extends StatelessWidget {
         OutlinedButton.icon(
             onPressed: () => copy(iban),
             icon: const Icon(Icons.copy_outlined, size: 18),
-            label: const Text('Copy IBAN')),
+            label: Text(context.tr('Copy IBAN'))),
         OutlinedButton.icon(
             onPressed: () => copy(
                 fields.entries.map((e) => '${e.key}: ${e.value}').join('\n')),
             icon: const Icon(Icons.copy_all_outlined, size: 18),
-            label: const Text('Copy bank details')),
+            label: Text(context.tr('Copy bank details'))),
       ]),
     ]);
     final code = qr == null
@@ -82,7 +82,7 @@ class ExchangeBankDepositDetails extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   color: Colors.white,
                   child: Semantics(
-                      label: 'SEPA bank transfer QR code',
+                      label: context.tr('SEPA bank transfer QR code'),
                       image: true,
                       child: QrImageView(
                           data: qr,
@@ -95,14 +95,14 @@ class ExchangeBankDepositDetails extends StatelessWidget {
                               dataModuleShape: QrDataModuleShape.square,
                               color: Colors.black)))),
               const SizedBox(height: 12),
-              Text('Scan to deposit EUR',
+              Text(context.tr('Scan to deposit EUR'),
                   style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: 6),
-              const Text(
-                  'Scan with a banking app that supports SEPA QR payments. Enter the amount and review the details in your bank app.',
+              Text(
+                  context.tr('Scan with a banking app that supports SEPA QR payments. Enter the amount and review the details in your bank app.'),
                   textAlign: TextAlign.center),
               const SizedBox(height: 6),
-              Text('If scanning isn’t supported, copy the bank details.',
+              Text(context.tr('If scanning isn’t supported, copy the bank details.'),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall),
             ]));

@@ -14,7 +14,7 @@ Future<bool> enableBiometricSignIn(
   required String label,
 }) async {
   final result = await ref.read(biometricAuthenticatorProvider).authenticate(
-        reason: 'Confirm to enable $label sign-in',
+        reason: context.tr('Confirm to enable {p0} sign-in', {'p0': label}),
       );
   if (result != BiometricAuthResult.success) {
     if (context.mounted) {

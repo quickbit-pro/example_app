@@ -148,7 +148,8 @@ class ReferralOfferHeadline extends StatelessWidget {
                 'Then {p0} of settled margin on eligible top-ups {p1}.',
                 {'p0': rate, 'p1': window})
             : offer.topupCalculationType == 'PERCENT_OF_WL_FEE'
-                ? context.tr('Then {p0} of the fee after cost on every top-up {p1}.',
+                ? context.tr(
+                    'Then {p0} of the fee after cost on every top-up {p1}.',
                     {'p0': rate, 'p1': window})
                 : offer.topupCalculationType == 'FIXED'
                     ? context.tr('Then {p0} on every top-up {p1}.',
@@ -326,7 +327,7 @@ class _ReferralTermsGateState extends State<ReferralTermsGate> {
             icon: Icons.check_rounded,
             sheen: false,
             loading: widget.busy,
-            loadingSemanticsLabel: 'Accepting terms',
+            loadingSemanticsLabel: context.tr('Accepting terms'),
             onPressed: canAccept ? () => widget.onAccept(terms.version) : null,
           )
         else
@@ -390,7 +391,7 @@ class _TickRow extends StatelessWidget {
         controlAffinity: ListTileControlAffinity.leading,
         contentPadding: EdgeInsets.zero,
         dense: true,
-        title: Text(label, style: theme.textTheme.bodyMedium),
+        title: Text(context.tr(label), style: theme.textTheme.bodyMedium),
       );
     }
     final fill = ExampleInk.accent(context, ExampleColors.violet);
@@ -441,7 +442,7 @@ class _TickRow extends StatelessWidget {
               Expanded(
                 child: ExcludeSemantics(
                   child: Text(
-                    label,
+                    context.tr(label),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: ExampleInk.primary(context),
                       height: 1.3,

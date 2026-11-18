@@ -722,7 +722,7 @@ class _DeckCard extends StatelessWidget {
         // press the list rows use.
         pressedScale: .985,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        semanticsLabel: _deckSemantics(card, position, total),
+        semanticsLabel: _deckSemantics(context, card, position, total),
         child: ExampleTiltCard(
           child: CardFace(
             showBalance: true,
@@ -739,17 +739,19 @@ class _DeckCard extends StatelessWidget {
   }
 }
 
-String _deckSemantics(PaymentCard card, int position, int total) {
+String _deckSemantics(BuildContext context, PaymentCard card, int position, int total) {
   final parts = <String>[
     card.displayLabel,
-    if (card.last4.isNotEmpty) 'ending ${card.last4.split('').join(' ')}',
-    card.statusLabel.toLowerCase(),
+    if (card.last4.isNotEmpty)
+      context.tr('ending {p0}', {'p0': card.last4.split('').join(' ')}),
+    context.tr(card.statusLabel.toLowerCase()),
     card.hasReportedBalance
-        ? 'balance ${card.balance.formatted} ${card.balance.currency}'
-        : 'Balance unavailable',
-    if (total > 1) 'card $position of $total',
+        ? context.tr('balance {p0} {p1}', {'p0': card.balance.formatted, 'p1': card.balance.currency})
+        : context.tr('Balance unavailable'),
+    if (total > 1)
+      context.tr('card {p0} of {p1}', {'p0': position, 'p1': total}),
   ];
-  return '${parts.join(', ')}. Open card';
+  return '${parts.join(', ')}. ${context.tr('Open card')}';
 }
 
 /// Visible page markers for every card, with a longer accent marker for the
@@ -924,8 +926,8 @@ class _CardRosterRow extends StatelessWidget {
     // caption read the way the halves of an identity line do.
     final caption = [
       if (showCurrency) card.balance.currency,
-      if (status != null) status,
-      if (current) 'On screen',
+      if (status != null) context.tr(status),
+      if (current) context.tr('On screen'),
     ].join(' · ');
     Widget row = ExampleRow(
       leading: _CardMark(card: card),
@@ -1009,9 +1011,7 @@ class _CardRosterRow extends StatelessWidget {
             : _statusColor(context, card.status),
       ),
       semanticsLabel:
-          '${card.displayLabel}, ${cardMetaSemantics(card, context: context)}, '
-          '${card.statusLabel.toLowerCase()}, balance ${card.hasReportedBalance ? '${card.balance.formatted} ${card.balance.currency}' : 'Balance unavailable'}'
-          '${current ? ', showing on screen' : ''}',
+          context.tr('{p0}, {p1}, {p2}, balance {p3}{p4}', {'p0': card.displayLabel, 'p1': cardMetaSemantics(card, context: context), 'p2': context.tr(card.statusLabel.toLowerCase()), 'p3': card.hasReportedBalance ? '${card.balance.formatted} ${card.balance.currency}' : context.tr('Balance unavailable'), 'p4': current ? ', ${context.tr('showing on screen')}' : ''}),
       onTap: onTap,
     );
     if (current) {
@@ -1420,7 +1420,7 @@ class _CountMetric extends StatelessWidget {
       children: [
         Text(value, style: Theme.of(context).textTheme.titleLarge),
         Text(
-          label,
+          context.tr(label),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -1469,7 +1469,7 @@ class _CardRow extends StatelessWidget {
                 ),
         ),
       ),
-      title: Text(fallbackText(card.label, 'Card')),
+      title: Text(fallbackText(card.label, context.tr('Card'))),
       isThreeLine: true,
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

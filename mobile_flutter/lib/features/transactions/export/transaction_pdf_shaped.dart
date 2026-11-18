@@ -132,7 +132,7 @@ Future<Uint8List> buildShapedTransactionPdf(
       ('Status', row.status),
       ('Type', row.type),
       ('Reference', row.reference),
-      ('Booked', row.booked),
+      ('Booking date', row.booked),
       if (row.identity != null) ('Account / card', row.identity!),
       if (row.subtitle.isNotEmpty) ('Details', row.subtitle),
     ]) {

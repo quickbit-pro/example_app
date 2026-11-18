@@ -125,7 +125,7 @@ class _SummaryTile extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              label,
+              context.tr(label),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(

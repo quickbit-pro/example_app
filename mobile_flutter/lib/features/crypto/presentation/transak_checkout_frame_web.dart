@@ -1,6 +1,7 @@
 import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/material.dart';
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:web/web.dart' as web;
 
 /// Browser implementation: an `<iframe>` pointing at the Transak checkout
@@ -18,6 +19,16 @@ class TransakCheckoutFrame extends StatefulWidget {
 class _TransakCheckoutFrameState extends State<TransakCheckoutFrame> {
   static int _instances = 0;
   late final String _viewType;
+  web.HTMLIFrameElement? _frame;
+
+  late String _frameTitle;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _frameTitle = context.tr('Transak checkout');
+    _frame?.setAttribute('title', _frameTitle);
+  }
 
   @override
   void initState() {
@@ -34,9 +45,10 @@ class _TransakCheckoutFrameState extends State<TransakCheckoutFrame> {
         ..style.width = '100%'
         ..style.height = '100%'
         ..style.background = 'transparent';
-      frame.setAttribute('title', 'Transak checkout');
+      frame.setAttribute('title', _frameTitle);
       frame.setAttribute('frameborder', '0');
       frame.setAttribute('allowfullscreen', 'true');
+      _frame = frame;
       return frame;
     });
   }

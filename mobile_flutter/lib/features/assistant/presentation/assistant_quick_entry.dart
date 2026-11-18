@@ -4,13 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/l10n/app_localizations.dart';
+import '../../../core/l10n/message_format.dart';
 
 class AssistantTripBudget {
   const AssistantTripBudget(this.amount, this.currency, this.basis);
   final int amount;
   final String currency;
   final String basis;
-  String get label => '$currency $amount $basis';
+  String get label => localizedLabel(formatAppMessage);
+  String localizedLabel(String Function(String, [Map<String, Object?>]) tr) =>
+      tr('{p0} {p1} {p2}', {'p0': currency, 'p1': amount, 'p2': tr(basis)});
 }
 
 /// Draft-only choices. Their readable text enters the normal validated chat
@@ -20,10 +23,12 @@ class AssistantTripDetails {
   final DateTimeRange? dates;
   final AssistantTripBudget? budget;
 
-  String get requestText => [
+  String get requestText => localizedRequest(formatAppMessage);
+
+  String localizedRequest(String Function(String, [Map<String, Object?>]) tr) => [
         if (dates != null)
-          'Travel dates: ${_date(dates!.start)} to ${_date(dates!.end)}.',
-        if (budget != null) 'Maximum budget: ${budget!.label}.',
+          tr('Travel dates: {p0} to {p1}.', {'p0': _date(dates!.start), 'p1': _date(dates!.end)}),
+        if (budget != null) tr('Maximum budget: {p0}.', {'p0': budget!.localizedLabel(tr)}),
       ].join('\n');
 
   static String _date(DateTime date) =>
@@ -144,7 +149,7 @@ class _AssistantQuickEntryState extends State<AssistantQuickEntry> {
             InputChip(
               key: const ValueKey('assistant-budget'),
               avatar: const Icon(Icons.payments_outlined, size: 18),
-              label: Text(widget.value.budget?.label ?? context.tr('Budget')),
+              label: Text(widget.value.budget?.localizedLabel(context.tr) ?? context.tr('Budget')),
               onPressed: widget.enabled ? _budget : null,
               onDeleted: widget.enabled && widget.value.budget != null
                   ? () => widget.onChanged(AssistantTripDetails(dates: dates))

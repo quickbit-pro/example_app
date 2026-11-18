@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'message_format.dart';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 
@@ -39,17 +41,22 @@ class AppLocalizations {
       const AppLocalizations(Locale('en'), {});
 
   String translate(String key, [Map<String, Object?> values = const {}]) {
-    final template = messages[key] ?? key;
-    // A single pass prevents a substituted name containing braces from being
-    // interpreted as another placeholder.
-    return template.replaceAllMapped(RegExp(r'\{(p\d+)\}'), (match) {
-      final name = match.group(1)!;
-      return values.containsKey(name) ? '${values[name]}' : match.group(0)!;
-    });
+    return formatAppMessage(messages[key] ?? key, values);
   }
 }
 
 extension AppTranslationContext on BuildContext {
+  /// Translate validation copy at the form boundary, where the active locale
+  /// is available. Pure validators keep their existing validation rules.
+  FormFieldValidator<T>? localizeValidator<T>(
+      FormFieldValidator<T>? validator) {
+    if (validator == null) return null;
+    return (value) {
+      final error = validator(value);
+      return error == null ? null : tr(error);
+    };
+  }
+
   String tr(String key, [Map<String, Object?> values = const {}]) =>
       AppLocalizations.of(this).translate(key, values);
 }

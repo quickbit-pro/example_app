@@ -36,7 +36,7 @@ class OrderCardScreen extends ConsumerStatefulWidget {
 class _OrderCardScreenState extends ConsumerState<OrderCardScreen> {
   PlatformResource? _resolvedTier;
   final _formKey = GlobalKey<FormState>();
-  final _labelController = TextEditingController(text: 'New card');
+  final _labelController = TextEditingController();
   final _addressLine1Controller = TextEditingController();
   final _cityController = TextEditingController();
   final _stateController = TextEditingController();
@@ -53,6 +53,16 @@ class _OrderCardScreenState extends ConsumerState<OrderCardScreen> {
   String? _selectedBudgetId;
   int _selectedSkinIndex = 0;
   bool _issuerCheckStarted = false;
+  bool _initialLabelSet = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialLabelSet) {
+      _initialLabelSet = true;
+      _labelController.text = context.tr('New card');
+    }
+  }
 
   @override
   void initState() {
@@ -116,7 +126,7 @@ class _OrderCardScreenState extends ConsumerState<OrderCardScreen> {
         },
         error: (error, stackTrace) =>
             ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyErrorMessage(error))),
+          SnackBar(content: Text(context.tr(friendlyErrorMessage(error)))),
         ),
       );
     });
@@ -133,13 +143,13 @@ class _OrderCardScreenState extends ConsumerState<OrderCardScreen> {
             : issuerStatus.hasError
                 ? ErrorState(
                     error: issuerStatus.error!,
-                    title: 'Unable to check card verification',
+                    title: context.tr('Unable to check card verification'),
                     onRetry: () => ref.invalidate(kycDetailedStatusProvider),
                   )
                 : EmptyState(
-                    title: 'Card verification pending',
+                    title: context.tr('Card verification pending'),
                     message:
-                        'Interlace must approve your verification before you can order a card.',
+                        context.tr('Interlace must approve your verification before you can order a card.'),
                     icon: Icons.verified_user_outlined,
                     action: FilledButton(
                       onPressed: () =>
@@ -202,11 +212,12 @@ class _OrderCardScreenState extends ConsumerState<OrderCardScreen> {
                 _SectionLabel(
                   step: nextStep(),
                   title: context.tr('Choose your card'),
-                  subtitle: context.tr('{p0} option{p1} in {p2}', {
-                    'p0': options.length,
-                    'p1': options.length == 1 ? '' : 's',
-                    'p2': _tierTitle(resolvedTier)
-                  }),
+                  subtitle: context.tr(
+                    options.length == 1
+                        ? '{p0} option in {p1}'
+                        : '{p0} options in {p1}',
+                    {'p0': options.length, 'p1': _tierTitle(resolvedTier)},
+                  ),
                 ),
                 const SizedBox(height: 10),
                 SizedBox(
@@ -313,9 +324,10 @@ class _OrderCardScreenState extends ConsumerState<OrderCardScreen> {
                       labelText: context.tr('Address line 1'),
                       prefixIcon: const Icon(Icons.home_outlined),
                     ),
-                    validator: (value) => value == null || value.trim().isEmpty
-                        ? 'Enter address line 1'
-                        : null,
+                    validator: context.localizeValidator((value) =>
+                        value == null || value.trim().isEmpty
+                            ? 'Enter address line 1'
+                            : null),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -324,9 +336,10 @@ class _OrderCardScreenState extends ConsumerState<OrderCardScreen> {
                       labelText: context.tr('City'),
                       prefixIcon: const Icon(Icons.location_city_outlined),
                     ),
-                    validator: (value) => value == null || value.trim().isEmpty
-                        ? 'Enter city'
-                        : null,
+                    validator: context.localizeValidator((value) =>
+                        value == null || value.trim().isEmpty
+                            ? 'Enter city'
+                            : null),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -337,10 +350,10 @@ class _OrderCardScreenState extends ConsumerState<OrderCardScreen> {
                           decoration: InputDecoration(
                             labelText: context.tr('State'),
                           ),
-                          validator: (value) =>
+                          validator: context.localizeValidator((value) =>
                               value == null || value.trim().isEmpty
                                   ? 'Enter state'
-                                  : null,
+                                  : null),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -351,10 +364,10 @@ class _OrderCardScreenState extends ConsumerState<OrderCardScreen> {
                           decoration: InputDecoration(
                             labelText: context.tr('Country'),
                           ),
-                          validator: (value) =>
+                          validator: context.localizeValidator((value) =>
                               value == null || value.trim().length != 2
                                   ? 'Use ISO code'
-                                  : null,
+                                  : null),
                         ),
                       ),
                     ],
@@ -366,9 +379,10 @@ class _OrderCardScreenState extends ConsumerState<OrderCardScreen> {
                       labelText: context.tr('Postal code'),
                       prefixIcon: const Icon(Icons.markunread_mailbox_outlined),
                     ),
-                    validator: (value) => value == null || value.trim().isEmpty
-                        ? 'Enter postal code'
-                        : null,
+                    validator: context.localizeValidator((value) =>
+                        value == null || value.trim().isEmpty
+                            ? 'Enter postal code'
+                            : null),
                   ),
                 ],
                 const SizedBox(height: 28),
@@ -412,7 +426,7 @@ class _OrderCardScreenState extends ConsumerState<OrderCardScreen> {
                                 )
                               : const Icon(Icons.lock_outline),
                           label: Text(
-                            label,
+                            context.tr(label),
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                         ),
@@ -953,7 +967,7 @@ class _OrderCardScreenState extends ConsumerState<OrderCardScreen> {
               ],
             ),
           ),
-          primaryLabel: 'Create budget',
+          primaryLabel: context.tr('Create budget'),
           primaryIcon: Icons.add_rounded,
           onPrimary: selectedCurrencies.isEmpty
               ? null
@@ -992,7 +1006,7 @@ class _OrderCardScreenState extends ConsumerState<OrderCardScreen> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyErrorMessage(error))),
+          SnackBar(content: Text(context.tr(friendlyErrorMessage(error)))),
         );
       }
     }
@@ -1064,8 +1078,8 @@ class _EqualsBudgetSelector extends StatelessWidget {
                     ),
                 ],
                 onChanged: isBusy ? null : onChanged,
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Select a budget' : null,
+                validator: context.localizeValidator((value) =>
+                    value == null || value.isEmpty ? 'Select a budget' : null),
               ),
             const SizedBox(height: 8),
             Align(
@@ -1982,9 +1996,11 @@ class _OrderPreviewHero extends StatelessWidget {
                     enableHoverTilt: false,
                     card: _previewCard,
                     status: CardStatus.pending,
-                    semanticsLabel: 'Preview of $label, '
-                        '${option?.isVirtual ?? true ? 'virtual' : 'physical'} '
-                        'card',
+                    semanticsLabel: context.tr('Preview of {p0}, {p1} card', {
+                      'p0': label,
+                      'p1': context.tr(
+                          option?.isVirtual ?? true ? 'Virtual' : 'Physical')
+                    }),
                   )
                 : NeoBankCard(
                     label: label,
@@ -2066,13 +2082,13 @@ class _SectionLabel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                title,
+                context.tr(title),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
               ),
               Text(
-                subtitle,
+                context.tr(subtitle),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colors.onSurfaceVariant,
                     ),
@@ -2101,7 +2117,7 @@ class _CardTypePickerTile extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return Semantics(
       label:
-          '${option.name}, ${option.currency}, ${option.isVirtual ? 'Virtual' : 'Physical'}',
+          '${option.name}, ${option.currency}, ${option.isVirtual ? context.tr('Virtual') : context.tr('Physical')}',
       checked: selected,
       inMutuallyExclusiveGroup: true,
       enabled: option.canOrder,
@@ -2174,7 +2190,7 @@ class _CardTypePickerTile extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                '${option.currency} • ${option.isVirtual ? 'Virtual' : 'Physical'}',
+                '${option.currency} • ${context.tr(option.isVirtual ? 'Virtual' : 'Physical')}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colors.onSurfaceVariant,
                     ),
@@ -2280,7 +2296,7 @@ class _SummaryRow extends StatelessWidget {
           SizedBox(
             width: 96,
             child: Text(
-              label,
+              context.tr(label),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: colors.onSurfaceVariant,
                   ),
@@ -2412,7 +2428,7 @@ class _CostsPanel extends StatelessWidget {
             child: Row(
               children: [
                 Text(
-                  row.$1,
+                  context.tr(row.$1),
                   style: TextStyle(
                     fontSize: 12.5,
                     color: isExample
@@ -2436,7 +2452,7 @@ class _CostsPanel extends StatelessWidget {
                               fontSize: 11,
                             )),
                       Text(
-                        row.$2,
+                        context.tr(row.$2),
                         textAlign: TextAlign.end,
                         style: TextStyle(
                           fontSize: 13,

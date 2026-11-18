@@ -1,0 +1,6 @@
+"NSCameraUsageDescription" = "تتيح لك الكاميرا تصوير الفواتير ووثائق الهوية للتحقق منها.";
+"NSFaceIDUsageDescription" = "يتيح لك Face ID فتح قفل التطبيق وتسجيل الدخول بأمان.";
+"NSMicrophoneUsageDescription" = "اضغط على الميكروفون لإملاء طلباتك في Ask AI. وقد يُستخدم الميكروفون أيضًا للتحقق من الهوية عبر الفيديو.";
+"NSSpeechRecognitionUsageDescription" = "يحوّل طلباتك المنطوقة في Ask AI إلى نص يمكنك تعديله قبل أن تقرر إرساله.";
+"NSPhotoLibraryUsageDescription" = "يتيح لك الوصول إلى مكتبة الصور اختيار الفواتير أو وثائق الهوية لرفعها.";
+"NSLocationWhenInUseUsageDescription" = "يستخدم Ask AI موقعك عندما تختار البحث عن مطار مغادرة قريب. تبقى الإحداثيات على جهازك. وقد يُطلب موقعك أيضًا عند الحاجة أثناء التحقق من الهوية.";

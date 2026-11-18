@@ -138,7 +138,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             return;
           }
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message)),
+            SnackBar(content: Text(context.tr(message))),
           );
         },
       );
@@ -535,7 +535,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'Biometric sign-in failed.')),
+        SnackBar(
+            content:
+                Text(e.message ?? context.tr('Biometric sign-in failed.'))),
       );
     }
   }
@@ -861,9 +863,10 @@ class _ExampleLoginView extends StatelessWidget {
                             obscured: obscurePassword,
                             onTap: onTogglePassword,
                           ),
-                          validator: (value) => (value?.length ?? 0) >= 8
-                              ? null
-                              : 'Use at least 8 characters',
+                          validator: context.localizeValidator((value) =>
+                              (value?.length ?? 0) >= 8
+                                  ? null
+                                  : 'Use at least 8 characters'),
                         ),
                         ExampleStateSwitch(
                           alignment: Alignment.topCenter,
@@ -921,7 +924,7 @@ class _ExampleLoginView extends StatelessWidget {
                           // The screen's single sweep, on its single scope.
                           sheen: true,
                           loading: isLoading,
-                          loadingSemanticsLabel: 'Signing in',
+                          loadingSemanticsLabel: context.tr('Signing in'),
                           height: _actionHeight,
                           // Deliberately not the component's pill default:
                           // three stacked full-width actions at two different
@@ -1034,7 +1037,7 @@ class _ExampleRule extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           child: Text(
-            label,
+            context.tr(label),
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: ExampleInk.secondary(context),
                 ),
@@ -1122,7 +1125,7 @@ class _ExampleTrustLine extends StatelessWidget {
           const SizedBox(width: AppSpacing.xs),
           Flexible(
             child: Text(
-              label,
+              context.tr(label),
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: ExampleInk.secondary(context),
                   ),
@@ -1255,14 +1258,14 @@ class _ExampleSwitchRow extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    title,
+                    context.tr(title),
                     style: theme.textTheme.titleSmall,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    subtitle,
+                    context.tr(subtitle),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: ExampleInk.secondary(context),
                     ),
@@ -1318,7 +1321,7 @@ class _ExampleLink extends StatelessWidget {
             ),
       ),
       child: Text(
-        label,
+        context.tr(label),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         softWrap: false,
@@ -2035,7 +2038,7 @@ class _TrustChip extends StatelessWidget {
           Icon(icon, size: 18, color: color),
           const SizedBox(width: 8),
           Text(
-            label,
+            context.tr(label),
             style: TextStyle(color: color, fontWeight: FontWeight.w700),
           ),
         ],

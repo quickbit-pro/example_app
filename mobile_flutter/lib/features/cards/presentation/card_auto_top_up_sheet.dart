@@ -119,19 +119,19 @@ class _CardAutoTopUpSheetState extends ConsumerState<CardAutoTopUpSheet> {
     if (_busy || !_form.currentState!.validate()) return;
     if (_enabling && !_consent) {
       setState(() =>
-          _error = 'Accept the automatic top-up authorization to continue.');
+          _error = context.tr('Accept the automatic top-up authorization to continue.'));
       return;
     }
     if (_mode == 'low-balance' &&
         _enabled &&
         _value(_target) <= _value(_threshold)) {
       setState(() => _error =
-          'Target balance must be greater than the balance threshold.');
+          context.tr('Target balance must be greater than the balance threshold.'));
       return;
     }
     final cardId = int.tryParse(widget.card.id);
     if (cardId == null || cardId <= 0) {
-      setState(() => _error = 'Automatic top-up is unavailable for this card.');
+      setState(() => _error = context.tr('Automatic top-up is unavailable for this card.'));
       return;
     }
     final payload = <String, dynamic>{
@@ -314,18 +314,18 @@ class _CardAutoTopUpSheetState extends ConsumerState<CardAutoTopUpSheet> {
                                 _consent = false;
                               })),
                   if (_mode == 'low-balance') ...[
-                    _number('When card balance is below (USD)', _threshold,
+                    _number(context.tr('When card balance is below (USD)'), _threshold,
                         active: _enabled),
-                    _number('Reload up to this balance (USD)', _target,
+                    _number(context.tr('Reload up to this balance (USD)'), _target,
                         active: _enabled),
                   ] else ...[
                     Text(context.tr(
                         'Adds funds after an insufficient-funds decline. You may need to retry the payment.')),
                     const SizedBox(height: 12),
-                    _number('Maximum per top-up (USD)', _maximum,
+                    _number(context.tr('Maximum per top-up (USD)'), _maximum,
                         active: _enabled),
                   ],
-                  _number('Monthly top-up limit (USD)', _limit,
+                  _number(context.tr('Monthly top-up limit (USD)'), _limit,
                       active: _enabled),
                   Text(
                       '${context.tr('Used this month (UTC)')}: ${_money(settings[_mode == 'low-balance' ? 'lowBalanceUsedThisMonth' : 'failedTxUsedThisMonth'])}'),
@@ -353,7 +353,7 @@ class _CardAutoTopUpSheetState extends ConsumerState<CardAutoTopUpSheet> {
                             'p0': assigned['maskedCardNumber'] ??
                                 assigned['cardId']
                           })),
-                    _number('Maximum per deposit ($currency)',
+                    _number(context.tr('Maximum per deposit ({p0})', {'p0': currency}),
                         _depositAmounts[currency]!,
                         active: _deposits[currency]!),
                     Text(

@@ -619,7 +619,8 @@ class _ExampleKycBody extends StatelessWidget {
                 const SizedBox(height: AppSpacing.md),
                 Semantics(
                   label: context.tr('Verification progress'),
-                  value: '$complete of $total checks approved',
+                  value: context.tr('{p0} of {p1} checks approved',
+                      {'p0': complete, 'p1': total}),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(AppRadii.pill),
                     child: SizedBox(

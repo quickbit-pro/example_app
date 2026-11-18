@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -86,7 +87,7 @@ class _ExchangeBusinessOnboardingDialogState
                 style: theme.textTheme.labelMedium
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             const SizedBox(height: 3),
-            SelectableText(value.isEmpty ? 'Not provided' : value,
+            SelectableText(value.isEmpty ? context.tr('Not provided') : value,
                 style: theme.textTheme.bodyLarge),
           ],
         )),
@@ -126,8 +127,8 @@ class _ExchangeBusinessOnboardingDialogState
       ),
       child: Text(
           authorisationRequired
-              ? 'Verify and continue'
-              : 'Continue to verification',
+              ? context.tr('Verify and continue')
+              : context.tr('Continue to verification'),
           textAlign: TextAlign.center),
     );
     return PopScope(
@@ -158,19 +159,19 @@ class _ExchangeBusinessOnboardingDialogState
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                    Text('Business Exchange',
+                    Text(context.tr('Business Exchange'),
                         style: theme.textTheme.titleLarge
                             ?.copyWith(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 4),
                     Text(
                         authorisationRequired
-                            ? 'Confirm your email'
-                            : 'Review your company details',
+                            ? context.tr('Confirm your email')
+                            : context.tr('Review your company details'),
                         style: theme.textTheme.bodyMedium
                             ?.copyWith(color: colors.onSurfaceVariant)),
                   ])),
               IconButton(
-                  tooltip: 'Close',
+                  tooltip: context.tr('Close'),
                   onPressed: busy ? null : () => Navigator.pop(context),
                   icon: const Icon(Icons.close_rounded, size: 20)),
             ]),
@@ -194,14 +195,14 @@ class _ExchangeBusinessOnboardingDialogState
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('REGISTERED COMPANY',
+                            Text(context.tr('REGISTERED COMPANY'),
                                 style: theme.textTheme.labelSmall?.copyWith(
                                     letterSpacing: 1.1,
                                     color: colors.onSurfaceVariant)),
                             const SizedBox(height: 6),
                             SelectableText(
                                 exchangeText(draft!, 'legalName').isEmpty
-                                    ? 'Not provided'
+                                    ? context.tr('Not provided')
                                     : exchangeText(draft!, 'legalName'),
                                 style: theme.textTheme.titleLarge
                                     ?.copyWith(fontWeight: FontWeight.w600)),
@@ -220,7 +221,7 @@ class _ExchangeBusinessOnboardingDialogState
                     ),
                     const SizedBox(height: 12),
                     Text(
-                        'Prefilled from your saved company and profile details.',
+                        context.tr('Prefilled from your saved company and profile details.'),
                         style: theme.textTheme.bodySmall
                             ?.copyWith(color: colors.onSurfaceVariant)),
                     Align(
@@ -232,7 +233,7 @@ class _ExchangeBusinessOnboardingDialogState
                                   <String, dynamic>{'action': 'support'}),
                           icon:
                               const Icon(Icons.support_agent_rounded, size: 18),
-                          label: const Text('Need to update these details?'),
+                          label: Text(context.tr('Need to update these details?')),
                         )),
                     if (issues.isNotEmpty) ...[
                       const SizedBox(height: 8),
@@ -250,7 +251,7 @@ class _ExchangeBusinessOnboardingDialogState
                                     size: 18, color: colors.onErrorContainer),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                    child: Text('A detail needs your attention',
+                                    child: Text(context.tr('A detail needs your attention'),
                                         style: theme.textTheme.labelLarge)),
                               ]),
                               for (final issue in issues)
@@ -259,7 +260,7 @@ class _ExchangeBusinessOnboardingDialogState
                                     child: Text(issue)),
                               TextButton(
                                   onPressed: busy ? null : load,
-                                  child: const Text('Refresh details')),
+                                  child: Text(context.tr('Refresh details'))),
                             ]),
                       ),
                     ] else if (!authorisationRequired) ...[
@@ -272,7 +273,7 @@ class _ExchangeBusinessOnboardingDialogState
                             const SizedBox(width: 10),
                             Expanded(
                                 child: Text(
-                                    'Next, complete company verification with ZBX. They may ask for more details or documents.',
+                                    context.tr('Next, complete company verification with ZBX. They may ask for more details or documents.'),
                                     style: theme.textTheme.bodyMedium?.copyWith(
                                         color: colors.onSurfaceVariant))),
                           ]),
@@ -281,7 +282,7 @@ class _ExchangeBusinessOnboardingDialogState
                   if (authorisationRequired) ...[
                     const SizedBox(height: 16),
                     Text(
-                        'An account already uses this email. Confirm it to connect your company to Exchange.',
+                        context.tr('An account already uses this email. Confirm it to connect your company to Exchange.'),
                         style: theme.textTheme.bodyMedium),
                     Align(
                         alignment: Alignment.centerLeft,
@@ -298,8 +299,8 @@ class _ExchangeBusinessOnboardingDialogState
                           icon:
                               const Icon(Icons.mail_outline_rounded, size: 18),
                           label: Text(codeSent
-                              ? 'Resend email code'
-                              : 'Send email code'),
+                              ? context.tr('Resend email code')
+                              : context.tr('Send email code')),
                         )),
                     if (codeSent) ...[
                       const SizedBox(height: 8),
@@ -312,10 +313,10 @@ class _ExchangeBusinessOnboardingDialogState
                           FilteringTextInputFormatter.digitsOnly,
                           LengthLimitingTextInputFormatter(6)
                         ],
-                        decoration: const InputDecoration(
-                            labelText: 'Email verification code',
+                        decoration: InputDecoration(
+                            labelText: context.tr('Email verification code'),
                             helperText:
-                                'Enter the six-digit code sent to your email.'),
+                                context.tr('Enter the six-digit code sent to your email.')),
                         onChanged: (_) => setState(() {}),
                       ),
                     ],
@@ -328,7 +329,7 @@ class _ExchangeBusinessOnboardingDialogState
                             child: Text(error!,
                                 style: TextStyle(color: colors.error)))),
                   if (draft == null && !busy)
-                    TextButton(onPressed: load, child: const Text('Retry')),
+                    TextButton(onPressed: load, child: Text(context.tr('Retry'))),
                 ]),
           )),
           if (busy) const LinearProgressIndicator(minHeight: 2),
@@ -339,7 +340,7 @@ class _ExchangeBusinessOnboardingDialogState
             child: LayoutBuilder(builder: (context, constraints) {
               final cancel = TextButton(
                   onPressed: busy ? null : () => Navigator.pop(context),
-                  child: const Text('Cancel'));
+                  child: Text(context.tr('Cancel')));
               return constraints.maxWidth < 360
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -71,8 +71,8 @@ class _ConfirmationState
         final unavailable = error is DioException &&
             const {400, 404}.contains(error.response?.statusCode);
         setState(() => _error = unavailable
-            ? 'Payment confirmation is not available for this transaction yet.'
-            : 'Could not download the payment confirmation. Please try again.');
+            ? context.tr('Payment confirmation is not available for this transaction yet.')
+            : context.tr('Could not download the payment confirmation. Please try again.'));
       }
     } finally {
       if (mounted) setState(() => _busy = false);

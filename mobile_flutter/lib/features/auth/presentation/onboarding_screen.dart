@@ -421,7 +421,7 @@ class _OnboardingSteps extends StatelessWidget {
               subtitle: context
                   .tr('Order cards, set spend controls, and manage assets.'),
               icon: Icons.credit_score,
-              status: 'After KYC',
+              status: context.tr('After KYC'),
             ),
           ],
         ),
@@ -486,7 +486,7 @@ class _StepTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  subtitle,
+                  context.tr(subtitle),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -525,7 +525,7 @@ class _HeroPill extends StatelessWidget {
           Icon(icon, size: 18, color: color),
           const SizedBox(width: 8),
           Text(
-            label,
+            context.tr(label),
             style: TextStyle(color: color, fontWeight: FontWeight.w700),
           ),
         ],

@@ -145,7 +145,7 @@ class _CryptoTradeScreenState extends ConsumerState<CryptoTradeScreen> {
     if (!mounted) return;
     if (state.hasError) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(friendlyErrorMessage(state.error!))),
+        SnackBar(content: Text(context.tr(friendlyErrorMessage(state.error!)))),
       );
       return;
     }
@@ -757,7 +757,7 @@ class _ExchangeCta extends StatelessWidget {
                 child: AppProgressIndicator(strokeWidth: 2),
               )
             : const Icon(Icons.swap_horiz_rounded, size: 20),
-        label: Text(label),
+        label: Text(context.tr(label)),
       ),
     );
   }
@@ -783,7 +783,7 @@ class _AssetChoice extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadii.sm),
       semanticsLabel: '$symbol, $formatted'
-          '${selected ? ', selected' : ''}',
+          '${selected ? context.tr(', selected') : ''}',
       child: ExampleGlassPanel(
         radius: AppRadii.sm,
         borderAlpha: selected ? .5 : .16,
@@ -871,7 +871,7 @@ class _QuoteLedger extends StatelessWidget {
       // The provider prices USD → stablecoin at conversion time; 1:1 is the
       // reference the customer can expect, fee deducted on delivery.
       rows.add(('Reference rate', '1 USD ≈ 1 $asset'));
-      rows.add(('Fee', 'Confirmed by the provider'));
+      rows.add(('Fee', context.tr('Confirmed by the provider')));
       rows.add(('You receive', '≈ ${_amountLabel(asset, amount)}'));
     } else if (loading || error != null) {
       rows.add(('Rate', ExampleAmount.placeholder));
@@ -909,7 +909,7 @@ class _QuoteLedger extends StatelessWidget {
             children: [
               for (final row in rows)
                 ExampleRow(
-                  title: row.$1,
+                  title: context.tr(row.$1),
                   minHeight: 44,
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.md,
@@ -1004,9 +1004,10 @@ class _ResultPanel extends StatelessWidget {
                 Text(
                   [
                     if (received != null)
-                      'Received $received ${toCrypto ? asset : 'USD'}',
-                    if (rate != null) 'Rate $rate',
-                    if (fee != null) 'Fee $fee',
+                      context.tr('Received {p0} {p1}',
+                          {'p0': received, 'p1': toCrypto ? asset : 'USD'}),
+                    if (rate != null) context.tr('Rate {p0}', {'p0': rate}),
+                    if (fee != null) context.tr('Fee {p0}', {'p0': fee}),
                   ].join(' · '),
                   style: TextStyle(
                     fontSize: 12,
@@ -1122,10 +1123,10 @@ class _LegacyQuotePanel extends StatelessWidget {
       // The provider prices USD → stablecoin at conversion time; 1:1 is the
       // reference the customer can expect, fee deducted on delivery.
       rows.add(('Reference rate', '1 USD ≈ 1 $asset'));
-      rows.add(('Fee', 'Confirmed by the provider'));
+      rows.add(('Fee', context.tr('Confirmed by the provider')));
       rows.add(('You receive', '≈ ${_amountLabel(asset, amount)}'));
     } else if (loading) {
-      rows.add(('Quote', 'Fetching…'));
+      rows.add(('Quote', context.tr('Fetching…')));
     } else if (error != null) {
       rows.add(('Quote', error!));
     } else if (quote != null) {
@@ -1143,7 +1144,7 @@ class _LegacyQuotePanel extends StatelessWidget {
       rows.add(
           ('You receive', _amountLabel('USD', received < 0 ? 0 : received)));
     } else {
-      rows.add(('Quote', 'Enter an amount to see the rate'));
+      rows.add(('Quote', context.tr('Enter an amount to see the rate')));
     }
     return ExampleGlassPanel(
       radius: 16,

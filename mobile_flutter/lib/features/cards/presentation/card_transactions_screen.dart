@@ -100,7 +100,8 @@ class _CardTransactionsScreenState
                 .toList(),
             filters: [
               if (cardIdentity != null) cardIdentity,
-              'Type: ${_filterLabel(_filter)}',
+              context
+                  .tr('Type: {p0}', {'p0': context.tr(_filterLabel(_filter))}),
             ],
             identityFor: (_) => cardIdentity,
           ),
@@ -223,8 +224,8 @@ class _ActivityContent extends StatelessWidget {
         card: card,
         entries: entries,
         scopeLabel: selectedFilter == CardActivityFilter.all
-            ? 'all activity'
-            : '${_filterLabel(selectedFilter).toLowerCase()} only',
+            ? context.tr('all activity')
+            : context.tr('purchases only'),
       );
 
   Widget _filters(BuildContext context) =>
@@ -235,7 +236,7 @@ class _ActivityContent extends StatelessWidget {
         onChanged: onFilterChanged,
         segments: [
           for (final filter in CardActivityFilter.values)
-            (value: filter, label: _filterSegmentLabel(filter)),
+            (value: filter, label: context.tr(_filterSegmentLabel(filter))),
         ],
       );
 
@@ -470,7 +471,10 @@ class _LedgerSummary extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             [
-              '$counted ${counted == 1 ? 'transaction' : 'transactions'}',
+              context.tr(
+                counted == 1 ? '{p0} transaction' : '{p0} transactions',
+                {'p0': counted},
+              ),
               scopeLabel,
               if (range != null) range,
             ].join(' · '),
@@ -508,7 +512,7 @@ class _Fact extends StatelessWidget {
             ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: [
-          Text(label, style: ExampleTextStyles.label(context)),
+          Text(context.tr(label), style: ExampleTextStyles.label(context)),
           const SizedBox(height: AppSpacing.xxs),
           ExampleAmount(
             amount: amount,
@@ -951,7 +955,7 @@ class _ActivitySummary extends StatelessWidget {
               ),
               Expanded(
                 child: _SummaryMetric(
-                  label: context.tr('Items'),
+                  label: context.tr('Transaction count'),
                   value: activities.length.toString(),
                 ),
               ),
@@ -1003,7 +1007,7 @@ class _SummaryMetric extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        Text(context.tr(label), style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 3),
         Text(value, style: Theme.of(context).textTheme.titleMedium),
       ],

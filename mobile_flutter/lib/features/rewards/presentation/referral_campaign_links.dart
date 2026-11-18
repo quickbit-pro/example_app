@@ -162,7 +162,7 @@ class _ReferralCampaignLinksTabState
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(friendlyErrorMessage(error))),
+        SnackBar(content: Text(context.tr(friendlyErrorMessage(error)))),
       );
     } finally {
       if (mounted) setState(() => _busy.remove(link.id));
@@ -261,8 +261,7 @@ class _ReferralCampaignLinksTabState
                   ? () => _setStatus(link, ReferralCampaignLinkStatus.active)
                   : null,
               onArchive: link.canArchive()
-                  ? () =>
-                      _setStatus(link, ReferralCampaignLinkStatus.archived)
+                  ? () => _setStatus(link, ReferralCampaignLinkStatus.archived)
                   : null,
             ),
         ],
@@ -323,7 +322,8 @@ class _ReferralCampaignLinksTabState
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            context.tr('Earnings are shown for the selected period; sign-ups and qualified friends are counted since the link was created.'),
+            context.tr(
+                'Earnings are shown for the selected period; sign-ups and qualified friends are counted since the link was created.'),
             key: const Key('referral_links_period_note'),
             style: TextStyle(
               fontSize: 12,
@@ -422,7 +422,8 @@ class _LinkRow extends StatelessWidget {
     final status = link.effectiveStatus();
     final statusLabel = context.tr(status.label);
     final channel = campaignChannelLabel(context, link);
-    final earnedText = Money.formatAmount(currency, earned?.rewardsAccrued ?? 0);
+    final earnedText =
+        Money.formatAmount(currency, earned?.rewardsAccrued ?? 0);
     // Click figures (addendum A) only once the platform counts them; an
     // older platform's links show no zeros they cannot stand behind.
     final figures = [
@@ -639,8 +640,7 @@ class _CampaignLinkCreatorState extends ConsumerState<_CampaignLinkCreator> {
   final _name = TextEditingController();
   final _code = TextEditingController();
   ReferralCampaignChannel _channel = ReferralCampaignChannel.social;
-  ReferralCampaignDestination _destination =
-      ReferralCampaignDestination.signup;
+  ReferralCampaignDestination _destination = ReferralCampaignDestination.signup;
   String? _programId;
   String? _locale;
   DateTime? _expiresAt;
@@ -835,7 +835,8 @@ class _CampaignLinkCreatorState extends ConsumerState<_CampaignLinkCreator> {
                 DropdownButtonFormField<String>(
                   key: const Key('referral_link_locale'),
                   initialValue: _locale,
-                  decoration: InputDecoration(labelText: context.tr('Language')),
+                  decoration:
+                      InputDecoration(labelText: context.tr('Language')),
                   items: [
                     for (final language in appLanguages)
                       DropdownMenuItem(
@@ -904,8 +905,8 @@ class _CampaignLinkCreatorState extends ConsumerState<_CampaignLinkCreator> {
                         _expiresAt == null
                             ? context.tr('No expiry')
                             : context.tr('Expires {p0}', {
-                                'p0': localizations
-                                    .formatMediumDate(_expiresAt!),
+                                'p0':
+                                    localizations.formatMediumDate(_expiresAt!),
                               }),
                         key: const Key('referral_link_expiry'),
                         style: referralBodyStyle(context),
@@ -1035,8 +1036,8 @@ class _CampaignLinkCreatorState extends ConsumerState<_CampaignLinkCreator> {
                       sheen: false,
                       expand: false,
                       height: 44,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                       onPressed: () =>
                           showReferralQrDialog(context, link.shareUrl!),
                     ),
@@ -1281,7 +1282,11 @@ class _ReferralCampaignLinkPerformancePanelState
         ),
       ],
       (key: 'signups', label: context.tr('Sign-ups'), value: '${data.signups}'),
-      (key: 'verified', label: context.tr('Verified'), value: '${data.verified}'),
+      (
+        key: 'verified',
+        label: context.tr('Verified'),
+        value: '${data.verified}'
+      ),
       (
         key: 'qualified',
         label: context.tr('Qualified'),

@@ -160,9 +160,7 @@ class ReferralInvitationRequest {
 String? referralInvitationEmailError(BuildContext context, String? value) {
   final email = value?.trim() ?? '';
   final at = email.indexOf('@');
-  if (at <= 0 ||
-      at == email.length - 1 ||
-      !email.substring(at).contains('.')) {
+  if (at <= 0 || at == email.length - 1 || !email.substring(at).contains('.')) {
     return context.tr('Enter a valid email address');
   }
   return null;
@@ -210,7 +208,8 @@ class ReferralInvitationFields extends StatelessWidget {
           autocorrect: false,
           textInputAction: TextInputAction.send,
           decoration: InputDecoration(labelText: context.tr('Email')),
-          validator: (value) => referralInvitationEmailError(context, value),
+          validator: context.localizeValidator(
+              (value) => referralInvitationEmailError(context, value)),
           onFieldSubmitted: (_) => onSubmitted?.call(),
         ),
       ],
@@ -328,7 +327,8 @@ class _ReferralInvitationFormState extends State<ReferralInvitationForm> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            context.tr('We will email a secure invitation link to this person.'),
+            context
+                .tr('We will email a secure invitation link to this person.'),
             style: TextStyle(
               fontSize: 13,
               height: 1.45,
@@ -349,7 +349,7 @@ class _ReferralInvitationFormState extends State<ReferralInvitationForm> {
             icon: Icons.send_rounded,
             sheen: false,
             loading: widget.busy,
-            loadingSemanticsLabel: 'Sending invitation',
+            loadingSemanticsLabel: context.tr('Sending invitation'),
             onPressed: widget.busy ? null : _submit,
           ),
         ],

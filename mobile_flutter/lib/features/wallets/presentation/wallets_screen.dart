@@ -420,14 +420,15 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
               Align(
                 alignment: AlignmentDirectional.centerStart,
                 child: InputChip(
-                  label: Text(
-                      context.tr('{p0} accounts', {'p0': _selectedCurrency})),
+                  label: Text(context
+                      .tr('Accounts in {p0}', {'p0': _selectedCurrency})),
                   onDeleted: () => setState(() {
                     _selectedCurrency = '';
                     _openedAccountSelection =
                         '${widget.initialBudgetId.trim()}:';
                   }),
-                  deleteButtonTooltipMessage: 'Show all account currencies',
+                  deleteButtonTooltipMessage:
+                      context.tr('Show all account currencies'),
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -508,10 +509,10 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
                   isExample
                       ? context.tr('Accounts')
                       : switch (view) {
-                          WalletView.assets => 'Crypto',
-                          WalletView.addresses => 'Deposit',
-                          WalletView.exchange => 'Exchange',
-                          WalletView.balances => 'Accounts',
+                          WalletView.assets => context.tr('Crypto'),
+                          WalletView.addresses => context.tr('Deposit'),
+                          WalletView.exchange => context.tr('Exchange'),
+                          WalletView.balances => context.tr('Accounts'),
                         },
                 ),
                 actions: [
@@ -800,8 +801,8 @@ class _EqualsMoneyConversionDialogState
                 amount > selectedBalance.amount) {
               setDialogState(() {
                 error = selectedBalance == null
-                    ? 'Select a funded source currency.'
-                    : 'Enter an amount up to ${_money(sourceCurrency, selectedBalance.amount)}.';
+                    ? context.tr('Select a funded source currency.')
+                    : context.tr('Enter an amount up to {p0}.', {'p0': _money(sourceCurrency, selectedBalance.amount)});
               });
               return;
             }
@@ -828,7 +829,7 @@ class _EqualsMoneyConversionDialogState
                             const ['quoteRequestId', 'QuoteRequestId']) ==
                         null) {
                   setDialogState(() => error =
-                      'We could not retrieve a valid conversion quote. Please try again.');
+                      context.tr('We could not retrieve a valid conversion quote. Please try again.'));
                   return;
                 }
                 setDialogState(() => quote = result);
@@ -942,10 +943,10 @@ class _EqualsMoneyConversionDialogState
               }),
               onPrimary: loading ? null : submit,
               primaryLabel: loading
-                  ? 'Processing…'
+                  ? context.tr('Processing…')
                   : quote == null
-                      ? 'Review conversion'
-                      : 'Confirm',
+                      ? context.tr('Review conversion')
+                      : context.tr('Confirm'),
               hasQuote: quote != null,
               onCancelQuote: loading
                   ? null
@@ -1109,7 +1110,7 @@ class _EqualsMoneyConversionDialogState
                   if (error != null) ...[
                     const SizedBox(height: AppSpacing.md),
                     Text(
-                      error!,
+                      context.tr(error!),
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.error,
                       ),
@@ -1309,7 +1310,7 @@ class _ExampleEqualsConversionDialog extends StatelessWidget {
               Semantics(
                 liveRegion: true,
                 child: Text(
-                  error!,
+                  context.tr(error!),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: ExampleInk.accent(
@@ -1564,7 +1565,7 @@ class _ExampleEqualsConversionDialog extends StatelessWidget {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        error!,
+                        context.tr(error!),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: ExampleInk.accent(
                             context,
@@ -1665,7 +1666,7 @@ class _ExampleConversionAmountCard extends StatelessWidget {
               children: [
                 Flexible(
                   child: Text(
-                    label,
+                    context.tr(label),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
@@ -1797,7 +1798,7 @@ class _ExampleConversionFact extends StatelessWidget {
         children: [
           Flexible(
             child: Text(
-              label,
+              context.tr(label),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
@@ -1920,8 +1921,10 @@ class _BalanceList extends StatelessWidget {
               subtitle: balance.currency.toUpperCase(),
               leading: ExampleCurrencyAvatar(code: balance.currency, size: 32),
               trailing: _ExampleBalanceValue(balance: balance),
-              semanticsLabel: '${balance.label}, '
-                  '${_money(balance.currency, balance.available)} available',
+              semanticsLabel: context.tr('{p0}, {p1} available', {
+                'p0': balance.label,
+                'p1': _money(balance.currency, balance.available)
+              }),
             ),
         ],
       );
@@ -2573,7 +2576,7 @@ class _ExampleCryptoAction extends StatelessWidget {
       ),
       onPressed: onTap,
       child: Text(
-        label,
+        context.tr(label),
         maxLines: 1,
         // The label ellipsises inside the button rather than pushing the row
         // wider: "Exchange to crypto" at text scale 1.3 in a half-width slot
@@ -2766,7 +2769,7 @@ class _HubActionButton extends StatelessWidget {
         child: OutlinedButton.icon(
           onPressed: onPressed,
           icon: Icon(icon),
-          label: Text(label),
+          label: Text(context.tr(label)),
         ),
       );
 }
@@ -3117,24 +3120,24 @@ class ExchangeTransferProgressCard extends ConsumerWidget {
             TextButton(
                 onPressed: () =>
                     openExchangeUrl(exchangeActionUrl(transfer.details)!),
-                child: const Text('Complete provider verification')),
+                child: Text(context.tr('Complete provider verification'))),
           if (!transfer.isTerminal &&
               transfer.detail('fiatWithdrawalDeadlineAt').isNotEmpty)
             Text(
-                'Bank withdrawal due by ${_transferLocalDate(transfer.detail('fiatWithdrawalDeadlineAt'))}.'),
+                context.tr('Bank withdrawal due by {p0}.', {'p0': _transferLocalDate(transfer.detail('fiatWithdrawalDeadlineAt'))})),
           if (!transfer.isTerminal &&
               transfer.detail('fiatWithdrawalOverdue') == 'true')
-            const Text(
-                'Withdrawal deadline passed. Contact support to resolve this transfer.'),
+            Text(
+                context.tr('Withdrawal deadline passed. Contact support to resolve this transfer.')),
           if (transfer.needsQuoteDecision) ...[
-            Text('Original rate: ${transfer.detail('initialExchangeRate')}'),
-            Text('Updated rate: ${transfer.detail('effectiveRate')}'),
+            Text(context.tr('Original rate: {p0}', {'p0': transfer.detail('initialExchangeRate')})),
+            Text(context.tr('Updated rate: {p0}', {'p0': transfer.detail('effectiveRate')})),
             Text(
-                'You receive: ${transfer.detail('toAmount')} ${transfer.direction == 'equals_to_interlace' ? transfer.cryptoCurrency : transfer.fiatCurrency}'),
+                context.tr('You receive: {p0} {p1}', {'p0': transfer.detail('toAmount'), 'p1': transfer.direction == 'equals_to_interlace' ? transfer.cryptoCurrency : transfer.fiatCurrency})),
             Text(
-                'Fee: ${transfer.detail('currentFeeAmount')} ${transfer.detail('currentFeeCurrency')}'),
+                context.tr('Fee: {p0} {p1}', {'p0': transfer.detail('currentFeeAmount'), 'p1': transfer.detail('currentFeeCurrency')})),
             Text(
-                'Rate change: ${transfer.detail('rateDeviationPercent')}% · Quote expires ${transfer.detail('quoteExpiresAt')}'),
+                context.tr('Rate change: {p0}% · Quote expires {p1}', {'p0': transfer.detail('rateDeviationPercent'), 'p1': transfer.detail('quoteExpiresAt')})),
           ],
           if (transfer.needsQuoteDecision && outflowsEnabled) ...[
             const SizedBox(height: AppSpacing.sm),
@@ -3265,8 +3268,7 @@ class _TransferTimeline extends StatelessWidget {
     final quiet =
         isExample ? ExampleInk.secondary(context) : colors.onSurfaceVariant;
     return Semantics(
-      label: '${stage.clamp(0, labels.length)} of ${labels.length} steps completed. '
-          '${labels.map((label) => label.replaceAll('\n', ' ')).join(' → ')}',
+      label: context.tr('{p0} of {p1} steps completed. {p2}', {'p0': stage.clamp(0, labels.length), 'p1': labels.length, 'p2': labels.map((label) => context.tr(label).replaceAll('\n', ' ')).join(' → ')}),
       excludeSemantics: true,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3295,7 +3297,7 @@ class _TransferTimeline extends StatelessWidget {
                 ),
               ])),
               const SizedBox(height: 7),
-              Text(labels[index], textAlign: TextAlign.center,
+              Text(context.tr(labels[index]), textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   fontSize: 11, height: 1.25, color: quiet,
                 )),
@@ -3334,7 +3336,7 @@ class _WalletStatusPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.pill),
       ),
       child: Text(
-        label,
+        context.tr(label),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: color,
               fontWeight: FontWeight.w700,
@@ -3351,15 +3353,15 @@ String _transferLocalDate(String value) {
 
 void _showExchangeTransferDetails(BuildContext context, BoomFiTransfer transfer) {
   showDialog<void>(context: context, builder: (context) => AlertDialog(
-    title: Text(transfer.isBankExchange ? 'Exchange and bank withdrawal' : 'Transfer details'),
+    title: Text(transfer.isBankExchange ? context.tr('Exchange and bank withdrawal') : context.tr('Transfer details')),
     content: SizedBox(width: 460, child: SingleChildScrollView(child: Column(
       mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(transfer.flowLabel),
         const SizedBox(height: 12),
-        Text('Amount: ${transfer.cryptoAmount} ${transfer.cryptoCurrency}'),
-        Text('Status: ${transfer.progressStatusLabel ?? friendlyStatus(transfer.status)}'),
-        if (transfer.conversionSettled) const Text('Conversion: completed'),
+        Text(context.tr('Amount: {p0} {p1}', {'p0': transfer.cryptoAmount, 'p1': transfer.cryptoCurrency})),
+        Text(context.tr('Status: {p0}', {'p0': transfer.progressStatusLabel ?? friendlyStatus(transfer.status)})),
+        if (transfer.conversionSettled) Text(context.tr('Conversion: completed')),
         if (transfer.detail('toAmount').isNotEmpty)
           Text('${transfer.proceedsLabel}: ${transfer.detail('toAmount')} ${transfer.proceedsCurrency}'),
         if (transfer.completionMessage.isNotEmpty) ...[
@@ -3367,17 +3369,17 @@ void _showExchangeTransferDetails(BuildContext context, BoomFiTransfer transfer)
         ],
         if (transfer.detail('fiatWithdrawalDeadlineAt').isNotEmpty) ...[
           const SizedBox(height: 12),
-          Text('Withdrawal due: ${_transferLocalDate(transfer.detail('fiatWithdrawalDeadlineAt'))}'),
+          Text(context.tr('Withdrawal due: {p0}', {'p0': _transferLocalDate(transfer.detail('fiatWithdrawalDeadlineAt'))})),
         ],
         if (transfer.detail('boomFiOrderId').isNotEmpty) ...[
           const SizedBox(height: 12),
-          SelectableText('Exchange ID: ${transfer.detail('boomFiOrderId')}'),
+          SelectableText(context.tr('Exchange ID: {p0}', {'p0': transfer.detail('boomFiOrderId')})),
         ],
         if (transfer.detail('boomFiQuoteId').isNotEmpty)
-          SelectableText('Quote ID: ${transfer.detail('boomFiQuoteId')}'),
+          SelectableText(context.tr('Quote ID: {p0}', {'p0': transfer.detail('boomFiQuoteId')})),
       ],
     ))),
-    actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Done'))],
+    actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(context.tr('Done')))],
   ));
 }
 
@@ -3665,7 +3667,7 @@ class _WalletActionButton extends StatelessWidget {
         icon: Icon(icon, size: 17),
         label: FittedBox(
           fit: BoxFit.scaleDown,
-          child: Text(label, maxLines: 1),
+          child: Text(context.tr(label), maxLines: 1),
         ),
       );
 }
@@ -3958,7 +3960,7 @@ class _ExampleBudgetRow extends StatelessWidget {
                   rows.length > 1
                       ? context.tr('Fiat account · Multi-currency')
                       : context.tr('Fiat account · {p0}',
-                          {'p0': first?.currency ?? 'Budget'}),
+                          {'p0': first?.currency ?? context.tr('Budget')}),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -4220,7 +4222,8 @@ class _ExampleDesktopAccountAction extends StatelessWidget {
               ),
         ),
         onPressed: onTap,
-        child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        child: Text(context.tr(label),
+            maxLines: 1, overflow: TextOverflow.ellipsis),
       );
 }
 
@@ -4251,7 +4254,7 @@ class _ExampleAccountAction extends StatelessWidget {
               child: Center(
                 widthFactor: 1,
                 child: Text(
-                  label,
+                  context.tr(label),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -4490,7 +4493,7 @@ class _BudgetActionButton extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              label,
+              context.tr(label),
               maxLines: 1,
               style: const TextStyle(fontSize: 11),
             ),
@@ -4565,8 +4568,8 @@ class _BudgetLatestTransactions extends ConsumerWidget {
         transactions:
             transactions.isLoading || transactions.hasError ? null : visible,
         filters: [
-          'Account: ${normalizedCurrency.isEmpty ? _budgetTitle(budget) : _accountDisplayName(normalizedCurrency)}',
-          if (normalizedCurrency.isNotEmpty) 'Currency: $normalizedCurrency',
+          context.tr('Account: {p0}', {'p0': normalizedCurrency.isEmpty ? _budgetTitle(budget) : _accountDisplayName(normalizedCurrency)}),
+          if (normalizedCurrency.isNotEmpty) context.tr('Currency: {p0}', {'p0': normalizedCurrency}),
           'Latest transactions shown',
         ],
         identityFor: (transaction) =>
@@ -4590,7 +4593,7 @@ class _BudgetLatestTransactions extends ConsumerWidget {
                 compact: true,
                 onRetry: () => ref.invalidate(activityTransactionsProvider),
               )
-            : Text(friendlyErrorMessage(error)),
+            : Text(context.tr(friendlyErrorMessage(error))),
         data: (items) {
           if (visible.isEmpty) {
             return isExample
@@ -5292,7 +5295,7 @@ Future<void> showCreateEqualsBudgetDialog(
     builder: (context) => StatefulBuilder(
       builder: (context, setDialogState) => _FullScreenActionDialog(
         title: Text(context.tr('Create budget')),
-        primaryLabel: 'Create budget',
+        primaryLabel: context.tr('Create budget'),
         onPrimary: selectedCurrencies.isEmpty
             ? null
             : () => Navigator.of(context).pop(true),
@@ -5445,7 +5448,7 @@ Future<void> _showFundBudgetDialog(
         return _FullScreenActionDialog(
           title:
               Text(context.tr('Fund {p0}', {'p0': _budgetTitle(targetBudget)})),
-          primaryLabel: 'Transfer money',
+          primaryLabel: context.tr('Transfer money'),
           onPrimary: amount.minorUnits <= 0 || exceedsBalance
               ? null
               : () => Navigator.of(context).pop(
@@ -5659,7 +5662,7 @@ Future<void> _showMoveBetweenBudgetsDialog(
         return _FullScreenActionDialog(
           title: Text(
               context.tr('Move from {p0}', {'p0': _budgetTitle(sourceBudget)})),
-          primaryLabel: 'Review transfer',
+          primaryLabel: context.tr('Review transfer'),
           onPrimary: amount.minorUnits <= 0 || exceeds
               ? null
               : () => Navigator.of(dialogContext).pop(
@@ -6103,7 +6106,7 @@ Future<void> _showTopUpDialog(
 
         return _FullScreenActionDialog(
           title: Text(context.tr('Move to {p0} wallet', {'p0': asset.symbol})),
-          primaryLabel: 'Review transfer',
+          primaryLabel: context.tr('Review transfer'),
           onPrimary: canSubmit
               ? () => Navigator.of(context).pop(
                     _QuantumTopUpSubmission(
@@ -6204,7 +6207,7 @@ Future<void> _showConvertDialog(
     context: context,
     builder: (context) => _FullScreenActionDialog(
       title: Text(context.tr('Move to crypto wallet')),
-      primaryLabel: 'Review conversion',
+      primaryLabel: context.tr('Review conversion'),
       onPrimary: () => Navigator.of(context).pop(true),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -6309,7 +6312,7 @@ class _FullScreenActionDialog extends StatelessWidget {
                     height: 52,
                     child: FilledButton(
                       onPressed: onPrimary,
-                      child: Text(primaryLabel),
+                      child: Text(context.tr(primaryLabel)),
                     ),
                   ),
           ),
@@ -6657,7 +6660,7 @@ class _SheetRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          Expanded(child: Text(label)),
+          Expanded(child: Text(context.tr(label))),
           Text(value, style: Theme.of(context).textTheme.titleSmall),
         ],
       ),
@@ -7325,7 +7328,7 @@ class _ExampleAccountDetailLine extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
+                Text(context.tr(label),
                     style:
                         TextStyle(fontSize: 12, color: palette.textSecondary)),
                 const SizedBox(height: 8),
@@ -7379,7 +7382,7 @@ class _AccountDetailRow extends StatelessWidget {
             SizedBox(
               width: 112,
               child: Text(
-                label,
+                context.tr(label),
                 style: Theme.of(context).textTheme.labelMedium,
               ),
             ),

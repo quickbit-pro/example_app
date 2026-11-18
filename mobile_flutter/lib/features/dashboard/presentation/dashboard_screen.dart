@@ -370,7 +370,7 @@ class _QuickActions extends ConsumerWidget {
     } catch (error) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(friendlyErrorMessage(error))),
+        SnackBar(content: Text(context.tr(friendlyErrorMessage(error)))),
       );
     }
   }
@@ -709,7 +709,7 @@ class _StatusBadge extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
         child: Text(
-          label,
+          context.tr(label),
           style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
         ),
       ),

@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -42,7 +43,7 @@ class _ExchangeVerificationPanelState
     } catch (e) {
       if (mounted) {
         setState(() => error = applicationOutcomeUnknown
-            ? 'We could not confirm your application was received. Refresh your Exchange status. If it is still incomplete, contact support before submitting again.'
+            ? context.tr('We could not confirm your application was received. Refresh your Exchange status. If it is still incomplete, contact support before submitting again.')
             : friendlyErrorMessage(e));
       }
     } finally {
@@ -141,11 +142,11 @@ class _ExchangeVerificationPanelState
             child: state.when(
                 loading: () => const LinearProgressIndicator(),
                 error: (e, st) => Column(children: [
-                      const Text('Could not check Exchange verification.'),
+                      Text(context.tr('Could not check Exchange verification.')),
                       TextButton(
                           onPressed: () =>
                               ref.invalidate(exchangeVerificationProvider),
-                          child: const Text('Retry'))
+                          child: Text(context.tr('Retry')))
                     ]),
                 data: (data) {
                   final provider = exchangeMap(data['provider']);
@@ -191,30 +192,30 @@ class _ExchangeVerificationPanelState
                   return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Exchange verification',
+                        Text(context.tr('Exchange verification'),
                             style: Theme.of(context).textTheme.titleLarge),
                         const SizedBox(height: 12),
                         Text(requiresCdd
-                            ? cddMessage
+                            ? context.tr(cddMessage)
                             : provider.isNotEmpty
                             ? submitted
-                                ? 'Your information has been submitted for review.'
+                                ? context.tr('Your information has been submitted for review.')
                                 : ['rejected', 'failed'].contains(provider['kycStatus'])
-                                    ? 'Your Exchange application was not approved. Contact support.'
+                                    ? context.tr('Your Exchange application was not approved. Contact support.')
                                     : provider['kycStatus'] == 'accepted'
-                                        ? 'Your account is approved. Settlement accounts are being prepared.'
+                                        ? context.tr('Your account is approved. Settlement accounts are being prepared.')
                                         : nextAction == 'tin_required'
-                                            ? 'Provide your tax identification details.'
+                                            ? context.tr('Provide your tax identification details.')
                                             : nextAction == 'edd_required'
-                                                ? 'Provide additional source of funds information.'
+                                                ? context.tr('Provide additional source of funds information.')
                                                 : ['kyc_required', 'kyb_required'].contains(nextAction)
-                                                    ? 'Complete the provider verification to continue.'
-                                                    : 'Your Exchange application is under review.'
+                                                    ? context.tr('Complete the provider verification to continue.')
+                                                    : context.tr('Your Exchange application is under review.')
                             : business
-                                ? 'Review your saved business details and complete the provider’s business verification.'
+                                ? context.tr('Review your saved business details and complete the provider’s business verification.')
                             : data['eligible'] != true
-                                ? 'Complete your identity verification first.'
-                                : {
+                                ? context.tr('Complete your identity verification first.')
+                                : context.tr({
                                       'not_started':
                                           'Choose your limits and complete Exchange verification.',
                                       'in_progress':
@@ -230,7 +231,7 @@ class _ExchangeVerificationPanelState
                                       'rejected':
                                           'Verification was not approved. Contact support.'
                                     }[status] ??
-                                    'Checking verification status.'),
+                                    'Checking verification status.')),
                         if (exchangeText(provider, 'reason').isNotEmpty)
                           Text(exchangeText(provider, 'reason')),
                         if (url != null &&
@@ -241,15 +242,15 @@ class _ExchangeVerificationPanelState
                               onPressed: busy
                                   ? null
                                   : () => run(() => openExchangeUrl(url)),
-                              child: const Text('Continue verification')),
+                              child: Text(context.tr('Continue verification'))),
                         if (business && provider.isEmpty && data['hasProviderAccount'] != true)
                           FilledButton(
                               onPressed: busy || data['businessOnboardingSupported'] != true
                                   ? null
                                   : startBusiness,
-                              child: const Text('Review business details')),
+                              child: Text(context.tr('Review business details'))),
                         if (business && provider.isEmpty && data['businessOnboardingSupported'] != true)
-                          const Text('Business Exchange setup is not available yet. Contact support.'),
+                          Text(context.tr('Business Exchange setup is not available yet. Contact support.')),
                         if (canStartRequiredCdd)
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -258,8 +259,8 @@ class _ExchangeVerificationPanelState
                                   ? null
                                   : () => run(() => startVerification('cdd')),
                               child: Text(data['tier'] == 'cdd'
-                                  ? 'Continue CDD verification'
-                                  : 'Complete CDD verification'),
+                                  ? context.tr('Continue CDD verification')
+                                  : context.tr('Complete CDD verification')),
                             ),
                           ),
                         if (canStart || canChangeLimits || canActivateNow)
@@ -288,16 +289,16 @@ class _ExchangeVerificationPanelState
                           ),
                         if (!business && status == 'approved' &&
                             data['hasProviderAccount'] != true)
-                          const Padding(
+                          Padding(
                               padding: EdgeInsets.symmetric(vertical: 8),
                               child: Text(
-                                  'We’ll use your completed Sumsub answers. Only missing details will be requested.')),
+                                  context.tr('We’ll use your completed Sumsub answers. Only missing details will be requested.'))),
                         if (canResubmit)
                           FilledButton(
                               onPressed: busy || applicationOutcomeUnknown || resubmitted
                                   ? null
                                   : () => run(() => completeApplication(resubmit: true)),
-                              child: Text(resubmitted ? 'Verification submitted' : requiresCdd ? 'Submit CDD verification' : 'Resubmit verification')),
+                              child: Text(resubmitted ? context.tr('Verification submitted') : requiresCdd ? context.tr('Submit CDD verification') : context.tr('Resubmit verification'))),
                         if (!submitted &&
                             ['tin_required', 'edd_required']
                                 .contains(nextAction))
@@ -313,13 +314,13 @@ class _ExchangeVerificationPanelState
                                                     tax: nextAction ==
                                                         'tin_required'));
                                       }),
-                              child: const Text('Provide information')),
+                              child: Text(context.tr('Provide information'))),
                         TextButton(
                             onPressed: busy
                                 ? null
                                 : () => ref
                                     .invalidate(exchangeVerificationProvider),
-                            child: const Text('Refresh verification status')),
+                            child: Text(context.tr('Refresh verification status'))),
                         if (busy) const LinearProgressIndicator(),
                         if (error != null)
                           Text(error!,
@@ -383,11 +384,11 @@ class _ExchangeApplicationDialogState
                   : null,
               isExpanded: true,
               style: Theme.of(context).textTheme.bodyLarge,
-              decoration: const InputDecoration(hintText: 'Select an option'),
+              decoration: InputDecoration(hintText: context.tr('Select an option')),
               items: options.entries
                   .map((e) => DropdownMenuItem(
                       value: e.key,
-                      child: Text(e.value, overflow: TextOverflow.ellipsis)))
+                      child: Text(context.tr(e.value), overflow: TextOverflow.ellipsis)))
                   .toList(),
               onChanged: busy ? null : (v) => change(key, v ?? '')));
 
@@ -418,7 +419,7 @@ class _ExchangeApplicationDialogState
             runSpacing: 4,
             children: selected
                 .map((code) => InputChip(
-                    label: Text(exchangeCountries[code] ?? code),
+                    label: Text(context.tr(exchangeCountries[code] ?? code)),
                     onDeleted: busy
                         ? null
                         : () =>
@@ -472,13 +473,13 @@ class _ExchangeApplicationDialogState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title,
+            Text(context.tr(title),
                 style: Theme.of(context)
                     .textTheme
                     .titleMedium
                     ?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
-            Text(description,
+            Text(context.tr(description),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const SizedBox(height: 20),
@@ -491,7 +492,7 @@ class _ExchangeApplicationDialogState
     if (busy || outcomeUnknown) return;
     // Multi-country selectors intentionally have an empty add control; validate their selected values separately.
     if (applicable('source_of_funds') && value('source_of_funds').split(',').contains('71')) {
-      setState(() => error = 'Third-party funding requires support review.');
+      setState(() => error = context.tr('Third-party funding requires support review.'));
       return;
     }
     final required = [
@@ -511,7 +512,7 @@ class _ExchangeApplicationDialogState
       required.add('employment_jurisdiction');
     }
     if (required.where(applicable).any((k) => value(k).trim().isEmpty)) {
-      setState(() => error = 'Complete all application fields.');
+      setState(() => error = context.tr('Complete all application fields.'));
       return;
     }
     final submitted = {...answers};
@@ -542,7 +543,7 @@ class _ExchangeApplicationDialogState
                   e.type == DioExceptionType.connectionError ||
                   (e.response?.statusCode ?? 0) >= 500);
           error = outcomeUnknown
-              ? 'We could not confirm your application was received. Close this form and refresh your Exchange status. If it is still incomplete, contact support before submitting again.'
+              ? context.tr('We could not confirm your application was received. Close this form and refresh your Exchange status. If it is still incomplete, contact support before submitting again.')
               : friendlyErrorMessage(e);
         });
       }
@@ -574,14 +575,14 @@ class _ExchangeApplicationDialogState
                         child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Exchange application',
+                              Text(context.tr('Exchange application'),
                                   style: theme.textTheme.headlineSmall
                                       ?.copyWith(fontWeight: FontWeight.w700)),
                               const SizedBox(height: 8),
                               Text(
                                   widget.missingFields == null
-                                      ? 'Your available Sumsub answers are prefilled. Review them and complete any missing details.'
-                                      : 'Your completed Sumsub answers will be reused. Please complete only the remaining details below.',
+                                      ? context.tr('Your available Sumsub answers are prefilled. Review them and complete any missing details.')
+                                      : context.tr('Your completed Sumsub answers will be reused. Please complete only the remaining details below.'),
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                       color:
                                           theme.colorScheme.onSurfaceVariant)),
@@ -621,13 +622,13 @@ class _ExchangeApplicationDialogState
                                               'Confirm your residence and who you are acting for.',
                                               fields([
                                                 country('sdd_country_select',
-                                                    'Country of residence'),
+                                                    context.tr('Country of residence')),
                                                 choice(
                                                     'investment_citizenship',
-                                                    'Citizenship through investment?',
+                                                    context.tr('Citizenship through investment?'),
                                                     {'81': 'Yes', '82': 'No'}),
                                                 choice('acting_capacity',
-                                                    'Acting on behalf of', {
+                                                    context.tr('Acting on behalf of'), {
                                                   '156': 'Myself',
                                                   '157': 'Another person'
                                                 }),
@@ -638,7 +639,7 @@ class _ExchangeApplicationDialogState
                                               fields([
                                                 choice(
                                                     'employment_type_or_status',
-                                                    'Employment status', {
+                                                    context.tr('Employment status'), {
                                                   '15': 'Employed',
                                                   '16':
                                                       'Self-employed or business owner',
@@ -671,14 +672,14 @@ class _ExchangeApplicationDialogState
                                                     'employment_type_or_status')))
                                                   country(
                                                       'employment_jurisdiction',
-                                                      'Country of employment or business'),
+                                                      context.tr('Country of employment or business')),
                                               ])),
                                           section(
                                               'Financial profile',
                                               'Choose the ranges that best describe your finances.',
                                               fields([
                                                 choice('annual_income',
-                                                    'Annual income (EUR)', {
+                                                    context.tr('Annual income (EUR)'), {
                                                   '74': 'Up to €10,000',
                                                   '75': '€10,000–€50,000',
                                                   '76': '€50,000–€300,000',
@@ -686,14 +687,14 @@ class _ExchangeApplicationDialogState
                                                 }),
                                                 choice(
                                                     'expected_deposit_one_year',
-                                                    'Expected deposits next year (EUR)',
+                                                    context.tr('Expected deposits next year (EUR)'),
                                                     {
                                                       '83': 'Up to €10,000',
                                                       '84': '€10,000–€150,000',
                                                       '85': 'Over €150,000'
                                                     }),
                                                 choice('hnwi_str',
-                                                    'Net worth (EUR)', {
+                                                    context.tr('Net worth (EUR)'), {
                                                   '78': 'Under €100,000',
                                                   '79': '€100,000–€1 million',
                                                   '80': '€1 million or more'
@@ -725,7 +726,7 @@ class _ExchangeApplicationDialogState
                                                               ListTileControlAffinity
                                                                   .leading,
                                                           title: Text(
-                                                              entry.value,
+                                                              context.tr(entry.value),
                                                               style: theme
                                                                   .textTheme
                                                                   .bodyMedium),
@@ -793,15 +794,15 @@ class _ExchangeApplicationDialogState
                                             ? null
                                             : () => Navigator.pop(context),
                                         child: Text(outcomeUnknown
-                                            ? 'Close'
-                                            : 'Cancel')),
+                                            ? context.tr('Close')
+                                            : context.tr('Cancel'))),
                                     FilledButton(
                                         onPressed: busy || outcomeUnknown
                                             ? null
                                             : submit,
                                         child: Text(busy
-                                            ? 'Submitting…'
-                                            : 'Submit application')),
+                                            ? context.tr('Submitting…')
+                                            : context.tr('Submit application'))),
                                   ]),
                             ])),
                   ])),
@@ -832,8 +833,8 @@ class _ExchangeProviderActionDialogState
       canPop: !busy,
       child: AlertDialog(
           title: Text(widget.tax
-              ? 'Tax identification'
-              : 'Source of funds information'),
+              ? context.tr('Tax identification')
+              : context.tr('Source of funds information')),
           content: SizedBox(
               width: 550,
               child: SingleChildScrollView(
@@ -846,17 +847,17 @@ class _ExchangeProviderActionDialogState
                       onChanged: (v) =>
                           setState(() => fields['taxResidency'] = v)),
                   CheckboxListTile(
-                      title: const Text(
-                          'I do not have an available tax identification number'),
+                      title: Text(
+                          context.tr('I do not have an available tax identification number')),
                       value: unavailable,
                       onChanged: busy
                           ? null
                           : (v) => setState(() => unavailable = v == true)),
                   if (!unavailable)
-                    field('tin', 'Tax identification number')
+                    field('tin', context.tr('Tax identification number'))
                   else ...[
                     DropdownButtonFormField<String>(
-                        decoration: const InputDecoration(labelText: 'Reason'),
+                        decoration: InputDecoration(labelText: context.tr('Reason')),
                         items: const {
                           'TIN_COUNTRY_NOT_ISSUE':
                               'Country does not issue TINs',
@@ -866,7 +867,7 @@ class _ExchangeProviderActionDialogState
                         }
                             .entries
                             .map((e) => DropdownMenuItem(
-                                value: e.key, child: Text(e.value)))
+                                value: e.key, child: Text(context.tr(e.value))))
                             .toList(),
                         onChanged: busy
                             ? null
@@ -874,7 +875,7 @@ class _ExchangeProviderActionDialogState
                                 fields['tinNotAvailableReason'] = v ?? '')),
                     if (fields['tinNotAvailableReason'] == 'TIN_OTHER')
                       field('tinNotAvailableReasonDescription',
-                          'Explain why TIN is unavailable')
+                          context.tr('Explain why TIN is unavailable'))
                   ],
                 ] else ...[
                   for (final entry in const {
@@ -889,7 +890,7 @@ class _ExchangeProviderActionDialogState
                     'other': 'Other source'
                   }.entries)
                     field(entry.key, entry.value),
-                  const Text('Salary / employment details (if applicable)'),
+                  Text(context.tr('Salary / employment details (if applicable)')),
                   for (final entry in const {
                     'nameOfEmployer': 'Employer name',
                     'occupation': 'Occupation',
@@ -898,14 +899,14 @@ class _ExchangeProviderActionDialogState
                     'grossAnnualIncome': 'Gross annual income and currency'
                   }.entries)
                     field('salary.${entry.key}', entry.value),
-                  const Text('Document uploads are not available yet. Do not publish sensitive documents or paste document links. Contact support if documents are required.'),
+                  Text(context.tr('Document uploads are not available yet. Do not publish sensitive documents or paste document links. Contact support if documents are required.')),
                 ],
                 if (error != null) Text(error!),
               ]))),
           actions: [
             TextButton(
                 onPressed: busy ? null : () => Navigator.pop(context),
-                child: const Text('Cancel')),
+                child: Text(context.tr('Cancel'))),
             FilledButton(
                 onPressed: busy
                     ? null
@@ -972,6 +973,6 @@ class _ExchangeProviderActionDialogState
                           if (mounted) setState(() => busy = false);
                         }
                       },
-                child: Text(busy ? 'Submitting…' : 'Submit information'))
+                child: Text(busy ? context.tr('Submitting…') : context.tr('Submit information')))
           ]));
 }

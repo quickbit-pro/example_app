@@ -244,7 +244,8 @@ class _SheetSecondary extends StatelessWidget {
               foregroundColor: ExampleInk.accent(context, ExampleColors.iris),
             ),
             icon: Icon(icon, size: 18),
-            label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+            label: Text(context.tr(label),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ),
       );
@@ -473,7 +474,7 @@ class _EnableTwoFactorSheetState extends State<_EnableTwoFactorSheet> {
           ExampleSheetCta(
             label: context.tr('Continue'),
             busy: _busy,
-            busyLabel: 'Checking your password',
+            busyLabel: context.tr('Checking your password'),
             onPressed: _start,
           ),
         ],
@@ -545,7 +546,7 @@ class _EnableTwoFactorSheetState extends State<_EnableTwoFactorSheet> {
           ExampleSheetCta(
             label: context.tr('Turn on two-step verification'),
             busy: _busy,
-            busyLabel: 'Turning on two-step verification',
+            busyLabel: context.tr('Turning on two-step verification'),
             onPressed: _code.text.length < 6 ? null : _confirm,
           ),
         ],
@@ -680,7 +681,7 @@ class _DisableTwoFactorSheetState extends State<_DisableTwoFactorSheet> {
             label: context.tr('Turn off'),
             tone: ExampleSheetCtaTone.danger,
             busy: _busy,
-            busyLabel: 'Turning off two-step verification',
+            busyLabel: context.tr('Turning off two-step verification'),
             onPressed: _submit,
           ),
         ],
@@ -825,7 +826,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
             ExampleSheetCta(
               label: context.tr('Change password'),
               busy: _busy,
-              busyLabel: 'Changing your password',
+              busyLabel: context.tr('Changing your password'),
               onPressed: _submit,
             ),
           ],
@@ -1005,8 +1006,8 @@ class _DuressPasswordSheetState extends State<_DuressPasswordSheet> {
           tone: isSet ? ExampleSheetCtaTone.danger : ExampleSheetCtaTone.primary,
           busy: _busy,
           busyLabel: isSet
-              ? 'Removing your duress password'
-              : 'Setting your duress password',
+              ? context.tr('Removing your duress password')
+              : context.tr('Setting your duress password'),
           onPressed: _submit,
         ),
       ],

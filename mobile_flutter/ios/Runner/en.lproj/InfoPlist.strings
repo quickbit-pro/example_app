@@ -1,0 +1,6 @@
+"NSCameraUsageDescription" = "Camera access lets you photograph invoices and capture identity documents for verification.";
+"NSFaceIDUsageDescription" = "Face ID is used to unlock the app and sign you in securely.";
+"NSMicrophoneUsageDescription" = "Use the microphone to dictate Ask AI requests when you tap the microphone, or for video identity verification.";
+"NSSpeechRecognitionUsageDescription" = "Convert your spoken Ask AI requests into editable text before you choose to send them.";
+"NSPhotoLibraryUsageDescription" = "Photo library access lets you choose invoices or identity documents to upload.";
+"NSLocationWhenInUseUsageDescription" = "Use your location when you choose to find a nearby departure airport in Ask AI. Coordinates stay on your device. Location may also be requested during identity verification when required.";

@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../platform/application/platform_providers.dart';
@@ -94,24 +95,24 @@ class _ExchangeDestinationFormState
   Widget build(BuildContext context) => PopScope(
         canPop: !busy,
         child: ExchangeDialog(
-          title: widget.bank ? 'Add bank account' : 'Add crypto address',
+          title: widget.bank ? context.tr('Add bank account') : context.tr('Add crypto address'),
           subtitle:
-              'Save a destination for future withdrawals. Saving does not transfer any funds.',
+              context.tr('Save a destination for future withdrawals. Saving does not transfer any funds.'),
           actions: [
             TextButton(
                 onPressed: busy ? null : () => Navigator.pop(context),
-                child: const Text('Cancel')),
+                child: Text(context.tr('Cancel'))),
             FilledButton(
                 key: const ValueKey('save-exchange-destination'),
                 onPressed: busy || !complete ? null : save,
-                child: Text(busy ? 'Saving…' : 'Save destination')),
+                child: Text(busy ? context.tr('Saving…') : context.tr('Save destination'))),
           ],
           child: ExchangeFormColumn(children: [
             if (error != null) ExchangeNotice(error!, isError: true),
             if (busy) const LinearProgressIndicator(),
             DropdownButtonFormField<String>(
               initialValue: currency,
-              decoration: const InputDecoration(labelText: 'Currency'),
+              decoration: InputDecoration(labelText: context.tr('Currency')),
               items: [
                 for (final value
                     in widget.bank ? ['EUR', 'USD', 'GBP'] : ['USDC', 'USDT'])
@@ -138,14 +139,14 @@ class _ExchangeDestinationFormState
                   enabled: !busy,
                   maxLength: 100,
                   decoration:
-                      const InputDecoration(labelText: 'Destination name'),
+                      InputDecoration(labelText: context.tr('Destination name')),
                   onChanged: (value) => setState(() {
                         name = value;
                         confirmed = false;
                       })),
               DropdownButtonFormField<int>(
                   initialValue: chain,
-                  decoration: const InputDecoration(labelText: 'Network'),
+                  decoration: InputDecoration(labelText: context.tr('Network')),
                   items: const [
                     DropdownMenuItem(value: 1, child: Text('Ethereum (ERC20)')),
                     DropdownMenuItem(value: -200, child: Text('Tron (TRC20)')),
@@ -165,7 +166,7 @@ class _ExchangeDestinationFormState
                   maxLines: 3,
                   autocorrect: false,
                   decoration: InputDecoration(
-                      labelText: 'Wallet address',
+                      labelText: context.tr('Wallet address'),
                       errorText: address.isNotEmpty && !addressValid
                           ? 'Enter a valid address for the selected network.'
                           : null),
@@ -173,8 +174,8 @@ class _ExchangeDestinationFormState
                         address = value.trim();
                         confirmed = false;
                       })),
-              const ExchangeNotice(
-                  'Always check the recipient address and network before withdrawing. Transfers to the wrong address or network may be irreversible.'),
+              ExchangeNotice(
+                  context.tr('Always check the recipient address and network before withdrawing. Transfers to the wrong address or network may be irreversible.')),
             ],
             CheckboxListTile(
                 key: const ValueKey('confirm-destination-details'),
@@ -184,7 +185,7 @@ class _ExchangeDestinationFormState
                     ? null
                     : (value) => setState(() => confirmed = value == true),
                 title:
-                    const Text('I confirm the recipient details are correct.'),
+                    Text(context.tr('I confirm the recipient details are correct.')),
                 controlAffinity: ListTileControlAffinity.leading),
             const ExchangeDisclaimer(),
           ]),

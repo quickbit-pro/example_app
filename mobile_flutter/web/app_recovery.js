@@ -9,6 +9,36 @@
   var redraw;
   var redrawTimer;
   var pendingFailure = false;
+  // Recovery also works before Flutter or its translation assets are available.
+  var recoveryCopy = {
+    en: ['The app could not display this screen. Please reopen it to continue.', 'Reopen app'],
+    ar: ['تعذّر على التطبيق عرض هذه الشاشة. أعد فتحه للمتابعة.', 'إعادة فتح التطبيق'],
+    de: ['Die App konnte diese Ansicht nicht anzeigen. Öffne sie erneut, um fortzufahren.', 'App erneut öffnen'],
+    es: ['La aplicación no pudo mostrar esta pantalla. Vuelve a abrirla para continuar.', 'Volver a abrir la aplicación'],
+    fr: ['L’application n’a pas pu afficher cet écran. Rouvrez-la pour continuer.', 'Rouvrir l’application'],
+    hi: ['ऐप यह स्क्रीन नहीं दिखा सका। जारी रखने के लिए ऐप दोबारा खोलें।', 'ऐप दोबारा खोलें'],
+    id: ['Aplikasi tidak dapat menampilkan layar ini. Buka kembali aplikasi untuk melanjutkan.', 'Buka kembali aplikasi'],
+    it: ['L’app non è riuscita a mostrare questa schermata. Riaprila per continuare.', 'Riapri l’app'],
+    ja: ['この画面を表示できませんでした。続けるにはアプリを開き直してください。', 'アプリを開き直す'],
+    ko: ['이 화면을 표시할 수 없습니다. 계속하려면 앱을 다시 열어 주세요.', '앱 다시 열기'],
+    pl: ['Nie udało się wyświetlić tego ekranu. Otwórz aplikację ponownie, aby kontynuować.', 'Otwórz aplikację ponownie'],
+    pt: ['Não foi possível exibir esta tela. Abra o aplicativo novamente para continuar.', 'Reabrir aplicativo'],
+    tr: ['Uygulama bu ekranı gösteremedi. Devam etmek için uygulamayı yeniden açın.', 'Uygulamayı yeniden aç']
+  };
+  function recoveryLanguage() {
+    var preferred = [];
+    try {
+      var saved = JSON.parse(window.localStorage.getItem('flutter.app.language.v1'));
+      if (typeof saved === 'string') preferred.push(saved);
+    } catch (_) { /* Storage can be unavailable in private browsing. */ }
+    var browser = window.navigator;
+    if (browser) preferred = preferred.concat(browser.languages || [browser.language]);
+    for (var i = 0; i < preferred.length; i++) {
+      var code = String(preferred[i]).toLowerCase().split('-')[0];
+      if (Object.prototype.hasOwnProperty.call(recoveryCopy, code)) return code;
+    }
+    return 'en';
+  }
   function hide() {
     var panel = document.getElementById('example-recovery');
     if (panel) panel.remove();
@@ -21,9 +51,12 @@
     panel.setAttribute('role', 'alert');
     panel.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:var(--brand-background);color:var(--brand-ink);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;font:16px var(--brand-font,system-ui);text-align:center;gap:16px';
     var message = document.createElement('p');
-    message.textContent = 'The app could not display this screen. Please reopen it to continue.';
+    var language = recoveryLanguage();
+    panel.lang = language;
+    panel.dir = language === 'ar' ? 'rtl' : 'ltr';
+    message.textContent = recoveryCopy[language][0];
     var button = document.createElement('button');
-    button.textContent = 'Reopen app';
+    button.textContent = recoveryCopy[language][1];
     button.style.cssText = 'border:0;border-radius:24px;padding:14px 28px;background:var(--brand-fill);color:var(--brand-on-fill);font:600 16px system-ui;cursor:pointer';
     button.onclick = function () { window.location.reload(); };
     panel.appendChild(message);

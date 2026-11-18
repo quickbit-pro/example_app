@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/features/platform/presentation/tier_localizations.dart';
 import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -310,7 +311,8 @@ class _TierHeadline extends StatelessWidget {
     if (loading) return const _TierHeadlineSkeleton();
     final resource = tier;
     final selected = resource != null && tierIdOf(resource) != null;
-    final name = selected ? tierTitleOf(resource) : 'No tier selected';
+    final name =
+        selected ? tierTitleOf(resource) : context.tr('No tier selected');
     // The lede orients; it never repeats the plan's own description, which
     // the panel for that plan is already carrying a few hundred pixels below.
     final lede = selected
@@ -683,7 +685,7 @@ class _TierPanelState extends ConsumerState<_TierPanel> {
       // second one on the button would be two moments.
       sheen: false,
       loading: _pending && busy,
-      loadingSemanticsLabel: 'Selecting the $name plan',
+      loadingSemanticsLabel: context.tr('Selecting the {p0} plan', {'p0': name}),
       onPressed: busy ? null : _select,
     );
   }
@@ -757,7 +759,7 @@ class _TierPriceBlock extends StatelessWidget {
     final Widget figure;
     if (amount == null) {
       figure = Text(
-        price.fallback ?? '',
+        localizeTierDetail(AppLocalizations.of(context), price.fallback ?? ''),
         style: TextStyle(
           fontSize: 15,
           height: 1.3,
@@ -794,7 +796,7 @@ class _TierPriceBlock extends StatelessWidget {
         if (caption != null && caption.isNotEmpty) ...[
           const SizedBox(height: 2),
           Text(
-            caption,
+            context.tr(caption),
             style: TextStyle(
               fontSize: 12.5,
               height: 1.35,
@@ -840,7 +842,8 @@ class _TierSpecTable extends StatelessWidget {
               children: [
                 // The label yields first, so a long one wraps rather than
                 // pushing the numeral off its column.
-                Expanded(child: Text(rows[i].label, style: labelStyle)),
+                Expanded(
+                    child: Text(context.tr(rows[i].label), style: labelStyle)),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
                   rows[i].value,
@@ -882,7 +885,7 @@ class _TierInclusions extends StatelessWidget {
                 const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: Text(
-                    items[i],
+                    localizeTierDetail(AppLocalizations.of(context), items[i]),
                     style: TextStyle(
                       fontSize: 12.5,
                       height: 1.45,
@@ -1333,7 +1336,10 @@ class _TierDetailsWrap extends StatelessWidget {
       runSpacing: 8,
       children: [
         for (final detail in details)
-          Chip(label: Text(detail), visualDensity: VisualDensity.compact),
+          Chip(
+              label: Text(
+                  localizeTierDetail(AppLocalizations.of(context), detail)),
+              visualDensity: VisualDensity.compact),
       ],
     );
   }

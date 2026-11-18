@@ -1,6 +1,8 @@
 import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
+import 'localized_disclosure.dart';
+
 const defaultEqualsPaymentServicesDisclosure =
     'Hoppacard Holding BV, registered address Beemdstraat 5, 5653MA Eindhoven. '
     'Company registered in The Netherlands. Equals Money Plc is authorised as a '
@@ -86,12 +88,19 @@ Future<void> showPaymentServicesDisclosure(
             children: [
               const Icon(Icons.account_balance_outlined, size: 44),
               const SizedBox(height: 20),
-              Text(
-                disclosure,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      height: 1.65,
-                    ),
-              ),
+              if (disclosure ==
+                  'FIAT ACCOUNTS: $defaultEqualsPaymentServicesDisclosure')
+                LocalizedDisclosure(disclosure,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyLarge
+                        ?.copyWith(height: 1.65))
+              else
+                Text(disclosure,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyLarge
+                        ?.copyWith(height: 1.65)),
             ],
           ),
         ),

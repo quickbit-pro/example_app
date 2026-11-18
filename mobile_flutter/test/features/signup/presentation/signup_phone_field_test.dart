@@ -417,12 +417,8 @@ void main() {
           'Ungültige Telefonnummer');
     });
 
-    testWidgets('English, without a report, where it does not', (tester) async {
-      // Japanese is an app language the field's package lacks; a delegate
-      // that refused it would make the framework report an error on every
-      // build.
-      expect(await invalidMessageIn(tester, const Locale('ja')),
-          'Invalid phone number');
+    testWidgets('uses the app translation when the package lacks Japanese', (tester) async {
+      expect(await invalidMessageIn(tester, const Locale('ja')), '無効な電話番号');
     });
   });
 }

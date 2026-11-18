@@ -232,7 +232,7 @@ class _PeerComposerState extends ConsumerState<PeerComposer> {
       confirmation = await confirmPeerAction(
         context,
         ref,
-        reason: 'Confirm sending $amountLabel to ${recipient.fullName}',
+        reason: context.tr('Confirm sending {p0} to {p1}', {'p0': amountLabel, 'p1': recipient.fullName}),
       );
       if (confirmation == null || !mounted) return;
     }
@@ -847,7 +847,7 @@ class _FeeHint extends StatelessWidget {
       icon = Icons.timer_outlined;
       color = ExamplePalette.of(context).warning;
       text =
-          'Wait ${info.rateLimitSecondsRemaining}s before your next transfer.';
+          context.tr('Wait {p0}s before your next transfer.', {'p0': info.rateLimitSecondsRemaining});
     } else if (info.sendsRemainingToday <= 0) {
       icon = Icons.block_outlined;
       color = ExamplePalette.of(context).danger;
@@ -856,12 +856,12 @@ class _FeeHint extends StatelessWidget {
       icon = Icons.info_outline_rounded;
       color = ExamplePalette.of(context).warning;
       text =
-          'Fee ${peerMoney(currency, info.feeAmount)} (${info.feePercent.toStringAsFixed(0)}%) · free transfers used up for today.';
+          context.tr('Fee {p0} ({p1}%) · free transfers used up for today.', {'p0': peerMoney(currency, info.feeAmount), 'p1': info.feePercent.toStringAsFixed(0)});
     } else {
       icon = Icons.check_circle_outline_rounded;
       color = ExamplePalette.of(context).success;
       text =
-          'Free · ${info.freeTransfersRemaining} of ${info.freeTransfersPerDay} free transfers left today.';
+          context.tr('Free · {p0} of {p1} free transfers left today.', {'p0': info.freeTransfersRemaining, 'p1': info.freeTransfersPerDay});
     }
     return Row(
       children: [

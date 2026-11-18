@@ -588,7 +588,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                     prefixIcon:
                                         const Icon(Icons.person_outline),
                                   ),
-                                  validator: _required,
+                                  validator:
+                                      context.localizeValidator(_required),
                                 ),
                                 const SizedBox(height: 12),
                                 TextFormField(
@@ -600,7 +601,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                     prefixIcon:
                                         const Icon(Icons.badge_outlined),
                                   ),
-                                  validator: _required,
+                                  validator:
+                                      context.localizeValidator(_required),
                                 ),
                                 const SizedBox(height: 12),
                                 TextFormField(
@@ -614,7 +616,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                     labelText: context.tr('Email'),
                                     prefixIcon: const Icon(Icons.mail_outline),
                                   ),
-                                  validator: _emailValidator,
+                                  validator: context
+                                      .localizeValidator(_emailValidator),
                                 ),
                                 const SizedBox(height: 12),
                                 // Formats as you type, synchronously inside
@@ -682,7 +685,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                       ),
                                     ),
                                   ),
-                                  validator: _passwordValidator,
+                                  validator: context
+                                      .localizeValidator(_passwordValidator),
                                 ),
                                 const SizedBox(height: 10),
                                 PasswordStrengthChecklist(
@@ -778,8 +782,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                 _ReviewRow(
                                   label: context.tr('Account'),
                                   value: _accountType == 'business'
-                                      ? 'Business'
-                                      : 'Personal',
+                                      ? context.tr('Business')
+                                      : context.tr('Personal'),
                                 ),
                                 _ReviewRow(
                                   label: context.tr('Name'),
@@ -794,8 +798,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                 if (_invitationPreview != null)
                                   _ReviewRow(
                                     label: context.tr('Invitation'),
-                                    value:
-                                        'Invited by ${_invitationPreview!.inviterDisplayName}',
+                                    value: context.tr('Invited by {p0}', {
+                                      'p0':
+                                          _invitationPreview!.inviterDisplayName
+                                    }),
                                   ),
                                 if (_accountType == 'business')
                                   Padding(
@@ -1152,14 +1158,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
           controller: _firstNameController,
           textCapitalization: TextCapitalization.words,
           textInputAction: TextInputAction.next,
-          validator: _required,
+          validator: context.localizeValidator(_required),
         );
         final lastName = ExampleAuthField(
           label: context.tr('Legal last name'),
           controller: _lastNameController,
           textCapitalization: TextCapitalization.words,
           textInputAction: TextInputAction.next,
-          validator: _required,
+          validator: context.localizeValidator(_required),
         );
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1206,7 +1212,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
               textInputAction: TextInputAction.next,
               autocorrect: false,
               enableSuggestions: false,
-              validator: _emailValidator,
+              validator: context.localizeValidator(_emailValidator),
             ),
             const SizedBox(height: AppSpacing.sm),
             const ExampleAuthFieldLabel('Mobile phone'),
@@ -1215,7 +1221,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
               controller: _phoneController,
               countrySelector: _countrySelector(context),
               onChanged: _onPhoneChanged,
-              validator: _phoneValidator(context),
+              validator: context.localizeValidator(_phoneValidator(context))!,
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
@@ -1248,7 +1254,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                   () => _obscurePassword = !_obscurePassword,
                 ),
               ),
-              validator: _passwordValidator,
+              validator: context.localizeValidator(_passwordValidator),
               autovalidateMode: _passwordSubmitted
                   ? AutovalidateMode.always
                   : AutovalidateMode.disabled,
@@ -1315,8 +1321,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                   children: [
                     _ReviewRow(
                       label: context.tr('Account'),
-                      value:
-                          _accountType == 'business' ? 'Business' : 'Personal',
+                      value: _accountType == 'business'
+                          ? context.tr('Business')
+                          : context.tr('Personal'),
                     ),
                     _ReviewRow(
                       label: context.tr('Name'),
@@ -1359,7 +1366,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
 
   void _continue(MobileTenantConfig? config) {
     if (config == null || !config.signupAvailable) {
-      _message('Registration is temporarily unavailable.');
+      _message(context.tr('Registration is temporarily unavailable.'));
       return;
     }
     if (_exampleNotice != null) setState(() => _exampleNotice = null);
@@ -1370,7 +1377,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
           _isPhoneValid &&
           _registrationFieldsValid(config);
       if (!contactValid) {
-        _message('Complete your contact details before continuing.');
+        _message(context.tr('Complete your contact details before continuing.'));
         return;
       }
     }
@@ -1384,8 +1391,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
         _formKey.currentState?.validate();
         _message(
           passwordValid
-              ? 'Complete the security details before continuing.'
-              : 'Your password is too weak. Check the requirements below the field.',
+              ? context.tr('Complete the security details before continuing.')
+              : context.tr('Your password is too weak. Check the requirements below the field.'),
         );
         return;
       }
@@ -1458,7 +1465,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   void _submit(MobileTenantConfig? config) {
     if (_emailChallengeLoading) return;
     if (config == null || !config.signupAvailable) {
-      _message('Registration is temporarily unavailable.');
+      _message(context.tr('Registration is temporarily unavailable.'));
       return;
     }
     if (_signupOperation != null) {
@@ -1469,12 +1476,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
     if (!(_formKey.currentState?.validate() ?? false) ||
         !_isPhoneValid ||
         !_registrationFieldsValid(config)) {
-      _message('Review the highlighted details.');
+      _message(context.tr('Review the highlighted details.'));
       return;
     }
     final specs = _legalSpecs(config);
     if (!allLegalAgreementsAccepted(specs, _acceptedAgreements)) {
-      _message('Please accept all legal agreements to continue.');
+      _message(context.tr('Please accept all legal agreements to continue.'));
       return;
     }
     _formKey.currentState!.save();
@@ -1682,6 +1689,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
       );
 
   void _message(String message) {
+    message = context.tr(message);
     if (!context.isExampleTheme) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
@@ -1833,7 +1841,7 @@ class _ExampleStepProgress extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            label,
+            context.tr(label),
             // Secondary, not tertiary: this is the only place the form says
             // how much is left, and it has to clear 4.5:1 to count.
             style: theme.textTheme.labelSmall?.copyWith(
@@ -1879,7 +1887,7 @@ class _ExampleAccountChoice extends StatelessWidget {
       selected: selected,
       label: features.isEmpty
           ? '$title. $description'
-          : '$title. $description ${features.join(', ')}.',
+          : '$title. $description ${features.map((feature) => context.tr(feature)).join(', ')}.',
       onTap: onTap,
       excludeSemantics: true,
       child: ExamplePressable(
@@ -2020,7 +2028,7 @@ class _ExampleStepActions extends StatelessWidget {
       ground: ExampleGlassGround.atmosphere,
       sheen: true,
       loading: busy,
-      loadingSemanticsLabel: 'Creating your account',
+      loadingSemanticsLabel: context.tr('Creating your account'),
       onPressed: onPrimary,
     );
     // Full width, explicitly. The CTA bar wraps this in
@@ -2219,7 +2227,7 @@ class _ChoiceChip extends StatelessWidget {
           borderRadius: const BorderRadius.all(Radius.circular(AppRadii.pill)),
         ),
         child: Text(
-          label,
+          context.tr(label),
           // Night .72 over lightSurfaceHigh composites to (75,71,95) — 7.05:1
           // on paper — and pearl .68 keeps its Twilight value.
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -2330,7 +2338,8 @@ class _ExamplePhoneFieldState extends State<_ExamplePhoneField> {
   Widget build(BuildContext context) => FormField<PhoneNumber>(
         initialValue: widget.controller.value,
         autovalidateMode: AutovalidateMode.onUserInteraction,
-        validator: (_) => widget.validator(widget.controller.value),
+        validator: context.localizeValidator(
+            (_) => widget.validator(widget.controller.value)),
         builder: _buildField,
       );
 
@@ -2605,7 +2614,7 @@ class _InvitationFailureScreen extends StatelessWidget {
                   const Icon(Icons.mail_lock_outlined, size: 54),
                   const SizedBox(height: 18),
                   Text(
-                    message,
+                    context.tr(message),
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
@@ -2760,7 +2769,7 @@ class _ReviewRow extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(width: 86, child: Text(label)),
+            SizedBox(width: 86, child: Text(context.tr(label))),
             Expanded(
               child: Text(
                 value,
@@ -2773,7 +2782,7 @@ class _ReviewRow extends StatelessWidget {
     }
     final theme = Theme.of(context);
     final caption = Text(
-      label,
+      context.tr(label),
       style: theme.textTheme.bodyMedium
           ?.copyWith(color: ExampleInk.secondary(context)),
       maxLines: 1,

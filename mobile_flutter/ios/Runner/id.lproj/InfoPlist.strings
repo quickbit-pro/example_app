@@ -1,0 +1,6 @@
+"NSCameraUsageDescription" = "Kamera digunakan untuk memotret faktur dan dokumen identitas untuk verifikasi.";
+"NSFaceIDUsageDescription" = "Face ID digunakan untuk membuka kunci aplikasi dan masuk dengan aman.";
+"NSMicrophoneUsageDescription" = "Ketuk mikrofon untuk mendiktekan permintaan di Ask AI. Mikrofon juga dapat digunakan untuk verifikasi identitas melalui video.";
+"NSSpeechRecognitionUsageDescription" = "Permintaan lisan Anda di Ask AI diubah menjadi teks yang dapat diedit sebelum Anda memutuskan untuk mengirimnya.";
+"NSPhotoLibraryUsageDescription" = "Akses foto memungkinkan Anda memilih faktur atau dokumen identitas untuk diunggah.";
+"NSLocationWhenInUseUsageDescription" = "Ask AI menggunakan lokasi Anda saat Anda memilih mencari bandara keberangkatan terdekat. Koordinat tetap berada di perangkat Anda. Lokasi juga dapat diminta jika diperlukan untuk verifikasi identitas.";

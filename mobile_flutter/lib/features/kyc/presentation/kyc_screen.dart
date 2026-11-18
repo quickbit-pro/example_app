@@ -200,7 +200,8 @@ class _KycScreenState extends ConsumerState<KycScreen> {
         error: (error, stackTrace) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text(friendlyErrorMessage(error))));
+          ).showSnackBar(
+              SnackBar(content: Text(context.tr(friendlyErrorMessage(error)))));
         },
       );
     });
@@ -366,7 +367,7 @@ class _KycScreenState extends ConsumerState<KycScreen> {
         };
         return _field(
           label: context.tr('Occupation'),
-          why: 'The regulator that licenses your account requires it.',
+          why: context.tr('The regulator that licenses your account requires it.'),
           child: SearchableSingleSelectDropdown(
             label: context.tr('Occupation'),
             showLabel: false,
@@ -387,7 +388,7 @@ class _KycScreenState extends ConsumerState<KycScreen> {
 
   Widget _salaryField() => _field(
         label: context.tr('Annual salary'),
-        why: 'A range is enough. We never ask for an exact figure.',
+        why: context.tr('A range is enough. We never ask for an exact figure.'),
         child: DropdownButtonFormField<String>(
           initialValue: _salary,
           // Example lets the selected range flex and pushes the caret to the
@@ -398,7 +399,7 @@ class _KycScreenState extends ConsumerState<KycScreen> {
           isExpanded: context.isExampleTheme,
           decoration: _decoration(
             'Annual salary',
-            exampleHint: 'Select a range',
+            exampleHint: context.tr('Select a range'),
           ),
           items: [
             for (final option in _salaryOptions)
@@ -412,31 +413,31 @@ class _KycScreenState extends ConsumerState<KycScreen> {
               ),
           ],
           validator: (value) =>
-              value == null ? 'Annual salary is required' : null,
+              value == null ? context.tr('Annual salary is required') : null,
           onChanged: (value) => setState(() => _salary = value),
         ),
       );
 
   Widget _purposeField() => _field(
         label: context.tr('Account purpose'),
-        why: 'Tells us what normal activity looks like on your account.',
+        why: context.tr('Tells us what normal activity looks like on your account.'),
         child: _RequiredTextField(
           controller: _purposeController,
           label: context.tr('Account purpose'),
-          hint: 'Everyday banking',
+          hint: context.tr('Everyday banking'),
         ),
       );
 
   Widget _volumeField() => _field(
         label: context.tr('Expected monthly volume'),
-        why: 'Sets your starting limits. An estimate is fine.',
+        why: context.tr('Sets your starting limits. An estimate is fine.'),
         child: DropdownButtonFormField<String>(
           initialValue: _volume,
           // Same measured overflow as the salary field, same fix.
           isExpanded: context.isExampleTheme,
           decoration: _decoration(
             'Expected monthly volume',
-            exampleHint: 'Select a range',
+            exampleHint: context.tr('Select a range'),
           ),
           items: [
             for (final option in _volumeOptions)
@@ -450,14 +451,14 @@ class _KycScreenState extends ConsumerState<KycScreen> {
               ),
           ],
           validator: (value) =>
-              value == null ? 'Expected monthly volume is required' : null,
+              value == null ? context.tr('Expected monthly volume is required') : null,
           onChanged: (value) => setState(() => _volume = value),
         ),
       );
 
   Widget _issueDateField() => _field(
         label: context.tr('Document issue date'),
-        why: 'Must match the ID you photograph in the next step.',
+        why: context.tr('Must match the ID you photograph in the next step.'),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -526,7 +527,7 @@ class _KycScreenState extends ConsumerState<KycScreen> {
         label: context.tr('Start verification'),
         icon: Icons.lock_outline_rounded,
         loading: state.isLoading,
-        loadingSemanticsLabel: 'Starting verification',
+        loadingSemanticsLabel: context.tr('Starting verification'),
         onPressed: state.isLoading ? null : _startKyc,
       );
     }
@@ -859,9 +860,17 @@ class _KycStepRow extends StatelessWidget {
     final settled = ExampleInk.accent(context, ExampleColors.success);
     final hairline = ExampleBorders.hairlineSideOf(context).color;
     return Semantics(
-      label: 'Step ${index + 1} of ${_kycSteps.length}. $title. '
-          '${done ? 'Done' : current ? 'You are here' : 'Not started'}. '
-          '$detail',
+      label: context.tr('Step {p0} of {p1}. {p2}. {p3}. {p4}', {
+        'p0': index + 1,
+        'p1': _kycSteps.length,
+        'p2': context.tr(title),
+        'p3': context.tr(done
+            ? 'Done'
+            : current
+                ? 'You are here'
+                : 'Not started'),
+        'p4': context.tr(detail)
+      }),
       child: ExcludeSemantics(
         child: IntrinsicHeight(
           child: Row(
@@ -900,7 +909,7 @@ class _KycStepRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        title,
+                        context.tr(title),
                         style: TextStyle(
                           fontSize: 13.5,
                           height: 1.3,
@@ -911,7 +920,7 @@ class _KycStepRow extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        detail,
+                        context.tr(detail),
                         style: TextStyle(
                           fontSize: 12,
                           height: 1.35,
@@ -1028,7 +1037,7 @@ class _LoadingField extends StatelessWidget {
       // loading.
       return _KycField(
         label: label,
-        why: 'Loading the list.',
+        why: context.tr('Loading the list.'),
         child: ExampleSkeleton(
           height: 56,
           radius: AppRadii.sm,
@@ -1037,7 +1046,7 @@ class _LoadingField extends StatelessWidget {
       );
     }
     return InputDecorator(
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(labelText: context.tr(label)),
       child: Row(
         children: [
           const SizedBox.square(
@@ -1092,7 +1101,7 @@ class _OptionsError extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    message,
+                    context.tr(message),
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -1133,7 +1142,8 @@ class _OptionsError extends StatelessWidget {
               style: Theme.of(context).textTheme.titleSmall,
             ),
             const SizedBox(height: 4),
-            Text(message, maxLines: 3, overflow: TextOverflow.ellipsis),
+            Text(context.tr(message),
+                maxLines: 3, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 8),
             OutlinedButton.icon(
               onPressed: onRetry,
@@ -1211,7 +1221,7 @@ class _KycField extends StatelessWidget {
         children: [
           ExcludeSemantics(
             child: Text(
-              label,
+              context.tr(label),
               style: TextStyle(
                 fontSize: 13,
                 height: 1.3,
@@ -1353,11 +1363,10 @@ class _KycDocumentTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final line = switch (state) {
       _KycDocState.waiting => detail,
-      _KycDocState.active => 'Photograph it in the secure window.',
-      _KycDocState.received => 'Sent to our verification partner.',
+      _KycDocState.active => context.tr('Photograph it in the secure window.'),
+      _KycDocState.received => context.tr('Sent to our verification partner.'),
       _KycDocState.attention =>
-        'The secure window is not open. Allow pop-ups for this site, then '
-            'start again.',
+        context.tr('The secure window is not open. Allow pop-ups for this site, then start again.'),
     };
     final (String? pill, Color pillColor) = switch (state) {
       _KycDocState.waiting => (null, ExampleColors.iris),
@@ -1367,12 +1376,12 @@ class _KycDocumentTile extends StatelessWidget {
     };
 
     final body = Semantics(
-      label: '$title. ${switch (state) {
+      label: '${context.tr(title)}. ${context.tr(switch (state) {
         _KycDocState.waiting => 'Not provided yet',
         _KycDocState.active => 'Ready to capture',
         _KycDocState.received => 'Received',
         _KycDocState.attention => 'Action needed',
-      }}. $line',
+      })}. ${context.tr(line)}',
       child: ExcludeSemantics(
         child: Row(
           children: [
@@ -1384,7 +1393,7 @@ class _KycDocumentTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
+                    context.tr(title),
                     style: TextStyle(
                       fontSize: 13.5,
                       height: 1.3,
@@ -1400,7 +1409,7 @@ class _KycDocumentTile extends StatelessWidget {
                   ExampleStateSwitch(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      line,
+                      context.tr(line),
                       key: ValueKey(line),
                       style: TextStyle(
                         fontSize: 11.5,
@@ -1539,7 +1548,7 @@ class _KycFailureNotice extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          friendlyErrorMessage(error),
+                          context.tr(friendlyErrorMessage(error)),
                           style: TextStyle(
                             fontSize: 12,
                             height: 1.4,
@@ -1569,7 +1578,7 @@ class _KycFailureNotice extends StatelessWidget {
                       const SizedBox(width: AppSpacing.xs),
                       Expanded(
                         child: Text(
-                          fix,
+                          context.tr(fix),
                           style: TextStyle(
                             fontSize: 12,
                             height: 1.4,
@@ -1638,7 +1647,7 @@ class _KycAssurancePanel extends StatelessWidget {
                 const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: Text(
-                    _lines[index].$2,
+                    context.tr(_lines[index].$2),
                     style: TextStyle(
                       fontSize: 12,
                       height: 1.4,

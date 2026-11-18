@@ -448,7 +448,7 @@ class _CardDetailScreenState extends ConsumerState<CardDetailScreen> {
                     if (grouped[resource.id] case final ledger?)
                       (
                         item: CardTransactionActivity.fromResource(resource),
-                        timeLabel: _cardPreviewTime(resource),
+                        timeLabel: _cardPreviewTime(context, resource),
                         ledger: ledger,
                       ),
                 ].take(isExample ? 4 : 3).toList();
@@ -604,7 +604,7 @@ class _CardDetailScreenState extends ConsumerState<CardDetailScreen> {
                 enabled: !platformActionState.isLoading,
                 icon: Icons.tune_rounded,
                 title: context.tr('Spending limits'),
-                subtitle: _limitsSummary(limitsInfo),
+                subtitle: _limitsSummary(context, limitsInfo),
                 onTap: () => showCardLimitsSheet(context, ref, card: card),
               ),
             // Its own row, not a line inside Spending limits: the switch is
@@ -944,7 +944,7 @@ class _CardDetailScreenState extends ConsumerState<CardDetailScreen> {
       if (enrollment != null && enrollment.enabled && enrollment.hasToken) {
         final gate =
             await ref.read(biometricAuthenticatorProvider).authenticate(
-                  reason: 'Confirm your identity to reveal secure card details',
+                  reason: context.tr('Confirm your identity to reveal secure card details'),
                 );
         if (!context.mounted || card.id != _cardId) return;
         if (gate != BiometricAuthResult.success) {
@@ -977,7 +977,7 @@ class _CardDetailScreenState extends ConsumerState<CardDetailScreen> {
 
     final biometricResult =
         await ref.read(biometricAuthenticatorProvider).authenticate(
-              reason: 'Confirm your identity to reveal secure card details',
+              reason: context.tr('Confirm your identity to reveal secure card details'),
             );
     if (!context.mounted || card.id != _cardId) return;
     if (biometricResult != BiometricAuthResult.success) {
@@ -1133,7 +1133,7 @@ class _DialogConfirm extends StatelessWidget {
             )
           : null,
       onPressed: onPressed,
-      child: Text(label),
+      child: Text(context.tr(label)),
     );
   }
 }
@@ -1238,7 +1238,7 @@ Future<_BudgetTransferSubmission?> _showBudgetTransferDialog(
               ],
             ),
           ),
-          primaryLabel: 'Transfer',
+          primaryLabel: context.tr('Transfer'),
           primaryIcon: Icons.arrow_forward_rounded,
           onPrimary: amount.minorUnits <= 0
               ? null
@@ -1512,7 +1512,7 @@ class _CardTopUpDialogState extends State<_CardTopUpDialog> {
                 _estimateError != null) ...[
               const SizedBox(height: 12),
               Text(
-                _estimateError!,
+                context.tr(_estimateError!),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: isExample
                           ? ExamplePalette.of(context).danger
@@ -1523,8 +1523,9 @@ class _CardTopUpDialogState extends State<_CardTopUpDialog> {
           ],
         ),
       ),
-      primaryLabel:
-          _action == _CardBalanceAction.load ? 'Add to card' : 'Unload card',
+      primaryLabel: _action == _CardBalanceAction.load
+          ? context.tr('Add to card')
+          : context.tr('Unload card'),
       primaryIcon: _action == _CardBalanceAction.load
           ? Icons.add_rounded
           : Icons.remove_rounded,
@@ -1670,7 +1671,7 @@ class _BalancePercentageSelector extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     minimumSize: const Size(0, 42),
                   ),
-                  child: Text(options[index].$1),
+                  child: Text(context.tr(options[index].$1)),
                 ),
               ),
             ],
@@ -1721,7 +1722,7 @@ class _QuickAmountChip extends StatelessWidget {
             ),
           ),
           child: Text(
-            label,
+            context.tr(label),
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -1900,7 +1901,8 @@ class _BalanceSummary extends StatelessWidget {
           Icon(icon, color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+            child: Text(context.tr(label),
+                style: Theme.of(context).textTheme.bodyMedium),
           ),
           Text(value, style: Theme.of(context).textTheme.titleMedium),
         ],
@@ -2159,7 +2161,7 @@ class _TopUpQuoteDetail extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                label,
+                context.tr(label),
                 style: TextStyle(
                   fontSize: 12.5,
                   height: 1.35,
@@ -2192,7 +2194,7 @@ class _TopUpQuoteDetail extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              label,
+              context.tr(label),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -2355,8 +2357,10 @@ class _ExampleCardDetailsPanel extends StatelessWidget {
                 ExampleRow(
                   title: _limitLabel(entry.key),
                   trailing: _DetailValue(_limitValue(currency, entry.value)),
-                  semanticsLabel: '${_limitLabel(entry.key)} limit, '
-                      '${_limitValue(currency, entry.value)}',
+                  semanticsLabel: context.tr('{p0} limit, {p1}', {
+                    'p0': _limitLabel(entry.key),
+                    'p1': _limitValue(currency, entry.value)
+                  }),
                 ),
             ],
           ),
@@ -2905,7 +2909,7 @@ class _ExampleControlAction extends StatelessWidget {
         onTap: onTap,
         enabled: enabled,
         borderRadius: BorderRadius.circular(AppRadii.pill),
-        semanticsLabel: label,
+        semanticsLabel: context.tr(label),
         child: Opacity(
           opacity: enabled ? 1 : ExampleOpacity.disabled,
           child: ExampleStateSwitch(
@@ -2930,7 +2934,7 @@ class _ExampleControlAction extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
-                    label,
+                    context.tr(label),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.labelSmall?.copyWith(
@@ -3986,28 +3990,33 @@ List<Map<String, dynamic>> _listMapValue(
   return const [];
 }
 
-String _limitsSummary(CardLimitsInfo? info) {
-  if (info == null) return 'Set daily, weekly and monthly limits';
+String _limitsSummary(BuildContext context, CardLimitsInfo? info) {
+  if (info == null) return context.tr('Set daily, weekly and monthly limits');
   final parts = <String>[
     for (final period in info.periods)
       if (period.current != null)
-        '${period.label} ${cardLimitLabel(info.currency, period.current!)}',
+        context.tr('{p0} {p1}', {
+          'p0': context.tr(period.label),
+          'p1': cardLimitLabel(info.currency, period.current!),
+        }),
   ];
   if (parts.isEmpty) {
     return info.hasCaps
-        ? 'No limits set · tier ceilings apply'
-        : 'Set daily, weekly and monthly limits';
+        ? context.tr('No limits set · tier ceilings apply')
+        : context.tr('Set daily, weekly and monthly limits');
   }
   return parts.join(' · ');
 }
 
 /// Use the same API timestamp parser as Activity and receipts. Its compatibility
 /// fallback is deliberately not displayed when the response has no date.
-String _cardPreviewTime(PlatformResource resource) {
+String _cardPreviewTime(BuildContext context, PlatformResource resource) {
   final transaction = LedgerTransaction.fromJson(resource.metadata);
   return transaction.hasBookedAt
-      ? DateFormat('d MMM yyyy · HH:mm').format(transaction.bookedAt.toLocal())
-      : 'Date unavailable';
+      ? DateFormat('d MMM yyyy · HH:mm',
+              Localizations.localeOf(context).toLanguageTag())
+          .format(transaction.bookedAt.toLocal())
+      : context.tr('Date unavailable');
 }
 
 /// Opens the existing balance flow directly from Home, with Top up selected.
@@ -4118,7 +4127,8 @@ Future<void> _showEqualsCardBudgetTopUp(
     if (context.mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(friendlyErrorMessage(error))));
+      ).showSnackBar(
+          SnackBar(content: Text(context.tr(friendlyErrorMessage(error)))));
     }
     return;
   }

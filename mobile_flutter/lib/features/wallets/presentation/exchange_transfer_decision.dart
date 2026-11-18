@@ -1,3 +1,4 @@
+import 'package:mobile_flutter/core/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../platform/application/platform_providers.dart';
@@ -21,12 +22,12 @@ Future<void> showExchangeTransferDecision(BuildContext context, WidgetRef ref,
                 canPop: !busy,
                 child: AlertDialog(
                     title: Text(decision == 'approve'
-                        ? 'Review updated quote'
+                        ? context.tr('Review updated quote')
                         : decision == 'return'
-                            ? 'Return funds'
+                            ? context.tr('Return funds')
                             : decision == 'keep'
-                                ? 'Keep crypto in Exchange'
-                                : 'Decline quote'),
+                                ? context.tr('Keep crypto in Exchange')
+                                : context.tr('Decline quote')),
                     content: SingleChildScrollView(
                         child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -34,26 +35,26 @@ Future<void> showExchangeTransferDecision(BuildContext context, WidgetRef ref,
                             children: [
                           if (decision == 'approve') ...[
                             Text(
-                                'Original rate: ${transfer.detail('initialExchangeRate')}'),
+                                context.tr('Original rate: {p0}', {'p0': transfer.detail('initialExchangeRate')})),
                             Text(
-                                'Updated rate: ${transfer.detail('effectiveRate')}'),
+                                context.tr('Updated rate: {p0}', {'p0': transfer.detail('effectiveRate')})),
                             Text(
-                                'You receive ${transfer.detail('toAmount')} ${transfer.direction == 'equals_to_interlace' ? transfer.cryptoCurrency : transfer.fiatCurrency}'),
+                                context.tr('You receive {p0} {p1}', {'p0': transfer.detail('toAmount'), 'p1': transfer.direction == 'equals_to_interlace' ? transfer.cryptoCurrency : transfer.fiatCurrency})),
                             Text(
-                                'Fees: ${transfer.detail('currentFeeAmount')} ${transfer.detail('currentFeeCurrency')}'),
+                                context.tr('Fees: {p0} {p1}', {'p0': transfer.detail('currentFeeAmount'), 'p1': transfer.detail('currentFeeCurrency')})),
                             Text(
-                                'Quote expires: ${transfer.detail('quoteExpiresAt')}'),
+                                context.tr('Quote expires: {p0}', {'p0': transfer.detail('quoteExpiresAt')})),
                             if (expired)
-                              const Text(
-                                  'This quote expired. Refresh it and review the new quote before approving.'),
+                              Text(
+                                  context.tr('This quote expired. Refresh it and review the new quote before approving.')),
                           ],
                           if (decision == 'return')
-                            const Text(
-                                'Provider and network return fees are only available after submission. The returned amount may be lower than the original amount.'),
+                            Text(
+                                context.tr('Provider and network return fees are only available after submission. The returned amount may be lower than the original amount.')),
                           if (decision == 'decline')
                             Text(transfer.direction == 'equals_to_interlace'
-                                ? 'Fiat must be returned before the 24-hour holding deadline.'
-                                : 'You can keep the crypto in Exchange or return it after declining.'),
+                                ? context.tr('Fiat must be returned before the 24-hour holding deadline.')
+                                : context.tr('You can keep the crypto in Exchange or return it after declining.')),
                           if (['approve', 'return'].contains(decision))
                             ExchangeTerms(
                                 accepted: accepted,
@@ -65,7 +66,7 @@ Future<void> showExchangeTransferDecision(BuildContext context, WidgetRef ref,
                     actions: [
                       TextButton(
                           onPressed: busy ? null : () => Navigator.pop(dialog),
-                          child: const Text('Cancel')),
+                          child: Text(context.tr('Cancel'))),
                       FilledButton(
                           onPressed: busy ||
                                   (!expired &&
@@ -115,10 +116,10 @@ Future<void> showExchangeTransferDecision(BuildContext context, WidgetRef ref,
                                   }
                                 },
                           child: Text(busy
-                              ? 'Submitting…'
+                              ? context.tr('Submitting…')
                               : expired
-                                  ? 'Refresh quote'
-                                  : 'Confirm')),
+                                  ? context.tr('Refresh quote')
+                                  : context.tr('Confirm'))),
                     ]));
           }));
 }

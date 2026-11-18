@@ -213,7 +213,7 @@ class _StablecoinDepositSheetState extends State<_StablecoinDepositSheet> {
               borderRadius: BorderRadius.circular(AppRadii.md),
             ),
             child: Text(
-              selected?.label ?? 'No supported network available',
+              selected?.label ?? context.tr('No supported network available'),
               style: theme.textTheme.titleSmall,
             ),
           ),
@@ -508,8 +508,11 @@ class _ExampleIntro extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
         hasAddress
-            ? 'Choose a network, then scan the code or copy the address to '
-                'receive $asset.'
+            ? context.tr(
+                'Choose a network, then scan the code or copy the address to receive {p0}.',
+                {
+                    'p0': asset
+                  })
             : context.tr(
                 'Choose a stablecoin. A deposit address appears here once the wallet is provisioned.'),
         style: TextStyle(
@@ -774,8 +777,9 @@ class _ExampleNetworkCaution extends StatelessWidget {
                     chains.isEmpty
                         ? context.tr(
                             'Another asset, or another chain, cannot be recovered.')
-                        : 'This address accepts $asset on $chains. Another '
-                            'asset, or another chain, cannot be recovered.',
+                        : context.tr(
+                            'This address accepts {p0} on {p1}. Another asset, or another chain, cannot be recovered.',
+                            {'p0': asset, 'p1': chains}),
                     style: TextStyle(
                       fontSize: 12,
                       height: 1.4,
