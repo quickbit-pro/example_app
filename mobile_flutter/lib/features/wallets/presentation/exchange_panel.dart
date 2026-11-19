@@ -668,7 +668,9 @@ Future<void> _showCryptoToEqualsDialog(
   if (currencyWallets.isEmpty) return;
   var wallet = currencyWallets.first;
   var budget = budgets.first;
+  const minimumAmount = 20;
   var cryptoAmount = '';
+  double enteredAmount() => double.tryParse(cryptoAmount.replaceAll(',', '.')) ?? 0;
   const fiatCurrency = 'EUR';
   var currentBalances = balances;
   var refreshing = false;
@@ -708,10 +710,9 @@ Future<void> _showCryptoToEqualsDialog(
                 : 'Confirm transfer',
         onPrimary: quote == null
             ? (busy || refreshing || balanceError != null ||
-                    (double.tryParse(cryptoAmount.replaceAll(',', '.')) ?? 0) <=
-                        0 ||
+                    !(enteredAmount() >= minimumAmount) ||
                     exchangeChainId(wallet.network) == 0 ||
-                    (double.tryParse(cryptoAmount.replaceAll(',', '.')) ?? 0) > available()
+                    enteredAmount() > available()
                 ? null
                 : () async {
                     setState(() => busy = true);
@@ -837,7 +838,7 @@ Future<void> _showCryptoToEqualsDialog(
               const SizedBox(height: 12),
               Text(context.tr('Available across networks: {p0} {p1}', {'p0': _amount(available()), 'p1': wallet.symbol})),
               Text(context.tr('You receive EUR in your Fiat account.')),
-              if ((double.tryParse(cryptoAmount.replaceAll(',', '.')) ?? 0) > available() || available() <= 0) ...[
+              if (enteredAmount() > available() || available() <= 0) ...[
                 const SizedBox(height: 8),
                 Text(context.tr('Your crypto balance is insufficient. Convert Quantum USD first, then continue with this transfer.')),
                 if (quantumAvailable() > 0)
@@ -869,7 +870,9 @@ Future<void> _showCryptoToEqualsDialog(
                 enabled: !busy && verificationToken.isEmpty,
                 decoration: InputDecoration(
                     labelText:
-                        context.tr('Amount ({p0})', {'p0': wallet.symbol})),
+                        context.tr('Amount ({p0})', {'p0': wallet.symbol}),
+                    helperText: context.tr('Minimum withdrawal is {p0} {p1}.',
+                        {'p0': '$minimumAmount', 'p1': wallet.symbol})),
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 onChanged: busy || verificationToken.isNotEmpty

@@ -20,7 +20,7 @@ HoppaWalletAsset wallet(String network, {String symbol = 'USDC', double amount =
     HoppaWalletAsset(symbol: symbol, name: symbol, network: network, amount: amount,
         fiatValue: 0, address: address, tint: Colors.blue, walletId: 'same-wallet');
 final addresses = [wallet('ETH', address: '0xowned'), wallet('MATIC', address: '0xowned'), wallet('ARB', address: '0xarbitrum')];
-final assets = [wallet('', amount: 10), wallet('QuantumAccount', symbol: 'USD', amount: 50)];
+final assets = [wallet('', amount: 20), wallet('QuantumAccount', symbol: 'USD', amount: 50)];
 PlatformResource budget(double euros) => PlatformResource(id: 'equals', title: 'My Equals account', subtitle: '', metadata: {
   'accountId': 'parent', 'currency': 'USD', 'supportedCurrencies': ['USD', 'EUR'],
   'balances': [{'currency': 'USD', 'available': 50}, {'currency': 'EUR', 'available': euros}],
@@ -79,7 +79,7 @@ void main() {
   test('networkless balances are shared across exact routes, with Polygon first', () {
     final routes = exchangeTransferRoutes(addresses, assets);
     expect(routes.map((w) => exchangeChainId(w.network)), [137, 1, 42161]);
-    expect(routes.map((w) => w.amount), [10, 10, 10]);
+    expect(routes.map((w) => w.amount), [20, 20, 20]);
     expect(routes.map(exchangeRouteKey).toSet(), hasLength(3));
     expect(exchangeTransferRoutes([wallet('ETH / MATIC', address: '0xowned')], assets), isEmpty);
     expect(exchangeTransferRoutes([addresses.first], assets).single.network, 'ETH');
@@ -151,8 +151,12 @@ void main() {
       expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, title)).onPressed, isNotNull);
     }
     await tap(tester, 'Crypto card to Fiat account');
-    expect(find.textContaining('Available across networks: 10.000000 USDC'), findsOneWidget);
-    await tester.enterText(find.widgetWithText(TextField, 'Amount (USDC)'), '5');
+    expect(find.textContaining('Available across networks: 20.000000 USDC'), findsOneWidget);
+    expect(find.text('Minimum withdrawal is 20 USDC.'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextField, 'Amount (USDC)'), '19.99');
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Get quote')).onPressed, isNull);
+    await tester.enterText(find.widgetWithText(TextField, 'Amount (USDC)'), '20');
     await tap(tester, 'Get quote');
     expect(api.sellRequest?['chainId'], 137);
     expect(api.sellRequest?['fiatCurrency'], 'EUR');
@@ -165,7 +169,7 @@ void main() {
     final api = TransferApi();
     await host(tester, api);
     await tap(tester, 'Crypto card to Fiat account');
-    await tester.enterText(find.widgetWithText(TextField, 'Amount (USDC)'), '15');
+    await tester.enterText(find.widgetWithText(TextField, 'Amount (USDC)'), '25');
     await tester.pumpAndSettle();
     expect(find.text('Convert Quantum USD to USDC'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Get quote')).onPressed, isNull);
@@ -219,7 +223,7 @@ void main() {
         }
         final currency = restricted ? 'USDC' : 'USDT';
         await tester.enterText(funding ? find.byType(TextField).first
-            : find.widgetWithText(TextField, 'Amount ($currency)'), '5');
+            : find.widgetWithText(TextField, 'Amount ($currency)'), funding ? '5' : '20');
         await tap(tester, 'Get quote');
         if (funding) {
           expect(api.destination?.currency, currency);

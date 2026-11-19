@@ -36,6 +36,34 @@ public sealed class MobileExchangeControllerTests
         if (action != "draft") Assert.Equal(42, proxy.Body.GetProperty("userId").GetInt32());
     }
 
+    [Theory]
+    [InlineData("5", false)]
+    [InlineData("19.999999", false)]
+    [InlineData("20", true)]
+    [InlineData("20.000001", true)]
+    public async Task CryptoToFiatChecksTheMinimumBeforeForwarding(string cryptoAmount, bool allowed)
+    {
+        foreach (var currency in new[] { "USDC", "USDT" })
+        {
+            foreach (var initiate in new[] { false, true })
+            {
+                var proxy = new Recorder();
+                var controller = Controller(proxy);
+                var request = JsonSerializer.SerializeToElement(new { currency, cryptoAmount });
+                var result = initiate
+                    ? await controller.InitiateInterlaceToEquals(request, default)
+                    : await controller.GetInterlaceToEqualsQuote(request, default);
+                if (allowed)
+                    Assert.IsType<OkObjectResult>(result.Result);
+                else
+                {
+                    Assert.Equal(400, Assert.IsType<ObjectResult>(result.Result).StatusCode);
+                    Assert.Null(proxy.Path);
+                }
+            }
+        }
+    }
+
     [Fact]
     public async Task BusinessOnboardingHonoursExchangeFeatureGate()
     {

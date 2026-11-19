@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
@@ -190,6 +191,15 @@ public sealed class MobileExchangeController : ApiControllerBase
         var precondition = CheckAccess(requireOutflows, out var userId);
         if (precondition is not null) return precondition;
 
+        if ((relativePath is "interlace-to-equals/quote" or "interlace-to-equals/initiate") &&
+            !MeetsInterlaceToEqualsMinimum(request))
+        {
+            return ToActionResult(ApplicationResult<JsonElement?>.Failure(new ApplicationError(
+                "mobile.exchange.minimum_amount",
+                "The minimum transfer to a fiat account is 20 USDC or 20 USDT.",
+                StatusCodes.Status400BadRequest)));
+        }
+
         var result = await _proxyHoppa.ExecuteAsync(
             new ProxyHoppaRequestCommand<object>
             {
@@ -279,6 +289,18 @@ public sealed class MobileExchangeController : ApiControllerBase
                     payload[property.Name] = property.Value.Clone();
         payload["userId"] = int.Parse(userId, System.Globalization.CultureInfo.InvariantCulture);
         return payload;
+    }
+
+    private static bool MeetsInterlaceToEqualsMinimum(JsonElement request)
+    {
+        if (request.ValueKind != JsonValueKind.Object) return false;
+        var amounts = request.EnumerateObject()
+            .Where(p => p.Name.Equals("cryptoAmount", StringComparison.OrdinalIgnoreCase))
+            .Select(p => p.Value)
+            .ToArray();
+        return amounts.Length == 1 && amounts[0].ValueKind is (JsonValueKind.String or JsonValueKind.Number) &&
+            decimal.TryParse(amounts[0].ToString(), NumberStyles.AllowDecimalPoint,
+                CultureInfo.InvariantCulture, out var amount) && amount >= 20m;
     }
 
     private static string BuildPath(string relativePath) =>
